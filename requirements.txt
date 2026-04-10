@@ -1,0 +1,5 @@
+pandas
+pandas-ta
+PyYAML
+growwapi
+python-dotenv

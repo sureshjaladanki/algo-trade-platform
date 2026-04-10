@@ -1,0 +1,23 @@
+vix_levels:
+  low: 15.0
+  high: 20.0
+  panic: 28.0
+ad_ratio_thresholds:
+  bearish: 0.8
+  bullish: 1.2
+trading_sessions:
+  warmup:
+    start: "09:15"
+    end: "09:29"
+  opening:
+    start: "09:30"
+    end: "11:29"
+  midday:
+    start: "11:30"
+    end: "14:29"
+  closing:
+    start: "14:30"
+    end: "14:59"
+  squareoff:
+    start: "15:00"
+    end: "15:29"

@@ -1,0 +1,27 @@
+regime_symbol: ^INDIAVIX
+advance_decline_symbols:
+- RELIANCE.NS
+- HDFCBANK.NS
+- ICICIBANK.NS
+- INFY.NS
+- HINDUNILVR.NS
+- BHARTIARTL.NS
+trade_symbols:
+  NIFTYBEES.NS:
+    can_long: true
+    can_short: true
+  JUNIORBEES.NS:
+    can_long: true
+    can_short: true
+  PSUBNKBEES.NS:
+    can_long: true
+    can_short: true
+  BANKBEES.NS:
+    can_long: true
+    can_short: true
+  AUTOBEES.NS:
+    can_long: true
+    can_short: true
+  ITBEES.NS:
+    can_long: true
+    can_short: true

@@ -1,0 +1,25 @@
+rsi_period: 9
+stop_loss_pct: 1.0
+max_pos_size: 2000
+min_pos_size: 280
+session_volume_threshold:
+  opening: 0.6
+  midday: 0.7
+  closing: 0.6
+vwap_stop_loss_pct: 0.25
+vwap_atr_stop_multiplier: 0.4
+profit_margin_pct_threshold: 0.4
+profit_margin_atr_multiplier: 0.15
+min_rr_ratio: 0.75
+ema_micro_fast_period: 9
+ema_fast_period: 45
+ema_slow_period: 105
+adx_period: 40
+bb_period: 20
+bb_std_dev: 2.5
+min_bbw_pct: 0.03
+long_rsi_entry: 55
+long_rsi_exit: 70
+short_rsi_entry: 45
+short_rsi_exit: 25
+adx_threshold: 12
