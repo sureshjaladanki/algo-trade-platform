@@ -17,7 +17,7 @@ trading_sessions:
     end: "14:29"
   closing:
     start: "14:30"
-    end: "14:59"
+    end: "15:08"
   squareoff:
-    start: "15:00"
+    start: "15:09"
     end: "15:29"

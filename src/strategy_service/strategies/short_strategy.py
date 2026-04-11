@@ -6,8 +6,9 @@ class ShortStrategy(TradeStrategy):
         rsi_period = self.config.get('rsi_period', 14)
         self.rsi_key = f'rsi_{rsi_period}'
         self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
-        self.ema_fast_key = f"ema_{self.config.get('ema_fast_period', 45)}"
-        self.ema_slow_key = f"ema_{self.config.get('ema_slow_period', 105)}"
+        self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
+        self.ema_macro_fast_key = f"ema_{self.config.get('ema_macro_fast_period', 45)}"
+        self.ema_macro_slow_key = f"ema_{self.config.get('ema_macro_slow_period', 105)}"
         self.adx_key = f"adx_{self.config.get('adx_period', 14)}"
 
     # Focus on mean reversion / resistance levels
@@ -19,23 +20,25 @@ class ShortStrategy(TradeStrategy):
         safe_for_short = self.regime.safe_for_shorts if self.regime else True
         
         # Condition 3: Macro Trend is DOWN (Simulated 5m 9 EMA < 5m 21 EMA)
-        macro_trend_down = data.get(self.ema_fast_key, float('inf')) < data.get(self.ema_slow_key, float('inf'))
+        macro_trend_down = data.get(self.ema_macro_fast_key, float('inf')) < data.get(self.ema_macro_slow_key, float('inf'))
 
         # Condition 4: Macro Trend Strength (ADX > threshold indicates a strong trend, avoiding whipsaws)
-        adx_threshold = self.config.get('adx_threshold', 25)
-        macro_trend_strong = data.get(self.adx_key, 0) > adx_threshold
+        # NOTE: The Over-Fit Risk: ADX (ADX > threshold) is a proxy for trend strength. However, your sufficient_margin check already measures if the trend is strong enough to reach a target.
+        # adx_threshold = self.config.get('adx_threshold', 25)
+        # macro_trend_strong = data.get(self.adx_key, 0) > adx_threshold
         
         # Condition 5: Micro Intraday Trend is DOWN (Price below VWAP)
-        micro_trend_down = data['close'] < data.get('vwap', 0)
+        # micro_trend_down = data['close'] < data.get('vwap', 0)
         
         # Condition 6: Micro Pullback (RSI is overbought on 1m chart, indicating a rally to short)
         short_rsi_entry = self.config.get('short_rsi_entry', 60)
         pullback = data.get(self.rsi_key, 50) > short_rsi_entry
         
         # Condition 7: Volatility Filter (Bollinger Band Width)
-        bb_width_pct = data.get('bb_width_pct', 0)
-        min_bbw_pct = self.config.get('min_bbw_pct', 0.5)
-        sufficient_volatility = bb_width_pct > min_bbw_pct
+        # NOTE: The Over-Fit Risk: Bollinger Band Width (bb_width_pct) is a proxy for volatility. However, your sufficient_margin check already measures if the volatility is high enough to reach a target.
+        # bb_width_pct = data.get('bb_width_pct', 0)
+        # min_bbw_pct = self.config.get('min_bbw_pct', 0.5)
+        # sufficient_volatility = bb_width_pct > min_bbw_pct
 
         # Condition 8: Margin for Profit Check
         prev_atr = self.symbol_profile.get('prev_atr', 0) if self.symbol_profile else 0
@@ -68,7 +71,7 @@ class ShortStrategy(TradeStrategy):
         # Ensure risk is positive to avoid division by zero
         favorable_rr = (reward / risk >= min_rr_ratio) if risk > 0 else False
         
-        return safe_for_intraday_positions and safe_for_short and macro_trend_down and macro_trend_strong and micro_trend_down and pullback and sufficient_volatility and sufficient_margin and favorable_rr
+        return safe_for_intraday_positions and safe_for_short and macro_trend_down and pullback and sufficient_margin and favorable_rr
 
     def short(self, data):
         """Execute Short SELL if entry conditions are met."""
@@ -95,17 +98,17 @@ class ShortStrategy(TradeStrategy):
         should_exit = self.check_exit(data, prev_data)
 
         # Exit 2: Momentum Exhaustion (Instantaneous)
-        # We signal an exit if the market is currently oversold AND showing immediate strength
+        # We signal an exit if the market is currently oversold OR showing immediate strength
         short_rsi_exit = self.config.get('short_rsi_exit', 30)
         rsi_oversold = data.get(self.rsi_key, 50) < short_rsi_exit
         
-        current_price_above_9ema = data['close'] > data.get(self.ema_micro_fast_key, float('inf'))
-        prev_price_below_9ema = prev_data['close'] <= prev_data.get(self.ema_micro_fast_key, float('inf'))
-        take_profit = rsi_oversold and current_price_above_9ema and prev_price_below_9ema
+        current_price_above_fast_ema = data['close'] > data.get(self.ema_micro_fast_key, float('inf'))
+        prev_price_below_fast_ema = prev_data['close'] <= prev_data.get(self.ema_micro_fast_key, float('inf'))
+        take_profit = rsi_oversold or (current_price_above_fast_ema and prev_price_below_fast_ema)
         
         # Exit 3: Macro Trend Reversal (Simulated 5m 9 EMA crosses above 21 EMA)
-        current_trend_up = data.get(self.ema_fast_key, float('inf')) > data.get(self.ema_slow_key, float('inf'))
-        prev_trend_down = prev_data.get(self.ema_fast_key, float('inf')) <= prev_data.get(self.ema_slow_key, float('inf'))
+        current_trend_up = data.get(self.ema_macro_fast_key, float('inf')) > data.get(self.ema_macro_slow_key, float('inf'))
+        prev_trend_down = prev_data.get(self.ema_macro_fast_key, float('inf')) <= prev_data.get(self.ema_macro_slow_key, float('inf'))
         trend_reversal = current_trend_up and prev_trend_down
         
         # Exit 4: Trend Failure Stop (Price breaks above VWAP + Buffer)
@@ -126,16 +129,20 @@ class ShortStrategy(TradeStrategy):
         stop_loss = current_stop_loss and prev_no_stop_loss
         
         # Exit 5: Volatility Exhaustion (Instantaneous)
+        # Reversal Pattern: Current Close is above the Previous High (Bullish Engulfing/Reversal)
+        candle_reversal = data['close'] > prev_data['high']
+        # current_price_above_slow_ema = data['close'] > data.get(self.ema_micro_slow_key, float('inf'))
+        # prev_price_below_slow_ema = prev_data['close'] <= prev_data.get(self.ema_micro_slow_key, float('inf'))
         bb_hit_lower_band = data['low'] <= data.get('bb_lower', 0)
-        volatility_exhaustion = bb_hit_lower_band and current_price_above_9ema and prev_price_below_9ema
+        volatility_exhaustion = bb_hit_lower_band and candle_reversal
 
         if should_exit or take_profit or trend_reversal or stop_loss or volatility_exhaustion:
             if should_exit:
                 reason = "End of Day Squareoff"
             elif volatility_exhaustion:
-                reason = "Volatility Exhaustion (BB + 9EMA)"
+                reason = "Volatility Exhaustion (BB + Slow EMA)"
             elif take_profit:
-                reason = "Take Profit (RSI + 9EMA)"
+                reason = "Take Profit (RSI + Fast EMA)"
             elif trend_reversal:
                 reason = "Trend Reversal"
             else:

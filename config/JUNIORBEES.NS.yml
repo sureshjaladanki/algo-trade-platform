@@ -1,27 +1,27 @@
-rsi_period: 9
+rsi_period: 11
 stop_loss_pct: 0.8
 max_pos_size: 2000
 min_pos_size: 28
 session_volume_threshold:
-  opening: 0.8
-  midday: 0.9
-  closing: 0.8
+  opening: 0.65
+  midday: 0.72
+  closing: 0.65
 vwap_stop_loss_pct: 0.6
-vwap_atr_stop_multiplier: 0.3
-profit_margin_pct_threshold: 0.1
-profit_margin_atr_multiplier: 0.15
-min_rr_ratio: 0.3
-gap_atr_ratio_limit: 1.2
+vwap_atr_stop_multiplier: 0.35
+profit_margin_pct_threshold: 0.15
+profit_margin_atr_multiplier: 0.08
+min_rr_ratio: 0.45
+gap_atr_ratio_limit: 0.85
 ema_micro_fast_period: 9
 ema_micro_slow_period: 21
-ema_fast_period: 45
-ema_slow_period: 105
+ema_macro_fast_period: 45
+ema_macro_slow_period: 105
 adx_period: 50
 bb_period: 20
-bb_std_dev: 2.2
+bb_std_dev: 2.1
 min_bbw_pct: 0.03
-long_rsi_entry: 55
-long_rsi_exit: 75
-short_rsi_entry: 45
-short_rsi_exit: 25
+long_rsi_entry: 58
+long_rsi_exit: 74
+short_rsi_entry: 40
+short_rsi_exit: 28
 adx_threshold: 12

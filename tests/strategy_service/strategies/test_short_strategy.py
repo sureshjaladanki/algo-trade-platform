@@ -20,8 +20,8 @@ class TestShortStrategy(unittest.TestCase):
             'rsi_period': 70,
             'ema_micro_fast_period': 9,
             'ema_micro_slow_period': 21,
-            'ema_fast_period': 45,
-            'ema_slow_period': 105,
+            'ema_macro_fast_period': 45,
+            'ema_macro_slow_period': 105,
             'adx_period': 14,
             'short_rsi_entry': 60,
             'short_rsi_exit': 30,
@@ -33,8 +33,8 @@ class TestShortStrategy(unittest.TestCase):
         self.strategy.rsi_key = 'rsi_70'
         self.strategy.ema_micro_fast_key = 'ema_9'
         self.strategy.ema_micro_slow_key = 'ema_21'
-        self.strategy.ema_fast_key = 'ema_45'
-        self.strategy.ema_slow_key = 'ema_105'
+        self.strategy.ema_macro_fast_key = 'ema_45'
+        self.strategy.ema_macro_slow_key = 'ema_105'
         self.strategy.adx_key = 'adx_14'
 
     def test_check_entry(self):
@@ -58,11 +58,6 @@ class TestShortStrategy(unittest.TestCase):
         # Invalid: Macro trend up
         invalid_data = data.copy()
         invalid_data['ema_45'] = 103.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
-        
-        # Invalid: Micro trend up
-        invalid_data = data.copy()
-        invalid_data['close'] = 101.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
         
         # Invalid: No pullback
@@ -94,9 +89,22 @@ class TestShortStrategy(unittest.TestCase):
         self.assertEqual(action[0]['reason'], 'Entry Conditions Met')
 
     def test_exit_take_profit(self):
+        prev_data = {
+            'close': 95.0,
+            'low': 94.0,
+            'high': 96.0,
+            'vwap': 100.0,
+            'ema_9': 96.0,
+            'ema_21': 97.0,
+            'ema_45': 98.0,
+            'ema_105': 102.0,
+            'rsi_70': 50.0,
+            'bb_lower': 85.0
+        }
         data = {
             'close': 97.0, # Above ema_9
             'low': 89.0,
+            'high': 98.0,
             'vwap': 100.0,
             'ema_9': 96.0,
             'ema_21': 97.0,
@@ -105,16 +113,29 @@ class TestShortStrategy(unittest.TestCase):
             'rsi_70': 25.0, # Oversold (< 30)
             'bb_lower': 85.0
         }
-        action = self.strategy.exit(data)
+        action = self.strategy.exit(data, prev_data)
         
         self.assertTrue(len(action) > 0)
         self.assertEqual(action[0]['action'], 'EXIT_SHORT')
-        self.assertEqual(action[0]['reason'], 'Take Profit (RSI + 9EMA)')
+        self.assertEqual(action[0]['reason'], 'Take Profit (RSI + Fast EMA)')
 
     def test_exit_trend_reversal(self):
+        prev_data = {
+            'close': 95.0,
+            'low': 94.0,
+            'high': 96.0,
+            'vwap': 100.0,
+            'ema_9': 96.0,
+            'ema_21': 97.0,
+            'ema_45': 98.0,
+            'ema_105': 102.0,
+            'rsi_70': 50.0,
+            'bb_lower': 85.0
+        }
         data = {
             'close': 95.0,
             'low': 94.0,
+            'high': 96.0,
             'vwap': 100.0,
             'ema_9': 96.0,
             'ema_21': 97.0,
@@ -123,15 +144,16 @@ class TestShortStrategy(unittest.TestCase):
             'rsi_70': 50.0,
             'bb_lower': 85.0
         }
-        action = self.strategy.exit(data)
+        action = self.strategy.exit(data, prev_data)
         
         self.assertTrue(len(action) > 0)
         self.assertEqual(action[0]['reason'], 'Trend Reversal')
 
     def test_exit_volatility_exhaustion(self):
-        data = {
-            'close': 97.0, # Above ema_9
-            'low': 84.0, # Hit lower BB
+        prev_data = {
+            'close': 96.0,
+            'low': 90.0,
+            'high': 90.0,
             'vwap': 100.0,
             'ema_9': 96.0,
             'ema_21': 97.0,
@@ -140,15 +162,40 @@ class TestShortStrategy(unittest.TestCase):
             'rsi_70': 50.0,
             'bb_lower': 85.0
         }
-        action = self.strategy.exit(data)
+        data = {
+            'close': 97.0, # Bullish reversal vs prev high
+            'low': 84.0, # Hit lower BB
+            'high': 98.0,
+            'vwap': 100.0,
+            'ema_9': 96.0,
+            'ema_21': 97.0,
+            'ema_45': 98.0,
+            'ema_105': 102.0,
+            'rsi_70': 50.0,
+            'bb_lower': 85.0
+        }
+        action = self.strategy.exit(data, prev_data)
         
         self.assertTrue(len(action) > 0)
-        self.assertEqual(action[0]['reason'], 'Volatility Exhaustion (BB + 9EMA)')
+        self.assertEqual(action[0]['reason'], 'Volatility Exhaustion (BB + Slow EMA)')
 
     def test_exit_stop_loss(self):
+        prev_data = {
+            'close': 100.0,
+            'low': 99.5,
+            'high': 100.5,
+            'vwap': 100.0,
+            'ema_9': 96.0,
+            'ema_21': 97.0,
+            'ema_45': 98.0,
+            'ema_105': 102.0,
+            'rsi_70': 50.0,
+            'bb_lower': 85.0
+        }
         data = {
             'close': 101.0, # Above VWAP stop loss (100 * 1.002 = 100.2)
             'low': 100.0,
+            'high': 101.5,
             'vwap': 100.0,
             'ema_9': 96.0,
             'ema_21': 97.0,
@@ -157,7 +204,7 @@ class TestShortStrategy(unittest.TestCase):
             'rsi_70': 50.0,
             'bb_lower': 85.0
         }
-        action = self.strategy.exit(data)
+        action = self.strategy.exit(data, prev_data)
         
         self.assertTrue(len(action) > 0)
         self.assertEqual(action[0]['reason'], 'Trend Failure (VWAP Stop)')
