@@ -1,6 +1,6 @@
 vix_levels:
   low: 15.0
-  high: 20.0
+  high: 22.0
   panic: 28.0
 ad_ratio_thresholds:
   bearish: 0.8

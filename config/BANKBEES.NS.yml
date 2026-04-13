@@ -23,5 +23,5 @@ min_bbw_pct: 0.032
 long_rsi_entry: 60
 long_rsi_exit: 76
 short_rsi_entry: 38
-short_rsi_exit: 26
+short_rsi_exit: 31
 adx_threshold: 14

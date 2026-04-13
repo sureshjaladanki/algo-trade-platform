@@ -25,8 +25,8 @@ class TestTradeStrategy(unittest.TestCase):
         # Override config for testing
         self.strategy.config = {
             'rsi_period': 70,
-            'ema_fast_period': 9,
-            'ema_slow_period': 21,
+            'ema_macro_fast_period': 9,
+            'ema_macro_slow_period': 21,
             'bb_period': 20,
             'bb_std_dev': 2.0,
             'session_volume_threshold': {'opening': 1.5}

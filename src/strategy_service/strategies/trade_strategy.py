@@ -7,7 +7,6 @@ from src.strategy_service.features.minute_of_day import add_minute_of_day
 from src.strategy_service.features.rsi import add_rsi
 from src.strategy_service.features.ema import add_ema
 from src.strategy_service.features.vwap import add_vwap
-from src.strategy_service.features.bb import add_bb
 from src.strategy_service.features.adx import add_adx
 from src.strategy_service.types.trading_session import TradingSession
 
@@ -50,19 +49,22 @@ class TradeStrategy(ABC):
         # 2. Macro Indicators (Simulated 5-minute timeframe on 1m data)
         ema_micro_fast_period = self.config.get('ema_micro_fast_period', 9)
         ema_micro_slow_period = self.config.get('ema_micro_slow_period', 21)
-        ema_fast_period = self.config.get('ema_fast_period', 45)
-        ema_slow_period = self.config.get('ema_slow_period', 105)
+        ema_macro_fast_period = self.config.get('ema_macro_fast_period', 45)
+        ema_macro_slow_period = self.config.get('ema_macro_slow_period', 105)
+        # ema_trend_filter_period = self.config.get('ema_trend_filter_period', 200)
         adx_period = self.config.get('adx_period', 70)
         df = add_ema(df, period=ema_micro_fast_period)
         df = add_ema(df, period=ema_micro_slow_period)
-        df = add_ema(df, period=ema_fast_period)
-        df = add_ema(df, period=ema_slow_period)
+        df = add_ema(df, period=ema_macro_fast_period)
+        df = add_ema(df, period=ema_macro_slow_period)
+        # df = add_ema(df, period=ema_trend_filter_period)
         df = add_adx(df, period=adx_period)
         
         # 3. Volatility Gauge (Bollinger Bands)
-        bb_period = self.config.get('bb_period', 20)
-        bb_std_dev = self.config.get('bb_std_dev', 2.0)
-        df = add_bb(df, period=bb_period, std_dev=bb_std_dev)
+        # NOTE: BB columns are not currently used by LongStrategy/ShortStrategy.
+        # bb_period = self.config.get('bb_period', 20)
+        # bb_std_dev = self.config.get('bb_std_dev', 2.0)
+        # df = add_bb(df, period=bb_period, std_dev=bb_std_dev)
         
         return df
 

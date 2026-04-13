@@ -1,16 +1,11 @@
 """
 Generate processed CSVs for StrategyEngine dry runs from yfinance.
 
-Consolidated responsibilities (formerly split with prep_intraday_current_day.py):
-- Fetch 1m bars for regime, advance/decline, and trade symbols for a target session date.
-- Clip to India cash session (09:15–15:29 IST) and normalize columns for DataAdapter.
-- Align all symbols to a common minute index (master = JUNIORBEES.NS if present, else first
-  trade symbol with data) so the engine's lockstep generators do not desync.
-- For trade symbols only: refresh *_1m_history.csv (7d 1m before target date) and *_1d_30d.csv.
-
-Optional: append a prior session CSV into one symbol's *_1m_history.csv before writing new
-current_day files. For that symbol only, the yfinance 1m history refresh is skipped so the
-append is not overwritten.
+Compared to `generate_strategy_engine_dry_run_data.py`, this script additionally:
+- Clips 1m data to the India cash session (09:15–15:29 IST) for the target date
+- Normalizes timestamps/columns into the processed schema expected by the DataAdapter
+- Aligns ALL intraday symbols to the INDIA VIX (`regime_symbol`, typically `^INDIAVIX`) minute index
+  so StrategyEngine lockstep generators don't desync
 """
 from __future__ import annotations
 
@@ -46,70 +41,25 @@ def _yf_to_processed(df: pd.DataFrame) -> pd.DataFrame:
     ].copy()
 
 
-def fetch_1m_session(symbol: str, session_date_str: str, period: str = "7d") -> pd.DataFrame:
-    """Download 1m from yfinance, keep one calendar day, clip to cash session."""
+def fetch_1m_session_df(symbol: str, session_date_str: str, period: str = "7d") -> pd.DataFrame:
+    """
+    Download 1m data from yfinance, keep only the target calendar day,
+    and clip to the India cash session.
+    """
     raw = yf.Ticker(symbol).history(period=period, interval="1m")
     if raw.empty:
         raise RuntimeError(f"No yfinance 1m data for {symbol}")
+
     proc = _yf_to_processed(raw)
+
     day = pd.Timestamp(session_date_str).date()
     proc = proc.loc[proc["datetime"].dt.date == day].copy()
+
     t0 = pd.Timestamp(f"{session_date_str} {SESSION_START}+05:30")
     t1 = pd.Timestamp(f"{session_date_str} {SESSION_END}+05:30")
     proc = proc.loc[proc["datetime"].between(t0, t1, inclusive="both")]
+
     return proc.sort_values("datetime", ignore_index=True)
-
-
-def align_to_master(dfs: dict[str, pd.DataFrame], master: str) -> dict[str, pd.DataFrame]:
-    idx = dfs[master]["datetime"]
-    return {
-        sym: d.set_index("datetime").reindex(idx).ffill().bfill().reset_index()
-        for sym, d in dfs.items()
-    }
-
-
-def append_prior_day_to_history(symbol: str, prior_csv: Path, history_csv: Path) -> None:
-    prior = pd.read_csv(prior_csv, parse_dates=["datetime"])
-    hist = pd.read_csv(history_csv, parse_dates=["datetime"])
-    (
-        pd.concat([hist, prior], ignore_index=True)
-        .drop_duplicates(subset=["datetime"], keep="last")
-        .sort_values("datetime", ignore_index=True)
-        .to_csv(history_csv, index=False)
-    )
-
-
-def pick_master_symbol(trade_symbols: list[str], raw_dfs: dict[str, pd.DataFrame]) -> str:
-    for cand in ("JUNIORBEES.NS",):
-        if cand in raw_dfs and not raw_dfs[cand].empty:
-            return cand
-    for s in sorted(trade_symbols):
-        if s in raw_dfs and not raw_dfs[s].empty:
-            return s
-    for s in sorted(raw_dfs.keys()):
-        if not raw_dfs[s].empty:
-            return s
-    raise RuntimeError("No non-empty intraday dataframe; cannot pick master for alignment")
-
-
-def _load_engine_symbols(config_path: Path) -> tuple[str, list[str], list[str]]:
-    """
-    Returns (regime_symbol, advance_decline_symbols, trade_symbol_names).
-    """
-    with open(config_path, "r", encoding="utf-8") as f:
-        config: dict[str, Any] = yaml.safe_load(f)
-
-    regime = config.get("regime_symbol", "") or ""
-    advance_decline = list(config.get("advance_decline_symbols", []))
-    trade_map = config.get("trade_symbols", {})
-    trade_keys = list(trade_map.keys()) if isinstance(trade_map, dict) else []
-    return regime, advance_decline, trade_keys
-
-
-def _all_intraday_symbols(
-    regime: str, advance_decline: list[str], trade_symbols: list[str]
-) -> list[str]:
-    return sorted({regime, *advance_decline, *trade_symbols} - {""})
 
 
 def fetch_and_save_1d_data(
@@ -168,91 +118,83 @@ def fetch_and_save_1m_history(symbol: str, end_date: datetime, output_file: Path
         return False
 
 
-def _fetch_session_bars(symbols: list[str], target_date_str: str) -> dict[str, pd.DataFrame]:
-    print(f"Fetching aligned 1m session for {target_date_str} ({len(symbols)} symbols)...")
-    raw_dfs: dict[str, pd.DataFrame] = {}
-    for sym in symbols:
-        try:
-            raw_dfs[sym] = fetch_1m_session(sym, target_date_str)
-            print(f"  {sym}: {len(raw_dfs[sym])} bars (pre-align)")
-        except Exception as e:
-            print(f"  Error {sym}: {e}")
-            raise
-    return raw_dfs
-
-
-def _write_current_day_csvs(aligned: dict[str, pd.DataFrame], output_dir: Path) -> None:
-    print("Writing *_1m_current_day.csv")
-    for sym, d in aligned.items():
-        path = output_dir / f"{sym}_1m_current_day.csv"
-        d.to_csv(path, index=False)
-        print(f"  {path} ({len(d)} rows)")
-
-
-def _refresh_trade_symbol_history_and_daily(
-    trade_symbols: list[str],
-    target_date: datetime,
-    target_date_str: str,
-    output_dir: Path,
-    skip_history_for: set[str],
-) -> None:
-    print(f"\n--- Trade symbols: 1m history + 1d (30d) up to {target_date_str} ---")
-    if skip_history_for:
-        print(
-            f"  (Skipping 1m history yfinance refresh for {skip_history_for} "
-            f"after --append-prior-to-history; file already updated.)"
-        )
-    thirty_days_ago = target_date - timedelta(days=30)
-    for symbol in trade_symbols:
-        history_output = output_dir / f"{symbol}_1m_history.csv"
-        if symbol not in skip_history_for:
-            fetch_and_save_1m_history(symbol, target_date, history_output)
-        daily_output = output_dir / f"{symbol}_1d_30d.csv"
-        fetch_and_save_1d_data(symbol, thirty_days_ago, target_date, daily_output)
-
-
 def generate_dry_run_data(
     target_date_str: str,
-    append_prior: tuple[str, Path] | None = None,
-    master_symbol: str | None = None,
 ) -> None:
+    # Parse the target date
     try:
         target_date = datetime.strptime(target_date_str, "%Y-%m-%d")
     except ValueError:
         print("Error: Invalid date format. Please use YYYY-MM-DD.")
         return
 
+    # Paths
+    config_path = STRATEGY_ENGINE_CONFIG
     output_dir = PROCESSED
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if not STRATEGY_ENGINE_CONFIG.exists():
-        print(f"Error: Config file not found at {STRATEGY_ENGINE_CONFIG}")
+    # Read config
+    if not config_path.exists():
+        print(f"Error: Config file not found at {config_path}")
         return
 
-    regime_symbol, advance_decline_symbols, trade_symbols = _load_engine_symbols(
-        STRATEGY_ENGINE_CONFIG
-    )
-    symbols = _all_intraday_symbols(regime_symbol, advance_decline_symbols, trade_symbols)
+    with open(config_path, "r", encoding="utf-8") as f:
+        config: dict[str, Any] = yaml.safe_load(f)
 
-    if append_prior:
-        sym, prior_path = append_prior[0], Path(append_prior[1])
-        history_csv = output_dir / f"{sym}_1m_history.csv"
-        append_prior_day_to_history(sym, prior_path, history_csv)
-        print(f"Appended prior session into {history_csv}\n")
+    regime_symbol = config.get("regime_symbol", "") or ""
+    advance_decline_symbols = list(config.get("advance_decline_symbols", []))
+    trade_symbols_raw = config.get("trade_symbols", {})
+    trade_symbols = list(trade_symbols_raw.keys()) if isinstance(trade_symbols_raw, dict) else []
 
-    raw_dfs = _fetch_session_bars(symbols, target_date_str)
+    # Fetch all intraday symbols first, then align + write
+    intraday_symbols = sorted({regime_symbol, *advance_decline_symbols, *trade_symbols} - {""})
+    if not intraday_symbols:
+        print("Error: No intraday symbols found in config.")
+        return
 
-    master = master_symbol or pick_master_symbol(trade_symbols, raw_dfs)
-    print(f"Aligning all symbols to master index: {master} ({len(raw_dfs[master])} rows)\n")
-    aligned = align_to_master(raw_dfs, master)
+    print(f"Fetching 1m session for {target_date_str} ({len(intraday_symbols)} symbols)...")
+    intraday_dfs: dict[str, pd.DataFrame] = {}
+    for symbol in intraday_symbols:
+        try:
+            df = fetch_1m_session_df(symbol, target_date_str)
+            intraday_dfs[symbol] = df
+            print(f"  {symbol}: {len(df)} bars (pre-align)")
+        except Exception as e:
+            print(f"  Error processing {symbol} (1m session): {e}")
+            raise
 
-    _write_current_day_csvs(aligned, output_dir)
-
-    if trade_symbols:
-        skip_hist = {append_prior[0]} if append_prior else set()
-        _refresh_trade_symbol_history_and_daily(
-            trade_symbols, target_date, target_date_str, output_dir, skip_hist
+    master = regime_symbol
+    if not master:
+        raise RuntimeError("regime_symbol missing in config; cannot align to India VIX master")
+    if master not in intraday_dfs or intraday_dfs[master].empty:
+        raise RuntimeError(
+            f"Master symbol {master} missing/empty; cannot align. "
+            f"Ensure India VIX (^INDIAVIX) is included and has data for the session."
         )
+
+    print(f"\nAligning all symbols to master index: {master} ({len(intraday_dfs[master])} rows)")
+    master_idx = intraday_dfs[master]["datetime"]
+    aligned = {
+        sym: df.set_index("datetime").reindex(master_idx).ffill().bfill().reset_index()
+        for sym, df in intraday_dfs.items()
+    }
+
+    print("\nWriting *_1m_current_day.csv")
+    for symbol, df in aligned.items():
+        out = output_dir / f"{symbol}_1m_current_day.csv"
+        df.to_csv(out, index=False)
+        print(f"  {out} ({len(df)} rows)")
+
+    # Trade symbols: refresh 1m history + 1d (30d)
+    if trade_symbols:
+        print(f"\n--- Trade symbols: 1m history + 1d (30d) up to {target_date_str} ---")
+        thirty_days_ago = target_date - timedelta(days=30)
+        for symbol in trade_symbols:
+            history_output = output_dir / f"{symbol}_1m_history.csv"
+            fetch_and_save_1m_history(symbol, target_date, history_output)
+
+            daily_output = output_dir / f"{symbol}_1d_30d.csv"
+            fetch_and_save_1d_data(symbol, thirty_days_ago, target_date, daily_output)
 
 
 def main() -> None:
@@ -260,21 +202,8 @@ def main() -> None:
         description="Generate aligned 1m current_day + 1m history + 1d data for StrategyEngine dry runs."
     )
     parser.add_argument("--date", type=str, required=True, help="Target session date YYYY-MM-DD")
-    parser.add_argument(
-        "--append-prior-to-history",
-        nargs=2,
-        metavar=("SYMBOL", "PRIOR_CSV"),
-        help="Append PRIOR_CSV into SYMBOL_1m_history.csv before current_day write; skips yf 1m history refresh for SYMBOL only",
-    )
-    parser.add_argument(
-        "--master",
-        type=str,
-        default=None,
-        help="Symbol to use as datetime index master for alignment (default: JUNIORBEES.NS or first trade symbol)",
-    )
     args = parser.parse_args()
-    append = tuple(args.append_prior_to_history) if args.append_prior_to_history else None
-    generate_dry_run_data(args.date, append_prior=append, master_symbol=args.master)
+    generate_dry_run_data(args.date)
 
 
 if __name__ == "__main__":
