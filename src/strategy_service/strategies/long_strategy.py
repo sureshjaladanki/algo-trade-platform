@@ -5,8 +5,8 @@ class LongStrategy(TradeStrategy):
         super().__init__(symbol, symbol_profile=symbol_profile, regime=regime)
         rsi_period = self.config.get('rsi_period', 14)
         self.rsi_key = f'rsi_{rsi_period}'
-        # self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
-        # self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
+        self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
+        self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
         self.ema_macro_fast_key = f"ema_{self.config.get('ema_macro_fast_period', 45)}"
         self.ema_macro_slow_key = f"ema_{self.config.get('ema_macro_slow_period', 105)}"
         self.adx_key = f"adx_{self.config.get('adx_period', 50)}"
@@ -61,11 +61,12 @@ class LongStrategy(TradeStrategy):
         long_rsi_exit = self.config.get('long_rsi_exit', 70)
         take_profit = data.get(self.rsi_key, 50) > long_rsi_exit
         
-        # Exit 3: Macro Trend Reversal (Simulated 5m 9 EMA crosses below 21 EMA)
-        current_trend_down = data.get(self.ema_macro_fast_key, 0) < data.get(self.ema_macro_slow_key, 0)
-        prev_trend_up = prev_data.get(self.ema_macro_fast_key, 0) >= prev_data.get(self.ema_macro_slow_key, 0)
-        trend_reversal = current_trend_down and prev_trend_up
-        
+        # Exit 3: Micro Trend Reversal (5m 9 EMA crosses above 21 EMA)
+        # Using faster EMAs (9/21) for exits cuts losses much quicker than waiting for macro (45/105) reversal.
+        current_trend_up = data.get(self.ema_micro_fast_key, float('inf')) > data.get(self.ema_micro_slow_key, float('inf'))
+        prev_trend_down = prev_data.get(self.ema_micro_fast_key, float('inf')) <= prev_data.get(self.ema_micro_slow_key, float('inf'))
+        trend_reversal = current_trend_up and prev_trend_down
+
         # Exit 4: Trend Failure Stop (Price drops below VWAP - Buffer)
         # This is a structural market failure, valid regardless of entry price
         vwap_stop_loss_pct = self.config.get('vwap_stop_loss_pct', 0.2)
