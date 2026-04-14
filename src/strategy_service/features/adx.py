@@ -1,5 +1,4 @@
 import pandas as pd
-import pandas_ta as ta
 
 def add_adx(df: pd.DataFrame, period: int = 70, resample_period: int = 5) -> pd.DataFrame:
     """Calculate ADX on resampled data to measure trend strength."""

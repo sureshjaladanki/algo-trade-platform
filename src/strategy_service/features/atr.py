@@ -1,5 +1,4 @@
 import pandas as pd
-import pandas_ta as ta
 
 def get_atr(df: pd.DataFrame, period: int = 14) -> dict:
     """

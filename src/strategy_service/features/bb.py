@@ -1,5 +1,4 @@
 import pandas as pd
-import pandas_ta as ta
 
 def add_bb(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
     """Calculate Bollinger Bands using pandas-ta."""

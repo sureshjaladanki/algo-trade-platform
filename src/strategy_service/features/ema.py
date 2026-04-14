@@ -1,5 +1,4 @@
 import pandas as pd
-import pandas_ta as ta
 
 def add_ema(df: pd.DataFrame, period: int = 200) -> pd.DataFrame:
     """Calculate Exponential Moving Average (EMA) using pandas-ta."""
