@@ -26,4 +26,7 @@ python src/main.py
 
 ## Trading Configurations
 
-The platform uses specific intraday trading configurations tailored for each ETF. For a detailed explanation of the rationale behind these settings (such as RSI bands, VWAP stop losses, and Bollinger Bands), please see the [ETF Trading Configuration Rationale](ETF_TRADING_CONFIG.md) document.
+The platform uses specific intraday trading configurations tailored for each ETF.
+
+- See [ETF Trading Configuration Rationale](ETF_TRADING_CONFIG.md) for strategy parameters and the current behavior.
+- See [ETF Trading System Design](ETF_TRADING_SYSTEM.md) for the event-driven microservices architecture (Redis Streams, services, message contracts).

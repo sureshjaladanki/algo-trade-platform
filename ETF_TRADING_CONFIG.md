@@ -1,66 +1,174 @@
-# ETF Intraday Trading Configuration Rationale
+# ETF Intraday Trading Configuration (as implemented)
 
-This document explains the reasoning and expert judgment behind the intraday trading configurations applied to the various ETF `.yml` files in the `config/` directory.
+This document describes what the current `strategy_service` actually does with the per-ETF YAML files in `config/`, and why the current parameter values differ by ETF.
 
-## Core Philosophy
+## What runs where
 
-The trading configurations are built around a combination of **Mean Reversion** (using RSI and Bollinger Bands), **Trend Filtering** (using EMAs, VWAP, and ADX), and **Risk Management** (using ATR-based stops and R:R ratios). Because different indices and sectors exhibit unique price action, volatility, and liquidity profiles, applying a "one-size-fits-all" parameter set leads to suboptimal performance. 
+- **Engine**: `src/strategy_service/engine.py`
+  - Loads `config/strategy_engine.yml` to choose trade symbols and the regime inputs.
+  - Builds symbol profiles from historical files:
+    - `data/processed/<SYMBOL>_1m_history.csv` (minute-of-day volume profile)
+    - `data/processed/<SYMBOL>_1d_30d.csv` (previous close + previous ATR)
+  - Replays the “current day” minute stream from `data/processed/<SYMBOL>_1m_current_day.csv`.
+  - When run as a script, writes `data/output/all_signals.csv`.
 
-Instead, parameters are tailored to the specific "personality" of each underlying index.
+- **Regime gate**: `src/strategy_service/strategies/regime_strategy.py`
+  - Loads `config/regime_indicators.yml` for VIX levels, trading sessions, and A/D EMA lengths.
+  - Uses `regime_symbol` + `advance_decline_symbols` from `config/strategy_engine.yml` to compute:
+    - `safe_for_longs`
+    - `safe_for_shorts`
 
-### Standardized Parameters Across All ETFs
-*   **EMA Periods (`45` & `105`)**: Used for macro trend direction. These provide a stable baseline to filter out intraday noise and ensure we are trading in the direction of the dominant session trend.
-*   **Micro EMA Periods (`9` & `21`)**: Used for short-term momentum and exit signals (e.g., price dropping below 9 EMA).
-*   **ADX Period (`14` or `70`) & Threshold**: Used to measure macro trend strength and avoid whipsaws in ranging markets.
-*   **Relative Volume (RVOL) Thresholds**: Ensures sufficient liquidity and participation based on the specific trading session (Opening, Midday, Closing).
-*   **Gap ATR Ratio Limit**: Prevents entering trades when the opening gap is too large relative to the daily Average True Range (ATR), avoiding overextended markets.
-*   **Profit Margin & Risk-to-Reward (R:R)**: Dynamic checks using ATR to ensure the expected profit (target: Upper BB) justifies the risk (stop: VWAP - ATR buffer), enforcing a minimum R:R ratio (e.g., `1.5`).
-*   **Volatility Filter (BB Width %)**: Requires a minimum Bollinger Band width to ensure there is enough intraday volatility to capture meaningful moves.
+- **Trade strategies**: `src/strategy_service/strategies/long_strategy.py`, `short_strategy.py`
+  - Load per-symbol config from `config/<SYMBOL>.yml` (e.g., `config/NIFTYBEES.NS.yml`).
+  - Emit **stateless** entry/exit *signals*; trade lifecycle management is expected downstream (OMS).
 
-### Dynamic Parameters
-*   **RSI Period**: Set to `14` for stable indices (like Nifty 50) to filter out noise. Set to `9` for highly volatile/sectoral indices (like PSU Banks, IT, Junior Nifty) to ensure the indicator is fast enough to actually reach the extreme overbought/oversold bands during sharp intraday spikes, preventing "trade starvation".
+## Core strategy (current behavior)
+
+This is **trend + pullback**, gated by regime, with structural exits.
+
+### Shared pre-entry filters (apply to both long and short)
+Implemented in `TradeStrategy.check_entry()`:
+
+- **Session gate**: only trade when `TradingSession.WARMUP < session < TradingSession.CLOSING`.
+- **Liquidity gate (RVOL)**: require `rvol > session_volume_threshold[opening|midday|closing]`.
+  - `rvol` is computed vs each symbol’s minute-of-day average volume profile derived from `*_1m_history.csv`.
+- **Gap filter**: require `abs(gap_atr_ratio) <= gap_atr_ratio_limit`.
+  - `gap_atr_ratio` is computed once per run using the “current day” open vs `prev_close`, normalized by `prev_atr` from `*_1d_30d.csv`.
+
+### Long entry
+- **Regime**: `RegimeStrategy.safe_for_longs` must be true.
+- **Micro trend**: `EMA(ema_micro_fast_period) > EMA(ema_micro_slow_period)` (configs use 9/21).
+- **Trend strength**: `ADX(adx_period) > adx_threshold`.
+- **Pullback**: `RSI(rsi_period) < long_rsi_entry`.
+- **Location filter**: `close < VWMA(vwma_macro_fast_period)` (configs use 21).
+
+Signal emitted: `LONG`.
+
+### Short entry
+- **Regime**: `RegimeStrategy.safe_for_shorts` must be true.
+- **Micro trend**: `EMA(ema_micro_fast_period) < EMA(ema_micro_slow_period)`.
+- **Trend strength**: `ADX(adx_period) > adx_threshold`.
+- **Pullback**: `RSI(rsi_period) > short_rsi_entry`.
+- **Location filter**: `close > VWMA(vwma_macro_slow_period)` (configs use 45).
+
+Signal emitted: `SHORT`.
+
+### Exits (signals only)
+Both strategies emit exit signals on any of:
+
+- **End-of-day squareoff edge**: first bar where `trading_session > CLOSING`.
+- **RSI take-profit**:
+  - Long: RSI \(>\) `long_rsi_exit`
+  - Short: RSI \(<\) `short_rsi_exit`
+- **Micro trend reversal edge**: an EMA(9/21) cross event vs the previous bar.
+- **VWAP structural stop edge** (edge-triggered):
+  - Long: `close < vwap * (1 - vwap_stop_loss_pct/100)`
+  - Short: `close > vwap * (1 + vwap_stop_loss_pct/100)`
+
+Signals emitted: `EXIT_LONG` / `EXIT_SHORT` with a `reason`.
+
+## Regime definition (VIX + breadth)
+
+Regime uses:
+
+- **VIX source**: `regime_symbol` (currently `^INDIAVIX`).
+- **Breadth**: advance/decline computed from `advance_decline_symbols` by comparing each component’s close vs its prior close per bar, producing:
+  - `ad_net_breadth`
+  - `ad_cumulative`
+  - `ad_ema_<fast>` and `ad_ema_<slow>` (periods from `config/regime_indicators.yml`)
+
+Then:
+
+- **safe_for_longs**: `vix < vix_levels.high` AND `ad_cumulative > ad_ema_fast` AND `ad_cumulative > ad_ema_slow`
+- **safe_for_shorts**: `vix > vix_levels.low` AND `ad_cumulative < ad_ema_fast` AND `ad_cumulative < ad_ema_slow`
+
+## Per-ETF YAML keys: used vs not used (today)
+
+### Keys currently used by `strategy_service`
+- `rsi_period`
+- `session_volume_threshold` (opening/midday/closing)
+- `gap_atr_ratio_limit`
+- `ema_micro_fast_period`, `ema_micro_slow_period`
+- `adx_period`, `adx_threshold`
+- `vwma_macro_fast_period`, `vwma_macro_slow_period`
+- `long_rsi_entry`, `long_rsi_exit`, `short_rsi_entry`, `short_rsi_exit`
+- `vwap_stop_loss_pct`
+
+### Present in YAML but NOT currently enforced by `strategy_service`
+These appear in per-ETF configs but are not referenced by the current entry/exit logic:
+
+- `stop_loss_pct`
+- `max_pos_size`, `min_pos_size`
+- `vwap_atr_stop_multiplier`
+- `profit_margin_pct_threshold`, `profit_margin_atr_multiplier`, `min_rr_ratio`
+- `bb_period`, `bb_std_dev`, `min_bbw_pct`
+- `ema_macro_fast_period`, `ema_macro_slow_period`
+
+If you intend these controls to be active, they need to be wired into `TradeStrategy` / `LongStrategy` / `ShortStrategy` (or handled downstream by OMS).
 
 ---
 
-## ETF-Specific Judgments
+## ETF-specific rationale (aligned to current configs)
 
-### 1. NIFTYBEES (Nifty 50)
-*   **Profile**: The benchmark index. High liquidity, moderate volatility, and generally smooth price action.
-*   **RSI Bands (40/70 Long, 60/30 Short)**: Because it is less volatile, we don't need extreme RSI levels to find good mean-reversion entries. Standard 40/60 levels work well for pullbacks within a trend.
-*   **VWAP Stop Loss (`0.2%` or ATR Multiplier)**: Tight stop loss because Nifty 50 tends to respect VWAP closely. If it breaks VWAP by more than 0.2% (or the equivalent ATR buffer), the intraday trend has likely shifted.
-*   **Bollinger Bands (`2.0` Std Dev)**: Standard 2.0 standard deviation is sufficient to capture 95% of price action without being overly restrictive.
+The per-ETF files primarily tune:
+- **Pullback depth** (RSI entry/exit levels)
+- **Trend selectivity** (ADX threshold)
+- **VWAP tolerance** (`vwap_stop_loss_pct`)
+- **Liquidity + gap strictness** (`session_volume_threshold`, `gap_atr_ratio_limit`)
 
-### 2. JUNIORBEES (Nifty Next 50)
-*   **Profile**: Higher beta and higher volatility compared to Nifty 50. Comprises large-cap stocks that are more prone to sudden momentum bursts.
-*   **RSI Bands (35/75 Long, 65/25 Short)**: Widened compared to NIFTYBEES. The higher volatility means the index frequently pushes deeper into overbought/oversold territory before reversing. Uses a fast 9-period RSI to capture these rapid momentum shifts.
-*   **VWAP Stop Loss (`0.3%`)**: Widened to accommodate larger intraday swings and prevent premature stop-outs from market noise.
-*   **Bollinger Bands (`2.2` Std Dev)**: Increased to 2.2 to account for the higher standard deviation of price movements.
+### NIFTYBEES.NS (Nifty 50)
+- **Why tighter structure**: most liquid and typically cleaner intraday structure.
+- **Config highlights**:
+  - RSI(11): long entry 56 / exit 72; short entry 42 / exit 35
+  - VWAP stop buffer: 0.52%
+  - Gap filter: 0.78 ATR (stricter)
+  - ADX threshold: 11
 
-### 3. BANKBEES (Bank Nifty)
-*   **Profile**: Highly volatile, strong trending moves, heavily weighted towards a few large private banks. Often drives the broader market direction.
-*   **RSI Bands (35/75 Long, 65/25 Short)**: Similar to JUNIORBEES, requires wider bands to avoid getting caught in momentum traps during strong banking rallies or sell-offs.
-*   **VWAP Stop Loss (`0.25%`)**: Slightly wider than Nifty, but tighter than Junior Nifty because when Bank Nifty breaks VWAP, it usually signals a strong reversal.
-*   **Bollinger Bands (`2.2` Std Dev)**: Adjusted for higher banking volatility.
+### JUNIORBEES.NS (Nifty Next 50)
+- **Why slightly looser**: higher beta vs Nifty 50, more overshoot/mean “snapbacks.”
+- **Config highlights**:
+  - RSI(11): long entry 58 / exit 74; short entry 40 / exit 33
+  - VWAP stop buffer: 0.60%
+  - Gap filter: 0.85 ATR
+  - ADX threshold: 12
 
-### 4. ITBEES (Nifty IT)
-*   **Profile**: Heavily influenced by global cues (e.g., NASDAQ) leading to frequent gap-ups/gap-downs. Once a gap occurs, it can consolidate for long periods or trend strongly in one direction.
-*   **RSI Bands (30/70 Long, 70/30 Short)**: IT stocks can stay overbought or oversold for extended periods. We require extreme RSI levels (30/70) for mean reversion to ensure the momentum has actually exhausted.
-*   **VWAP Stop Loss (`0.35%`)**: Wider stop loss to account for gap-fill volatility and sudden currency-driven (USD/INR) price spikes.
-*   **Bollinger Bands (`2.5` Std Dev)**: Very wide to avoid false breakouts during long consolidation periods.
+### BANKBEES.NS (Bank Nifty)
+- **Why strongest trend filter**: banking can chop violently; bias toward only stronger trends.
+- **Config highlights**:
+  - RSI(11): long entry 60 / exit 76; short entry 38 / exit 31
+  - VWAP stop buffer: 0.70%
+  - Gap filter: 1.05 ATR
+  - ADX threshold: 14
 
-### 5. PSUBNKBEES (Nifty PSU Bank)
-*   **Profile**: Extremely volatile, highly news-driven (government policies, RBI regulations), and prone to sharp spikes followed by deep pullbacks.
-*   **RSI Bands (30/75 Long, 70/25 Short)**: Very wide bands. PSU banks frequently exhibit "irrational exuberance" or panic selling. We only want to enter at absolute extremes. Coupled with a fast 9-period RSI to ensure these extremes are actually hit during intraday spikes.
-*   **VWAP Stop Loss (`0.4%`)**: The widest stop loss in the portfolio. PSU banks frequently test and briefly pierce VWAP before resuming their trend. A tight stop here guarantees "death by a thousand cuts."
-*   **Bollinger Bands (`2.5` Std Dev)**: Maximum width to filter out the extreme intraday noise characteristic of PSU stocks.
+### ITBEES.NS (Nifty IT)
+- **Why cue/gap-aware**: IT is more prone to gap-driven sessions.
+- **Config highlights**:
+  - RSI(12): long entry 56 / exit 73; short entry 42 / exit 34
+  - VWAP stop buffer: 0.48%
+  - Gap filter: 0.95 ATR
+  - ADX threshold: 12
 
-### 6. AUTOBEES (Nifty Auto)
-*   **Profile**: Cyclical sector with moderate volatility. Tends to have steady, grinding intraday trends rather than explosive spikes.
-*   **RSI Bands (35/70 Long, 65/30 Short)**: Moderate bands. Does not require the extremes of IT or PSU Banks, but needs slightly more room than Nifty 50.
-*   **VWAP Stop Loss (`0.3%`)**: Standard widened stop loss for sector-specific ETFs.
-*   **Bollinger Bands (`2.0` Std Dev)**: Standard deviation works well here due to the steady nature of auto sector trends.
+### PSUBNKBEES.NS (Nifty PSU Bank)
+- **Why widest structural tolerance**: highest noise; VWAP gets probed more often.
+- **Config highlights**:
+  - RSI(11): long entry 59 / exit 75; short entry 39 / exit 32
+  - VWAP stop buffer: 0.74%
+  - Gap filter: 1.10 ATR
+  - ADX threshold: 13
 
----
+### AUTOBEES.NS (Nifty Auto)
+- **Why “middle ground”**: sectoral swings, but typically less chaotic than PSU banks.
+- **Config highlights**:
+  - RSI(11): long entry 59 / exit 75; short entry 39 / exit 32
+  - VWAP stop buffer: 0.64%
+  - Gap filter: 0.95 ATR
+  - ADX threshold: 13
 
-## Conclusion
-By tailoring RSI extremes, VWAP stop losses (or ATR buffers), Bollinger Band deviations, and risk-to-reward ratios to the specific volatility and liquidity profiles of each ETF, the algorithmic trading platform is better equipped to maximize win rates and minimize drawdowns caused by instrument-specific noise.
+## Outputs
+
+When running `src/strategy_service/engine.py` as a script, signals are saved to `data/output/all_signals.csv` with columns:
+- `timestamp`
+- `action` (`LONG`, `SHORT`, `EXIT_LONG`, `EXIT_SHORT`)
+- `symbol`
+- `price`
+- `reason`
