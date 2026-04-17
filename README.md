@@ -2,6 +2,10 @@
 
 A Python-based algorithmic trading platform.
 
+## License
+
+This project is licensed for **non-commercial use only** under the PolyForm Noncommercial License 1.0.0. See [`LICENSE`](LICENSE).
+
 ## Setup
 
 1. Create a virtual environment (if not already created):
