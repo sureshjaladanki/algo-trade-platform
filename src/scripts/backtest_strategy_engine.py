@@ -61,7 +61,6 @@ def fetch_1m_session_df(symbol: str, session_date_str: str, period: str = "7d") 
 
     return proc.sort_values("datetime", ignore_index=True)
 
-
 def fetch_and_save_1d_data(
     symbol: str, start_date: datetime, end_date: datetime, output_file: Path
 ) -> bool:
@@ -101,10 +100,6 @@ def fetch_and_save_1m_history(symbol: str, end_date: datetime, output_file: Path
             return False
 
         df = df[df.index < end_str]
-
-        if df.empty:
-            print(f"  Warning: No 1m history data found for {symbol} before {end_str}")
-            return False
 
         df.columns = df.columns.str.lower()
         df.index.name = "datetime"

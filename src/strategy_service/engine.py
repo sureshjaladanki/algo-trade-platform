@@ -37,10 +37,13 @@ class StrategyEngine:
 
     def _init_data(self):
         for symbol in [self.regime_symbol, *self.advance_decline_symbols]:
-            self.symbol_dataframes[symbol] = pd.DataFrame()
+            self._init_regime_symbol_data(symbol)
 
         for symbol in self.trade_symbols:
             self._init_trade_symbol_data(symbol)
+
+    def _init_regime_symbol_data(self, symbol: str) -> None:
+        self.symbol_dataframes[symbol] = pd.DataFrame()
 
     def _init_trade_symbol_data(self, symbol: str):
         # symbol 1day candles history dataframe

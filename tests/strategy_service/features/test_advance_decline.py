@@ -1,6 +1,6 @@
 import unittest
 import pandas as pd
-from src.strategy_service.features.advance_decline import add_ad_ratio
+from src.strategy_service.features.advance_decline import add_ad_regime
 
 class TestAdvanceDecline(unittest.TestCase):
     def setUp(self):
@@ -20,19 +20,24 @@ class TestAdvanceDecline(unittest.TestCase):
             self.component_dfs[stock] = df
 
     def test_add_ad_ratio(self):
-        result = add_ad_ratio(self.main_df.copy(), self.component_dfs)
-        self.assertIn('ad_ratio', result.columns)
+        result = add_ad_regime(self.main_df.copy(), self.component_dfs)
+        self.assertIn('ad_net_breadth', result.columns)
+        self.assertIn('ad_cumulative', result.columns)
+        self.assertIn('ad_ema_5', result.columns)
+        self.assertIn('ad_ema_21', result.columns)
         
         # Check that it calculates values (not all NaNs)
-        self.assertFalse(result['ad_ratio'].isna().all())
-        # The first row should be 0.0 since there's no previous close to compare
-        self.assertEqual(result['ad_ratio'].iloc[0], 0.0)
-        # Check that we have valid float values
-        self.assertTrue(pd.api.types.is_numeric_dtype(result['ad_ratio']))
+        self.assertFalse(result['ad_net_breadth'].isna().all())
+        self.assertFalse(result['ad_cumulative'].isna().all())
+        self.assertTrue(pd.api.types.is_numeric_dtype(result['ad_net_breadth']))
+        self.assertTrue(pd.api.types.is_numeric_dtype(result['ad_cumulative']))
 
     def test_add_ad_ratio_empty_components(self):
-        result = add_ad_ratio(self.main_df.copy(), {})
-        self.assertNotIn('ad_ratio', result.columns)
+        result = add_ad_regime(self.main_df.copy(), {})
+        self.assertNotIn('ad_net_breadth', result.columns)
+        self.assertNotIn('ad_cumulative', result.columns)
+        self.assertNotIn('ad_ema_5', result.columns)
+        self.assertNotIn('ad_ema_21', result.columns)
 
 if __name__ == '__main__':
     unittest.main()

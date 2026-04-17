@@ -7,12 +7,11 @@ from src.strategy_service.features.minute_of_day import add_minute_of_day
 from src.strategy_service.features.rsi import add_rsi
 from src.strategy_service.features.ema import add_ema
 from src.strategy_service.features.vwap import add_vwap
+from src.strategy_service.features.vwma import add_vwma
 from src.strategy_service.features.adx import add_adx
 from src.strategy_service.types.trading_session import TradingSession
 
 # Abstract base class for all ETF trading strategies
-# TO-DO: Add gap analysis to the strategy
-# TO-DO: Add profit margin analysis to the strategy
 class TradeStrategy(ABC):
     def __init__(self, symbol: str, symbol_profile=None, regime=None):
         self.symbol = symbol
@@ -43,29 +42,21 @@ class TradeStrategy(ABC):
             
         # 1. Micro Indicators (1-minute timeframe)
         df = add_vwap(df)
+        vwma_macro_fast_period = self.config.get('vwma_macro_fast_period', 21)
+        vwma_macro_slow_period = self.config.get('vwma_macro_slow_period', 45)
+        df = add_vwma(df, period=vwma_macro_fast_period)
+        df = add_vwma(df, period=vwma_macro_slow_period)
         rsi_period = self.config.get('rsi_period', 14)
         df = add_rsi(df, rsi_period=rsi_period)
         
         # 2. Macro Indicators (Simulated 5-minute timeframe on 1m data)
         ema_micro_fast_period = self.config.get('ema_micro_fast_period', 9)
         ema_micro_slow_period = self.config.get('ema_micro_slow_period', 21)
-        ema_macro_fast_period = self.config.get('ema_macro_fast_period', 45)
-        ema_macro_slow_period = self.config.get('ema_macro_slow_period', 105)
-        # ema_trend_filter_period = self.config.get('ema_trend_filter_period', 200)
         adx_period = self.config.get('adx_period', 70)
         df = add_ema(df, period=ema_micro_fast_period)
         df = add_ema(df, period=ema_micro_slow_period)
-        df = add_ema(df, period=ema_macro_fast_period)
-        df = add_ema(df, period=ema_macro_slow_period)
-        # df = add_ema(df, period=ema_trend_filter_period)
         df = add_adx(df, period=adx_period)
-        
-        # 3. Volatility Gauge (Bollinger Bands)
-        # NOTE: BB columns are not currently used by LongStrategy/ShortStrategy.
-        # bb_period = self.config.get('bb_period', 20)
-        # bb_std_dev = self.config.get('bb_std_dev', 2.0)
-        # df = add_bb(df, period=bb_period, std_dev=bb_std_dev)
-        
+
         return df
 
     def _generate_gap_atr_ratio(self, df: pd.DataFrame):

@@ -3,22 +3,31 @@ from typing import Dict
 import pandas_ta as ta
 import numpy as np
 
-def add_ad_regime(df: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame], period: int = 20) -> pd.DataFrame:
+def add_ad_regime(df: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame], fast_period: int = 5, slow_period: int = 21) -> pd.DataFrame:
     """
-    Calculate the industry-standard Advance/Decline (A/D) Ratio.
-    
-    Industry Standard Definition:
-    - Advance: Current Close > Previous Close
-    - Decline: Current Close < Previous Close
-    - Unchanged: Current Close == Previous Close (ignored in ratio)
-    - A/D Ratio: Number of Advancing Stocks / Number of Declining Stocks
-    
+    Add advance/decline breadth and derived regime columns aligned to ``df``'s index.
+
+    For each row (bar), counts how many component symbols advanced or declined versus
+    the prior bar's close on the same index grid:
+
+    - **Advance:** ``close > prior close``
+    - **Decline:** ``close < prior close``
+    - **Unchanged:** equal to prior close; neither advance nor decline
+
+    Columns written on ``df`` (when ``component_dfs`` is non-empty):
+
+    - ``ad_net_breadth``: advances minus declines per bar
+    - ``ad_cumulative``: cumulative sum of net breadth
+    - ``ad_ema``: EMA of the cumulative line (length ``period``)
+    - ``ad_roc``: rate of change of the cumulative line (length ``int(period / 4)``)
+
     Args:
-        main_df: The main DataFrame to add the A/D ratio to.
-        component_dfs: Dictionary mapping stock symbols to their 1-minute DataFrames.
-                
+        df: Target DataFrame (index must align with component series after reindex).
+        component_dfs: Symbol -> OHLCV DataFrame; each must have a ``close`` column.
+        period: EMA length for ``ad_ema``; also scales the ROC lookback.
+
     Returns:
-        DataFrame with ad_ratio.
+        ``df`` with breadth/regime columns added, or unchanged if ``component_dfs`` is empty.
     """
     if not component_dfs:
         return df
@@ -43,14 +52,7 @@ def add_ad_regime(df: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame], peri
     df['ad_cumulative'] = df['ad_net_breadth'].cumsum()
     
     # 3. An EMA helps identify the 'Regime' direction
-    df['ad_ema'] = ta.ema(df['ad_cumulative'], length=period)
-    
-    # 4. ROC helps identify if breadth is accelerating or decelerating
-    roc_period = int(period / 4)
-    df['ad_roc'] = ta.roc(df['ad_cumulative'], length=roc_period)
+    df[f'ad_ema_{fast_period}'] = ta.ema(df['ad_cumulative'], length=fast_period)
+    df[f'ad_ema_{slow_period}'] = ta.ema(df['ad_cumulative'], length=slow_period)
 
-    # Calculate A/D Ratio (Advances / Declines)
-    # Replace 0 with NaN to avoid division by zero
-    ad_ratio = np.where(declines == 0, advances, advances / declines)
-    df['ad_ratio'] = ad_ratio
     return df

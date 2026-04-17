@@ -2,7 +2,7 @@ import pandas as pd
 
 def get_atr(df: pd.DataFrame, period: int = 14) -> dict:
     """
-    Given a dataframe of OHLCV data, calculates ATR and returns a dictionary 
+    Given a dataframe of multiday OHLCV data, calculates ATR and returns a dictionary 
     containing the ATR value for the latest row.
     """
     if df.empty or not all(col in df.columns for col in ['high', 'low', 'close']):

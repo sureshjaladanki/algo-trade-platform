@@ -93,8 +93,9 @@ class TestStrategyEngine(unittest.TestCase):
         engine = StrategyEngine(self.mock_data_adapter)
         
         # Setup mock data
-        time = pd.Timestamp('2023-01-01 09:30:00')
-        engine.symbol_dataframes['AAPL'] = pd.DataFrame({'close': [150]}, index=[time])
+        t1 = pd.Timestamp('2023-01-01 09:30:00')
+        t2 = pd.Timestamp('2023-01-01 09:31:00')
+        engine.symbol_dataframes['AAPL'] = pd.DataFrame({'close': [150, 151]}, index=[t1, t2])
         
         # Setup mock strategies
         mock_long_strategy = MagicMock()

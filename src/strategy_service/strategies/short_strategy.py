@@ -7,9 +7,8 @@ class ShortStrategy(TradeStrategy):
         self.rsi_key = f'rsi_{rsi_period}'
         self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
         self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
-        self.ema_macro_fast_key = f"ema_{self.config.get('ema_macro_fast_period', 45)}"
-        self.ema_macro_slow_key = f"ema_{self.config.get('ema_macro_slow_period', 105)}"
         self.adx_key = f"adx_{self.config.get('adx_period', 50)}"
+        self.vwma_macro_slow_key = f"vwma_{self.config.get('vwma_macro_slow_period', 45)}"
 
     # Focus on trend following / resistance levels
     def check_entry(self, data):
@@ -18,24 +17,22 @@ class ShortStrategy(TradeStrategy):
 
         # Condition 2: Market Regime is safe for shorts
         safe_for_short = self.regime.safe_for_shorts if self.regime else True
-        
-        # Condition 3: Macro Trend is DOWN (Simulated 5m 9 EMA < 5m 21 EMA)
-        macro_trend_down = data.get(self.ema_macro_fast_key, float('inf')) < data.get(self.ema_macro_slow_key, float('inf'))
+
+        # Condition 3: Micro Trend is DOWN (9 EMA < 21 EMA)
+        micro_trend_down = data.get(self.ema_micro_fast_key, float('inf')) < data.get(self.ema_micro_slow_key, float('inf'))
 
         # Condition 4: Macro Trend Strength (ADX > threshold indicates a strong trend, avoiding whipsaws)
         adx_threshold = self.config.get('adx_threshold', 11)
         macro_trend_strong = data.get(self.adx_key, 0) > adx_threshold
 
-        # Condition 4: Micro Pullback (RSI is overbought on 1m chart, indicating a rally to short)
+        # Condition 5: Micro Pullback (RSI is overbought on 1m chart, indicating a rally to short)
         short_rsi_entry = self.config.get('short_rsi_entry', 60)
         pullback = data.get(self.rsi_key, 50) > short_rsi_entry
+
+        # Condition 6: Price is above the Macro Slow VWMA (45 VWMA)
+        price_above_vwma_macro_slow = data['close'] > data.get(self.vwma_macro_slow_key, float('inf'))
         
-        # Condition 6: Price is below the Macro Slow EMA (105 EMA)
-        # The 105 EMA is our absolute line in the sand for a downtrend. 
-        # Even if 45 < 105, if price spikes above 105, the downtrend is structurally broken.
-        price_below_macro_slow = data['close'] < data.get(self.ema_macro_slow_key, float('inf'))
-        
-        return safe_for_intraday_positions and safe_for_short and macro_trend_down and pullback and macro_trend_strong and price_below_macro_slow
+        return safe_for_intraday_positions and safe_for_short and micro_trend_down and pullback and macro_trend_strong and price_above_vwma_macro_slow
 
     def short(self, data):
         """Execute Short SELL if entry conditions are met."""
