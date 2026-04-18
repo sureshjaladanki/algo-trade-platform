@@ -21,7 +21,6 @@ class TestLongStrategy(unittest.TestCase):
             'ema_micro_fast_period': 9,
             'ema_micro_slow_period': 21,
             'vwma_macro_fast_period': 21,
-            'adx_period': 14,
             'long_rsi_entry': 40,
             'long_rsi_exit': 70,
             'vwap_stop_loss_pct': 0.2,
@@ -32,11 +31,11 @@ class TestLongStrategy(unittest.TestCase):
         self.strategy.rsi_key = 'rsi_70'
         self.strategy.ema_micro_fast_key = 'ema_9'
         self.strategy.ema_micro_slow_key = 'ema_21'
-        self.strategy.adx_key = 'adx_14'
         self.strategy.vwma_macro_fast_key = 'vwma_21'
+        self.strategy.vwma_macro_slow_key = 'vwma_45'
 
     def test_check_entry(self):
-        # Valid entry data
+        # Valid entry data (long needs close below both macro VWMAs)
         data = {
             'rvol': 1.5,
             'close': 105.0,
@@ -44,8 +43,8 @@ class TestLongStrategy(unittest.TestCase):
             'ema_9': 104.0,
             'ema_21': 103.0,
             'rsi_70': 30.0,  # Oversold (< 40)
-            'adx_14': 30.0,
-            'vwma_21': 110.0,  # Price below macro fast VWMA
+            'vwma_21': 110.0,
+            'vwma_45': 112.0,
         }
         self.assertTrue(self.strategy.check_entry(data))
         
@@ -60,10 +59,16 @@ class TestLongStrategy(unittest.TestCase):
         invalid_data['rsi_70'] = 50.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
-        # Invalid: Price not below macro fast VWMA (long needs close < vwma)
+        # Invalid: Price not below macro fast VWMA (still below slow)
         invalid_data = data.copy()
         invalid_data['close'] = 115.0
         invalid_data['vwma_21'] = 110.0
+        invalid_data['vwma_45'] = 120.0
+        self.assertFalse(self.strategy.check_entry(invalid_data))
+
+        # Invalid: Price not below macro slow VWMA
+        invalid_data = data.copy()
+        invalid_data['vwma_45'] = 100.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
     def test_buy(self):
@@ -74,8 +79,8 @@ class TestLongStrategy(unittest.TestCase):
             'ema_9': 104.0,
             'ema_21': 103.0,
             'rsi_70': 30.0,
-            'adx_14': 30.0,
             'vwma_21': 110.0,
+            'vwma_45': 112.0,
         }
         action = self.strategy.buy(data)
         

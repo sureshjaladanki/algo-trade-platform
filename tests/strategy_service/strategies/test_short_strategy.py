@@ -21,7 +21,7 @@ class TestShortStrategy(unittest.TestCase):
             'ema_micro_fast_period': 9,
             'ema_micro_slow_period': 21,
             'vwma_macro_slow_period': 45,
-            'adx_period': 14,
+            'vwma_macro_fast_period': 21,
             'short_rsi_entry': 60,
             'short_rsi_exit': 30,
             'vwap_stop_loss_pct': 0.2,
@@ -32,11 +32,11 @@ class TestShortStrategy(unittest.TestCase):
         self.strategy.rsi_key = 'rsi_70'
         self.strategy.ema_micro_fast_key = 'ema_9'
         self.strategy.ema_micro_slow_key = 'ema_21'
-        self.strategy.adx_key = 'adx_14'
+        self.strategy.vwma_macro_fast_key = 'vwma_21'
         self.strategy.vwma_macro_slow_key = 'vwma_45'
 
     def test_check_entry(self):
-        # Valid entry data
+        # Valid entry data (short needs close above both macro VWMAs)
         data = {
             'rvol': 1.5,
             'close': 95.0,
@@ -44,8 +44,8 @@ class TestShortStrategy(unittest.TestCase):
             'ema_9': 96.0,
             'ema_21': 97.0,
             'rsi_70': 70.0,  # Overbought (> 60)
-            'adx_14': 30.0,
-            'vwma_45': 90.0,  # Price above macro slow VWMA
+            'vwma_21': 90.0,
+            'vwma_45': 88.0,
         }
         self.assertTrue(self.strategy.check_entry(data))
         
@@ -60,10 +60,16 @@ class TestShortStrategy(unittest.TestCase):
         invalid_data['rsi_70'] = 50.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
-        # Invalid: Price not above macro slow VWMA
+        # Invalid: Price not above macro fast VWMA (slow VWMA still below price)
         invalid_data = data.copy()
         invalid_data['close'] = 85.0
-        invalid_data['vwma_45'] = 90.0
+        invalid_data['vwma_21'] = 90.0
+        invalid_data['vwma_45'] = 80.0
+        self.assertFalse(self.strategy.check_entry(invalid_data))
+
+        # Invalid: Price not above macro slow VWMA
+        invalid_data = data.copy()
+        invalid_data['vwma_45'] = 100.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
     def test_short(self):
@@ -74,8 +80,8 @@ class TestShortStrategy(unittest.TestCase):
             'ema_9': 96.0,
             'ema_21': 97.0,
             'rsi_70': 70.0,
-            'adx_14': 30.0,
-            'vwma_45': 90.0,
+            'vwma_21': 90.0,
+            'vwma_45': 88.0,
         }
         action = self.strategy.short(data)
         

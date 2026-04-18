@@ -8,7 +8,6 @@ from src.strategy_service.features.rsi import add_rsi
 from src.strategy_service.features.ema import add_ema
 from src.strategy_service.features.vwap import add_vwap
 from src.strategy_service.features.vwma import add_vwma
-from src.strategy_service.features.adx import add_adx
 from src.strategy_service.types.trading_session import TradingSession
 
 # Abstract base class for all ETF trading strategies
@@ -46,16 +45,14 @@ class TradeStrategy(ABC):
         vwma_macro_slow_period = self.config.get('vwma_macro_slow_period', 45)
         df = add_vwma(df, period=vwma_macro_fast_period)
         df = add_vwma(df, period=vwma_macro_slow_period)
-        rsi_period = self.config.get('rsi_period', 14)
-        df = add_rsi(df, rsi_period=rsi_period)
         
-        # 2. Macro Indicators (Simulated 5-minute timeframe on 1m data)
         ema_micro_fast_period = self.config.get('ema_micro_fast_period', 9)
         ema_micro_slow_period = self.config.get('ema_micro_slow_period', 21)
-        adx_period = self.config.get('adx_period', 70)
         df = add_ema(df, period=ema_micro_fast_period)
         df = add_ema(df, period=ema_micro_slow_period)
-        df = add_adx(df, period=adx_period)
+
+        rsi_period = self.config.get('rsi_period', 14)
+        df = add_rsi(df, rsi_period=rsi_period)
 
         return df
 

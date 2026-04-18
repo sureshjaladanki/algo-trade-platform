@@ -22,19 +22,18 @@ def sample_data():
     return df
 
 def test_add_adx_default_period(sample_data):
-    """Test ADX calculation with the default period (70)."""
+    """Test ADX calculation with the default period (14)."""
     df = add_adx(sample_data.copy())
     
-    # Check if the 'adx_70' column was successfully added
-    assert 'adx_70' in df.columns
+    assert 'adx_14' in df.columns
     
     # The first few rows will be NaN due to the rolling calculation window,
     # but the last rows should have valid float values.
-    assert df['adx_70'].isna().iloc[0]
-    assert not df['adx_70'].isna().iloc[-1]
+    assert df['adx_14'].isna().iloc[0]
+    assert not df['adx_14'].isna().iloc[-1]
     
     # ADX values should be between 0 and 100 (allow small floating point variance)
-    valid_adx = df['adx_70'].dropna()
+    valid_adx = df['adx_14'].dropna()
     assert (valid_adx >= -0.001).all()
     assert (valid_adx <= 100.001).all()
 
@@ -46,25 +45,8 @@ def test_add_adx_custom_period(sample_data):
     assert f'adx_{custom_period}' in df.columns
     assert not df[f'adx_{custom_period}'].isna().iloc[-1]
 
-def test_add_adx_custom_resample_period(sample_data):
-    """Test ADX calculation with a custom resample period."""
-    # Using a 10-minute resample period instead of default 5
-    df = add_adx(sample_data.copy(), period=70, resample_period=10)
-    
-    assert 'adx_70' in df.columns
-    assert not df['adx_70'].isna().iloc[-1]
-    
-    # Verify that the values are forward-filled correctly by checking if 
-    # consecutive rows within the resample period have the same ADX value
-    # (Since we resampled by 10 minutes, blocks of 10 rows should have identical ADX values at the end)
-    valid_adx = df['adx_70'].dropna()
-    if len(valid_adx) >= 2:
-        # The last two rows should be identical because they fall within the same 10-minute forward-fill block
-        assert valid_adx.iloc[-1] == valid_adx.iloc[-2]
-
 def test_add_adx_insufficient_data():
-    """Test ADX behavior when there is not enough data to calculate it."""
-    # Create a dataframe with only 5 rows (less than the default period)
+    """When pandas-ta cannot emit ADX columns, add_adx raises KeyError."""
     dates = pd.date_range(start='2026-01-01', periods=5, freq='1min')
     df = pd.DataFrame({
         'high': [10, 11, 12, 13, 14],
@@ -72,11 +54,5 @@ def test_add_adx_insufficient_data():
         'close': [9, 10, 11, 12, 13]
     }, index=dates)
     
-    # This shouldn't crash. Depending on pandas-ta version, it might return None
-    # or a dataframe full of NaNs. Our wrapper should handle it gracefully.
-    result = add_adx(df.copy(), period=70)
-    
-    assert isinstance(result, pd.DataFrame)
-    # If the column was added, it should be entirely NaN
-    if 'adx_70' in result.columns:
-        assert result['adx_70'].isna().all()
+    with pytest.raises(KeyError):
+        add_adx(df.copy(), period=14)

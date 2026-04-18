@@ -7,7 +7,7 @@ class LongStrategy(TradeStrategy):
         self.rsi_key = f'rsi_{rsi_period}'
         self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
         self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
-        self.adx_key = f"adx_{self.config.get('adx_period', 50)}"
+        self.vwma_macro_slow_key = f"vwma_{self.config.get('vwma_macro_slow_period', 45)}"
         self.vwma_macro_fast_key = f"vwma_{self.config.get('vwma_macro_fast_period', 21)}"
 
     # Focus on trend following / support levels
@@ -21,18 +21,15 @@ class LongStrategy(TradeStrategy):
         # Condition 3: Micro Trend is UP (9 EMA > 21 EMA)
         micro_trend_up = data.get(self.ema_micro_fast_key, 0) > data.get(self.ema_micro_slow_key, 0)
 
-        # Condition 4: Macro Trend Strength (ADX > threshold indicates a strong trend, avoiding whipsaws)
-        adx_threshold = self.config.get('adx_threshold', 11)
-        macro_trend_strong = data.get(self.adx_key, 0) > adx_threshold
-
-        # Condition 5: Micro Pullback (RSI is oversold on 1m chart, indicating a dip)
+        # Condition 4: Micro Pullback (RSI is oversold on 1m chart, indicating a dip)
         long_rsi_entry = self.config.get('long_rsi_entry', 40)
         pullback = data.get(self.rsi_key, 50) < long_rsi_entry
 
-        # Condition 6: Price is below the Macro Fast VWMA (21 VWMA)
+        # Condition 5: Price is below the Macro Fast VWMA (21 VWMA) and Macro Slow VWMA (45 VWMA)
+        price_below_vwma_macro_slow = data['close'] < data.get(self.vwma_macro_slow_key, float('inf'))
         price_below_vwma_macro_fast = data['close'] < data.get(self.vwma_macro_fast_key, float('inf'))
-        
-        return safe_for_intraday_positions and safe_for_long and micro_trend_up and pullback and macro_trend_strong and price_below_vwma_macro_fast
+
+        return safe_for_intraday_positions and safe_for_long and micro_trend_up and pullback and price_below_vwma_macro_fast and price_below_vwma_macro_slow
 
     def buy(self, data):
         """Execute Long BUY if entry conditions are met."""
