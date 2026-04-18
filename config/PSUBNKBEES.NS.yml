@@ -11,3 +11,5 @@ long_rsi_entry: 59
 long_rsi_exit: 75
 short_rsi_entry: 39
 short_rsi_exit: 32
+vwma_macro_slow_key: 45
+vwma_macro_fast_key: 21
