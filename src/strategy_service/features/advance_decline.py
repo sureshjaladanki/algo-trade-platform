@@ -1,9 +1,14 @@
 import pandas as pd
 from typing import Dict
 import pandas_ta as ta
-import numpy as np
 
-def add_ad_regime(df: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame], fast_period: int = 5, slow_period: int = 21) -> pd.DataFrame:
+
+def add_ad_regime(
+    df: pd.DataFrame,
+    component_dfs: Dict[str, pd.DataFrame],
+    fast_period: int = 5,
+    slow_period: int = 21,
+) -> pd.DataFrame:
     """
     Add advance/decline breadth and derived regime columns aligned to ``df``'s index.
 
@@ -33,26 +38,25 @@ def add_ad_regime(df: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame], fast
         return df
 
     # Extract close prices into a 2D matrix (columns = symbols, index = time)
-    closes = pd.DataFrame({
-        sym: df['close']
-        for sym, df in component_dfs.items()
-    }).reindex(df.index)
-    
+    closes = pd.DataFrame(
+        {sym: df["close"] for sym, df in component_dfs.items()}
+    ).reindex(df.index)
+
     # Industry standard: compare current close to previous close
     prev_closes = closes.shift(1)
-    
+
     advances = (closes > prev_closes).sum(axis=1)
     declines = (closes < prev_closes).sum(axis=1)
 
     # 1. Calculate the net breadth (Advances - Declines)
-    df['ad_net_breadth'] = advances - declines
+    df["ad_net_breadth"] = advances - declines
 
     # 2. Calculate the Cumulative A/D Line
     # This transforms 1-minute 'flicker' into a continuous trend
-    df['ad_cumulative'] = df['ad_net_breadth'].cumsum()
-    
+    df["ad_cumulative"] = df["ad_net_breadth"].cumsum()
+
     # 3. An EMA helps identify the 'Regime' direction
-    df[f'ad_ema_{fast_period}'] = ta.ema(df['ad_cumulative'], length=fast_period)
-    df[f'ad_ema_{slow_period}'] = ta.ema(df['ad_cumulative'], length=slow_period)
+    df[f"ad_ema_{fast_period}"] = ta.ema(df["ad_cumulative"], length=fast_period)
+    df[f"ad_ema_{slow_period}"] = ta.ema(df["ad_cumulative"], length=slow_period)
 
     return df

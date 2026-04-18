@@ -7,6 +7,7 @@ Compared to `generate_strategy_engine_dry_run_data.py`, this script additionally
 - Aligns ALL intraday symbols to the INDIA VIX (`regime_symbol`, typically `^INDIAVIX`) minute index
   so StrategyEngine lockstep generators don't desync
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,11 +38,22 @@ def _yf_to_processed(df: pd.DataFrame) -> pd.DataFrame:
         if col not in df.columns:
             df[col] = 0.0
     return df[
-        ["datetime", "open", "high", "low", "close", "volume", "dividends", "stock splits"]
+        [
+            "datetime",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "dividends",
+            "stock splits",
+        ]
     ].copy()
 
 
-def fetch_1m_session_df(symbol: str, session_date_str: str, period: str = "7d") -> pd.DataFrame:
+def fetch_1m_session_df(
+    symbol: str, session_date_str: str, period: str = "7d"
+) -> pd.DataFrame:
     """
     Download 1m data from yfinance, keep only the target calendar day,
     and clip to the India cash session.
@@ -61,6 +73,7 @@ def fetch_1m_session_df(symbol: str, session_date_str: str, period: str = "7d") 
 
     return proc.sort_values("datetime", ignore_index=True)
 
+
 def fetch_and_save_1d_data(
     symbol: str, start_date: datetime, end_date: datetime, output_file: Path
 ) -> bool:
@@ -73,7 +86,9 @@ def fetch_and_save_1d_data(
         df = ticker.history(start=start_str, end=end_str, interval="1d")
 
         if df.empty:
-            print(f"  Warning: No 1d data found for {symbol} between {start_str} and {end_str}")
+            print(
+                f"  Warning: No 1d data found for {symbol} between {start_str} and {end_str}"
+            )
             return False
 
         df.columns = df.columns.str.lower()
@@ -88,7 +103,9 @@ def fetch_and_save_1d_data(
         return False
 
 
-def fetch_and_save_1m_history(symbol: str, end_date: datetime, output_file: Path) -> bool:
+def fetch_and_save_1m_history(
+    symbol: str, end_date: datetime, output_file: Path
+) -> bool:
     end_str = end_date.strftime("%Y-%m-%d")
     print(f"Fetching max 1m history (7d) for {symbol} up to {end_str}...")
     try:
@@ -139,15 +156,21 @@ def generate_dry_run_data(
     regime_symbol = config.get("regime_symbol", "") or ""
     advance_decline_symbols = list(config.get("advance_decline_symbols", []))
     trade_symbols_raw = config.get("trade_symbols", {})
-    trade_symbols = list(trade_symbols_raw.keys()) if isinstance(trade_symbols_raw, dict) else []
+    trade_symbols = (
+        list(trade_symbols_raw.keys()) if isinstance(trade_symbols_raw, dict) else []
+    )
 
     # Fetch all intraday symbols first, then align + write
-    intraday_symbols = sorted({regime_symbol, *advance_decline_symbols, *trade_symbols} - {""})
+    intraday_symbols = sorted(
+        {regime_symbol, *advance_decline_symbols, *trade_symbols} - {""}
+    )
     if not intraday_symbols:
         print("Error: No intraday symbols found in config.")
         return
 
-    print(f"Fetching 1m session for {target_date_str} ({len(intraday_symbols)} symbols)...")
+    print(
+        f"Fetching 1m session for {target_date_str} ({len(intraday_symbols)} symbols)..."
+    )
     intraday_dfs: dict[str, pd.DataFrame] = {}
     for symbol in intraday_symbols:
         try:
@@ -160,14 +183,18 @@ def generate_dry_run_data(
 
     master = regime_symbol
     if not master:
-        raise RuntimeError("regime_symbol missing in config; cannot align to India VIX master")
+        raise RuntimeError(
+            "regime_symbol missing in config; cannot align to India VIX master"
+        )
     if master not in intraday_dfs or intraday_dfs[master].empty:
         raise RuntimeError(
             f"Master symbol {master} missing/empty; cannot align. "
             f"Ensure India VIX (^INDIAVIX) is included and has data for the session."
         )
 
-    print(f"\nAligning all symbols to master index: {master} ({len(intraday_dfs[master])} rows)")
+    print(
+        f"\nAligning all symbols to master index: {master} ({len(intraday_dfs[master])} rows)"
+    )
     master_idx = intraday_dfs[master]["datetime"]
     aligned = {
         sym: df.set_index("datetime").reindex(master_idx).ffill().bfill().reset_index()
@@ -196,7 +223,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate aligned 1m current_day + 1m history + 1d data for StrategyEngine dry runs."
     )
-    parser.add_argument("--date", type=str, required=True, help="Target session date YYYY-MM-DD")
+    parser.add_argument(
+        "--date", type=str, required=True, help="Target session date YYYY-MM-DD"
+    )
     args = parser.parse_args()
     generate_dry_run_data(args.date)
 

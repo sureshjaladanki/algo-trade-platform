@@ -1,14 +1,19 @@
 from src.strategy_service.strategies.trade_strategy import TradeStrategy
 
+
 class LongStrategy(TradeStrategy):
     def __init__(self, symbol: str, symbol_profile=None, regime=None):
         super().__init__(symbol, symbol_profile=symbol_profile, regime=regime)
-        rsi_period = self.config.get('rsi_period', 14)
-        self.rsi_key = f'rsi_{rsi_period}'
+        rsi_period = self.config.get("rsi_period", 14)
+        self.rsi_key = f"rsi_{rsi_period}"
         self.ema_micro_fast_key = f"ema_{self.config.get('ema_micro_fast_period', 9)}"
         self.ema_micro_slow_key = f"ema_{self.config.get('ema_micro_slow_period', 21)}"
-        self.vwma_macro_slow_key = f"vwma_{self.config.get('vwma_macro_slow_period', 45)}"
-        self.vwma_macro_fast_key = f"vwma_{self.config.get('vwma_macro_fast_period', 21)}"
+        self.vwma_macro_slow_key = (
+            f"vwma_{self.config.get('vwma_macro_slow_period', 45)}"
+        )
+        self.vwma_macro_fast_key = (
+            f"vwma_{self.config.get('vwma_macro_fast_period', 21)}"
+        )
 
     # Focus on trend following / support levels
     def check_entry(self, data):
@@ -19,28 +24,43 @@ class LongStrategy(TradeStrategy):
         safe_for_long = self.regime.safe_for_longs if self.regime else True
 
         # Condition 3: Micro Trend is UP (9 EMA > 21 EMA)
-        micro_trend_up = data.get(self.ema_micro_fast_key, 0) > data.get(self.ema_micro_slow_key, 0)
+        micro_trend_up = data.get(self.ema_micro_fast_key, 0) > data.get(
+            self.ema_micro_slow_key, 0
+        )
 
         # Condition 4: Micro Pullback (RSI is oversold on 1m chart, indicating a dip)
-        long_rsi_entry = self.config.get('long_rsi_entry', 40)
+        long_rsi_entry = self.config.get("long_rsi_entry", 40)
         pullback = data.get(self.rsi_key, 50) < long_rsi_entry
 
         # Condition 5: Price is below the Macro Fast VWMA (21 VWMA) and Macro Slow VWMA (45 VWMA)
-        price_below_vwma_macro_slow = data['close'] < data.get(self.vwma_macro_slow_key, float('inf'))
-        price_below_vwma_macro_fast = data['close'] < data.get(self.vwma_macro_fast_key, float('inf'))
+        price_below_vwma_macro_slow = data["close"] < data.get(
+            self.vwma_macro_slow_key, float("inf")
+        )
+        price_below_vwma_macro_fast = data["close"] < data.get(
+            self.vwma_macro_fast_key, float("inf")
+        )
 
-        return safe_for_intraday_positions and safe_for_long and micro_trend_up and pullback and price_below_vwma_macro_fast and price_below_vwma_macro_slow
+        return (
+            safe_for_intraday_positions
+            and safe_for_long
+            and micro_trend_up
+            and pullback
+            and price_below_vwma_macro_fast
+            and price_below_vwma_macro_slow
+        )
 
     def buy(self, data):
         """Execute Long BUY if entry conditions are met."""
         if self.check_entry(data):
-            return [{
-                "timestamp": data.name if hasattr(data, 'name') else None,
-                "action": "LONG",
-                "symbol": self.symbol,
-                "price": data['close'],
-                "reason": "Entry Conditions Met"
-            }]
+            return [
+                {
+                    "timestamp": data.name if hasattr(data, "name") else None,
+                    "action": "LONG",
+                    "symbol": self.symbol,
+                    "price": data["close"],
+                    "reason": "Entry Conditions Met",
+                }
+            ]
 
         return []
 
@@ -51,32 +71,36 @@ class LongStrategy(TradeStrategy):
         """
         if prev_data is None:
             return []
-            
+
         # Exit 1: Trading Session is in squareoff window
         should_exit = self.check_exit(data, prev_data)
 
         # Exit 2: Momentum Exhaustion (Instantaneous)
         # We signal an exit if the market is currently overbought
-        long_rsi_exit = self.config.get('long_rsi_exit', 70)
+        long_rsi_exit = self.config.get("long_rsi_exit", 70)
         take_profit = data.get(self.rsi_key, 50) > long_rsi_exit
-        
+
         # Exit 3: Micro Trend Reversal (5m 9 EMA crosses above 21 EMA)
         # Using faster EMAs (9/21) for exits cuts losses much quicker than waiting for macro (45/105) reversal.
-        current_trend_up = data.get(self.ema_micro_fast_key, float('inf')) > data.get(self.ema_micro_slow_key, float('inf'))
-        prev_trend_down = prev_data.get(self.ema_micro_fast_key, float('inf')) <= prev_data.get(self.ema_micro_slow_key, float('inf'))
+        current_trend_up = data.get(self.ema_micro_fast_key, float("inf")) > data.get(
+            self.ema_micro_slow_key, float("inf")
+        )
+        prev_trend_down = prev_data.get(
+            self.ema_micro_fast_key, float("inf")
+        ) <= prev_data.get(self.ema_micro_slow_key, float("inf"))
         trend_reversal = current_trend_up and prev_trend_down
 
         # Exit 4: Trend Failure Stop (Price drops below VWAP - Buffer)
         # This is a structural market failure, valid regardless of entry price
-        vwap_stop_loss_pct = self.config.get('vwap_stop_loss_pct', 0.2)
+        vwap_stop_loss_pct = self.config.get("vwap_stop_loss_pct", 0.2)
         stop_loss_multiplier = 1 - (vwap_stop_loss_pct / 100)
-        stop_loss_price = data.get('vwap', 0) * stop_loss_multiplier
-        prev_stop_loss_price = prev_data.get('vwap', 0) * stop_loss_multiplier
-            
-        current_stop_loss = data['close'] < stop_loss_price
-        prev_no_stop_loss = prev_data['close'] >= prev_stop_loss_price
+        stop_loss_price = data.get("vwap", 0) * stop_loss_multiplier
+        prev_stop_loss_price = prev_data.get("vwap", 0) * stop_loss_multiplier
+
+        current_stop_loss = data["close"] < stop_loss_price
+        prev_no_stop_loss = prev_data["close"] >= prev_stop_loss_price
         stop_loss = current_stop_loss and prev_no_stop_loss
-        
+
         if should_exit or take_profit or trend_reversal or stop_loss:
             if should_exit:
                 reason = "End of Day Squareoff"
@@ -86,13 +110,15 @@ class LongStrategy(TradeStrategy):
                 reason = "Trend Reversal"
             else:
                 reason = "Trend Failure (VWAP Stop)"
-                
-            return [{
-                "timestamp": data.name if hasattr(data, 'name') else None,
-                "action": "EXIT_LONG",
-                "symbol": self.symbol,
-                "price": data['close'],
-                "reason": reason
-            }]
-            
+
+            return [
+                {
+                    "timestamp": data.name if hasattr(data, "name") else None,
+                    "action": "EXIT_LONG",
+                    "symbol": self.symbol,
+                    "price": data["close"],
+                    "reason": reason,
+                }
+            ]
+
         return []

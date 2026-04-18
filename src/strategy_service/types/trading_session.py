@@ -1,5 +1,6 @@
 from enum import IntEnum
 
+
 class TradingSession(IntEnum):
     UNKNOWN = 0
     WARMUP = 1

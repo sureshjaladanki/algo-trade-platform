@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas_ta as ta
+import pandas_ta  # noqa: F401
 
 
 def add_vwma(df: pd.DataFrame, period: int = 21) -> pd.DataFrame:

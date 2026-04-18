@@ -3,160 +3,159 @@ from unittest.mock import MagicMock
 from src.strategy_service.strategies.long_strategy import LongStrategy
 from src.strategy_service.types.trading_session import TradingSession
 
+
 class TestLongStrategy(unittest.TestCase):
     def setUp(self):
         self.mock_regime = MagicMock()
         self.mock_regime.trading_session = TradingSession.OPENING
         self.mock_regime.safe_for_longs = True
-        
+
         self.strategy = LongStrategy(
-            symbol="TEST_ETF",
-            symbol_profile=None,
-            regime=self.mock_regime
+            symbol="TEST_ETF", symbol_profile=None, regime=self.mock_regime
         )
-        
+
         # Override config
         self.strategy.config = {
-            'rsi_period': 70,
-            'ema_micro_fast_period': 9,
-            'ema_micro_slow_period': 21,
-            'vwma_macro_fast_period': 21,
-            'long_rsi_entry': 40,
-            'long_rsi_exit': 70,
-            'vwap_stop_loss_pct': 0.2,
-            'session_volume_threshold': {'opening': 1.0}
+            "rsi_period": 70,
+            "ema_micro_fast_period": 9,
+            "ema_micro_slow_period": 21,
+            "vwma_macro_fast_period": 21,
+            "long_rsi_entry": 40,
+            "long_rsi_exit": 70,
+            "vwap_stop_loss_pct": 0.2,
+            "session_volume_threshold": {"opening": 1.0},
         }
 
         # Re-initialize keys based on overridden config
-        self.strategy.rsi_key = 'rsi_70'
-        self.strategy.ema_micro_fast_key = 'ema_9'
-        self.strategy.ema_micro_slow_key = 'ema_21'
-        self.strategy.vwma_macro_fast_key = 'vwma_21'
-        self.strategy.vwma_macro_slow_key = 'vwma_45'
+        self.strategy.rsi_key = "rsi_70"
+        self.strategy.ema_micro_fast_key = "ema_9"
+        self.strategy.ema_micro_slow_key = "ema_21"
+        self.strategy.vwma_macro_fast_key = "vwma_21"
+        self.strategy.vwma_macro_slow_key = "vwma_45"
 
     def test_check_entry(self):
         # Valid entry data (long needs close below both macro VWMAs)
         data = {
-            'rvol': 1.5,
-            'close': 105.0,
-            'vwap': 100.0,
-            'ema_9': 104.0,
-            'ema_21': 103.0,
-            'rsi_70': 30.0,  # Oversold (< 40)
-            'vwma_21': 110.0,
-            'vwma_45': 112.0,
+            "rvol": 1.5,
+            "close": 105.0,
+            "vwap": 100.0,
+            "ema_9": 104.0,
+            "ema_21": 103.0,
+            "rsi_70": 30.0,  # Oversold (< 40)
+            "vwma_21": 110.0,
+            "vwma_45": 112.0,
         }
         self.assertTrue(self.strategy.check_entry(data))
-        
+
         # Invalid: Micro trend down
         invalid_data = data.copy()
-        invalid_data['ema_9'] = 102.0
-        invalid_data['ema_21'] = 103.0
+        invalid_data["ema_9"] = 102.0
+        invalid_data["ema_21"] = 103.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
-        
+
         # Invalid: No pullback
         invalid_data = data.copy()
-        invalid_data['rsi_70'] = 50.0
+        invalid_data["rsi_70"] = 50.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
         # Invalid: Price not below macro fast VWMA (still below slow)
         invalid_data = data.copy()
-        invalid_data['close'] = 115.0
-        invalid_data['vwma_21'] = 110.0
-        invalid_data['vwma_45'] = 120.0
+        invalid_data["close"] = 115.0
+        invalid_data["vwma_21"] = 110.0
+        invalid_data["vwma_45"] = 120.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
         # Invalid: Price not below macro slow VWMA
         invalid_data = data.copy()
-        invalid_data['vwma_45'] = 100.0
+        invalid_data["vwma_45"] = 100.0
         self.assertFalse(self.strategy.check_entry(invalid_data))
 
     def test_buy(self):
         data = {
-            'rvol': 1.5,
-            'close': 105.0,
-            'vwap': 100.0,
-            'ema_9': 104.0,
-            'ema_21': 103.0,
-            'rsi_70': 30.0,
-            'vwma_21': 110.0,
-            'vwma_45': 112.0,
+            "rvol": 1.5,
+            "close": 105.0,
+            "vwap": 100.0,
+            "ema_9": 104.0,
+            "ema_21": 103.0,
+            "rsi_70": 30.0,
+            "vwma_21": 110.0,
+            "vwma_45": 112.0,
         }
         action = self.strategy.buy(data)
-        
+
         self.assertTrue(len(action) > 0)
-        self.assertEqual(action[0]['action'], 'LONG')
-        self.assertEqual(action[0]['symbol'], 'TEST_ETF')
-        self.assertEqual(action[0]['price'], 105.0)
-        self.assertEqual(action[0]['reason'], 'Entry Conditions Met')
+        self.assertEqual(action[0]["action"], "LONG")
+        self.assertEqual(action[0]["symbol"], "TEST_ETF")
+        self.assertEqual(action[0]["price"], 105.0)
+        self.assertEqual(action[0]["reason"], "Entry Conditions Met")
 
     def test_exit_take_profit(self):
         prev_data = {
-            'close': 108.0,
-            'low': 107.0,
-            'high': 109.0,
-            'vwap': 100.0,
-            'ema_9': 107.0,
-            'ema_21': 106.0,
-            'rsi_70': 50.0,
+            "close": 108.0,
+            "low": 107.0,
+            "high": 109.0,
+            "vwap": 100.0,
+            "ema_9": 107.0,
+            "ema_21": 106.0,
+            "rsi_70": 50.0,
         }
         data = {
-            'close': 107.0,
-            'low': 106.0,
-            'high': 111.0,
-            'vwap': 100.0,
-            'ema_9': 108.0,
-            'ema_21': 106.0,
-            'rsi_70': 75.0,  # Overbought (> 70)
+            "close": 107.0,
+            "low": 106.0,
+            "high": 111.0,
+            "vwap": 100.0,
+            "ema_9": 108.0,
+            "ema_21": 106.0,
+            "rsi_70": 75.0,  # Overbought (> 70)
         }
         action = self.strategy.exit(data, prev_data)
-        
+
         self.assertTrue(len(action) > 0)
-        self.assertEqual(action[0]['action'], 'EXIT_LONG')
-        self.assertEqual(action[0]['reason'], 'Take Profit (RSI Overbought)')
+        self.assertEqual(action[0]["action"], "EXIT_LONG")
+        self.assertEqual(action[0]["reason"], "Take Profit (RSI Overbought)")
 
     def test_exit_trend_reversal(self):
         prev_data = {
-            'close': 105.0,
-            'low': 104.0,
-            'high': 106.0,
-            'vwap': 100.0,
-            'ema_9': 103.0,
-            'ema_21': 104.0,
-            'rsi_70': 50.0,
+            "close": 105.0,
+            "low": 104.0,
+            "high": 106.0,
+            "vwap": 100.0,
+            "ema_9": 103.0,
+            "ema_21": 104.0,
+            "rsi_70": 50.0,
         }
         data = {
-            'close': 105.0,
-            'low': 104.0,
-            'high': 106.0,
-            'vwap': 100.0,
-            'ema_9': 105.0,
-            'ema_21': 104.0,
-            'rsi_70': 50.0,
+            "close": 105.0,
+            "low": 104.0,
+            "high": 106.0,
+            "vwap": 100.0,
+            "ema_9": 105.0,
+            "ema_21": 104.0,
+            "rsi_70": 50.0,
         }
         action = self.strategy.exit(data, prev_data)
-        
+
         self.assertTrue(len(action) > 0)
-        self.assertEqual(action[0]['reason'], 'Trend Reversal')
+        self.assertEqual(action[0]["reason"], "Trend Reversal")
 
     def test_exit_volatility_exhaustion(self):
         prev_data = {
-            'close': 106.0,
-            'low': 105.0,
-            'high': 107.0,
-            'vwap': 100.0,
-            'ema_9': 104.0,
-            'ema_21': 103.0,
-            'rsi_70': 50.0,
+            "close": 106.0,
+            "low": 105.0,
+            "high": 107.0,
+            "vwap": 100.0,
+            "ema_9": 104.0,
+            "ema_21": 103.0,
+            "rsi_70": 50.0,
         }
         data = {
-            'close': 101.0,
-            'low': 100.0,
-            'high': 116.0,
-            'vwap': 100.0,
-            'ema_9': 102.0,
-            'ema_21': 103.0,
-            'rsi_70': 50.0,
+            "close": 101.0,
+            "low": 100.0,
+            "high": 116.0,
+            "vwap": 100.0,
+            "ema_9": 102.0,
+            "ema_21": 103.0,
+            "rsi_70": 50.0,
         }
         action = self.strategy.exit(data, prev_data)
 
@@ -165,27 +164,28 @@ class TestLongStrategy(unittest.TestCase):
 
     def test_exit_stop_loss(self):
         prev_data = {
-            'close': 100.0,
-            'low': 99.5,
-            'high': 100.5,
-            'vwap': 100.0,
-            'ema_9': 104.0,
-            'ema_21': 103.0,
-            'rsi_70': 50.0,
+            "close": 100.0,
+            "low": 99.5,
+            "high": 100.5,
+            "vwap": 100.0,
+            "ema_9": 104.0,
+            "ema_21": 103.0,
+            "rsi_70": 50.0,
         }
         data = {
-            'close': 99.0,  # Below VWAP stop (100 * (1 - 0.2/100) = 99.8)
-            'low': 98.5,
-            'high': 100.0,
-            'vwap': 100.0,
-            'ema_9': 104.0,
-            'ema_21': 103.0,
-            'rsi_70': 50.0,
+            "close": 99.0,  # Below VWAP stop (100 * (1 - 0.2/100) = 99.8)
+            "low": 98.5,
+            "high": 100.0,
+            "vwap": 100.0,
+            "ema_9": 104.0,
+            "ema_21": 103.0,
+            "rsi_70": 50.0,
         }
         action = self.strategy.exit(data, prev_data)
-        
-        self.assertTrue(len(action) > 0)
-        self.assertEqual(action[0]['reason'], 'Trend Failure (VWAP Stop)')
 
-if __name__ == '__main__':
+        self.assertTrue(len(action) > 0)
+        self.assertEqual(action[0]["reason"], "Trend Failure (VWAP Stop)")
+
+
+if __name__ == "__main__":
     unittest.main()

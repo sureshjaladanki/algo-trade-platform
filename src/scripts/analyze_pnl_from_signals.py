@@ -9,6 +9,7 @@ Pair LONG/SHORT with the next EXIT_* per symbol and side using an *aggregate* op
 
 Orphan exits (no prior open for that symbol/side) are excluded from realized PnL.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -114,9 +115,9 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     summary = summary.merge(side_ct, on="symbol", how="left")
-    summary[["long_trades", "short_trades"]] = summary[["long_trades", "short_trades"]].fillna(
-        0
-    )
+    summary[["long_trades", "short_trades"]] = summary[
+        ["long_trades", "short_trades"]
+    ].fillna(0)
 
     num = [
         "win_pct",
@@ -158,7 +159,9 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
 def _load_signals_sorted(signals_path: Path) -> pd.DataFrame:
     df = pd.read_csv(signals_path, parse_dates=["timestamp"])
     df["_proc_order"] = df["action"].map(_ACTION_ORDER)
-    return df.sort_values(["timestamp", "symbol", "_proc_order"]).drop(columns=["_proc_order"])
+    return df.sort_values(["timestamp", "symbol", "_proc_order"]).drop(
+        columns=["_proc_order"]
+    )
 
 
 def _register_open(
@@ -290,7 +293,9 @@ def _print_signal_overview(
         "=== Signal PnL (first open -> first exit per symbol/side; stacked opens folded) ===\n"
     )
     print(f"Signals file: {signals_path}")
-    print(f"Units per round-trip: {units} (PnL = price diff * units; no fees/slippage)\n")
+    print(
+        f"Units per round-trip: {units} (PnL = price diff * units; no fees/slippage)\n"
+    )
 
     vc = df["action"].value_counts()
     print(
@@ -330,7 +335,9 @@ def _format_trade_detail_table(trades_df: pd.DataFrame) -> pd.DataFrame:
     detail = trades_df.loc[:, cols].copy()
     nums = ["entry_price", "exit_price", "pnl", "pnl_pct"]
     detail[nums] = detail[nums].map(lambda x: f"{x:,.4f}")
-    detail[["entry_time", "exit_time"]] = detail[["entry_time", "exit_time"]].astype(str)
+    detail[["entry_time", "exit_time"]] = detail[["entry_time", "exit_time"]].astype(
+        str
+    )
     return detail
 
 
@@ -349,7 +356,9 @@ def _print_global_metrics(trades_df: pd.DataFrame) -> None:
 
     max_dd = _max_drawdown_from_pnls(p)
     max_dd_abs = abs(max_dd) if max_dd < 0 else 0.0
-    recovery = (total / max_dd_abs) if max_dd_abs > 0 else (None if total != 0 else None)
+    recovery = (
+        (total / max_dd_abs) if max_dd_abs > 0 else (None if total != 0 else None)
+    )
 
     win_rate_pct = 100.0 * wins / n if n else 0.0
     avg_win = gp_series[gp_series > 0].mean() if wins else 0.0
@@ -392,8 +401,8 @@ def _write_matched_trade_csvs(
 
 def analyze(signals_path: Path, units: float) -> None:
     df = _load_signals_sorted(signals_path)
-    trades_df, orphan_l, orphan_s, still_long, still_short = _match_aggregate_round_trips(
-        df, units
+    trades_df, orphan_l, orphan_s, still_long, still_short = (
+        _match_aggregate_round_trips(df, units)
     )
 
     _print_signal_overview(
