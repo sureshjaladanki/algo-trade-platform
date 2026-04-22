@@ -4,3 +4,5 @@ ruff
 pytest-sugar
 pytest-cov
 pre-commit==4.5.1
+debugpy
+vectorbt

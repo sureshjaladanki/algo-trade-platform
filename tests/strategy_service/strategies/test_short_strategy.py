@@ -46,30 +46,35 @@ class TestShortStrategy(unittest.TestCase):
             "vwma_21": 90.0,
             "vwma_45": 88.0,
         }
-        self.assertTrue(self.strategy.check_entry(data))
+        entries, _ = self.strategy.check_entry(data)
+        self.assertTrue(entries)
 
         # Invalid: Micro trend not down
         invalid_data = data.copy()
         invalid_data["ema_9"] = 98.0
         invalid_data["ema_21"] = 97.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: No pullback
         invalid_data = data.copy()
         invalid_data["rsi_70"] = 50.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: Price not above macro fast VWMA (slow VWMA still below price)
         invalid_data = data.copy()
         invalid_data["close"] = 85.0
         invalid_data["vwma_21"] = 90.0
         invalid_data["vwma_45"] = 80.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: Price not above macro slow VWMA
         invalid_data = data.copy()
         invalid_data["vwma_45"] = 100.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
     def test_short(self):
         data = {

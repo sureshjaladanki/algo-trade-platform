@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Dict
 from src.strategy_service.types.trading_session import TradingSession
 from src.strategy_service.features.advance_decline import add_ad_regime
+from src.utils.pd_functions import isna_safe
+import numpy as np
 
 
 class RegimeStrategy:
@@ -22,22 +24,23 @@ class RegimeStrategy:
             "trading_sessions",
             {
                 "warmup": {"start": "9:15", "end": "9:29"},
-                "opening": {"start": "9:30", "end": "11:30"},
-                "midday": {"start": "11:30", "end": "14:30"},
-                "closing": {"start": "14:30", "end": "15:30"},
+                "opening": {"start": "9:30", "end": "11:29"},
+                "midday": {"start": "11:30", "end": "14:29"},
+                "closing": {"start": "14:30", "end": "14:59"},
+                "squareoff": {"start": "15:00", "end": "15:29"},
             },
         )
         self.ema_fast_period = self.config.get("ema_fast_period", 5)
         self.ema_slow_period = self.config.get("ema_slow_period", 21)
 
         # Holds the current regime metrics that consuming strategies will read
-        self.data = {
-            "vix": 0.0,
-            "ad_cumulative": 0.0,
-            f"ad_ema_{self.ema_fast_period}": 0.0,
-            f"ad_ema_{self.ema_slow_period}": 0.0,
-            "trading_session": TradingSession.UNKNOWN,
-        }
+        # self.data = {
+        #     "vix": 0.0,
+        #     "ad_cumulative": 0.0,
+        #     f"ad_ema_{self.ema_fast_period}": 0.0,
+        #     f"ad_ema_{self.ema_slow_period}": 0.0,
+        #     "trading_session": TradingSession.UNKNOWN,
+        # }
 
     def _load_config(self) -> dict:
         config_path = Path("config/regime_indicators.yml")
@@ -48,16 +51,22 @@ class RegimeStrategy:
             print("Warning: Config file for regime_indicators not found.")
             return {}
 
-    def _determine_trading_session(self, current_time) -> TradingSession:
+    def _determine_trading_session(self, times_series: pd.Series) -> pd.Series:
+        # 1. Build conditions and choices
+        conditions = []
+        choices = []
+
         for session_name, times in self.trading_sessions.items():
-            start_time = datetime.strptime(times["start"], "%H:%M").time()
-            end_time = datetime.strptime(times["end"], "%H:%M").time()
-            if start_time <= current_time <= end_time:
-                try:
-                    return TradingSession[session_name.upper()]
-                except KeyError:
-                    pass
-        return TradingSession.UNKNOWN
+            start = datetime.strptime(times["start"], "%H:%M").time()
+            end = datetime.strptime(times["end"], "%H:%M").time()
+
+            conditions.append((times_series >= start) & (times_series <= end))
+            choices.append(TradingSession[session_name.upper()].value)
+
+        # 2. Apply piecewise logic
+        result = np.select(conditions, choices, default=TradingSession.UNKNOWN.value)
+
+        return pd.Series(result, index=times_series.index)
 
     def generate_features(
         self, vixdf: pd.DataFrame, component_dfs: Dict[str, pd.DataFrame]
@@ -69,81 +78,88 @@ class RegimeStrategy:
             vixdf (pd.DataFrame): The main DataFrame containing INDIA VIX data.
             advance_declinedf (pd.DataFrame): DataFrame containing Advance/Decline data.
         """
-        current_time = datetime.now().time()
 
-        if vixdf is not None and not vixdf.empty:
-            # Add the A/D ratio to the VIX DataFrame
-            vixdf = add_ad_regime(
-                vixdf,
-                component_dfs,
-                fast_period=self.ema_fast_period,
-                slow_period=self.ema_slow_period,
-            )
+        # Add the A/D ratio to the VIX DataFrame
+        vixdf = add_ad_regime(
+            vixdf,
+            component_dfs,
+            fast_period=self.ema_fast_period,
+            slow_period=self.ema_slow_period,
+        )
+        # Add VIX to the VIX DataFrame (i.e close column)
+        vixdf["vix"] = vixdf["close"]
 
-            # Get the latest VIX value
-            latest_vix = vixdf.iloc[-1]
-            self.data["vix"] = latest_vix.get("close", self.data["vix"])
-            self.data["ad_cumulative"] = latest_vix.get(
-                "ad_cumulative", self.data["ad_cumulative"]
-            )
-            self.data[f"ad_ema_{self.ema_fast_period}"] = latest_vix.get(
-                f"ad_ema_{self.ema_fast_period}",
-                self.data[f"ad_ema_{self.ema_fast_period}"],
-            )
-            self.data[f"ad_ema_{self.ema_slow_period}"] = latest_vix.get(
-                f"ad_ema_{self.ema_slow_period}",
-                self.data[f"ad_ema_{self.ema_slow_period}"],
-            )
-
-            # Determine time from vixdf
-            if "datetime" in vixdf.columns:
-                current_time = pd.to_datetime(latest_vix["datetime"]).time()
-            elif isinstance(vixdf.index, pd.DatetimeIndex):
-                current_time = latest_vix.name.time()
+        # Determine time from vixdf
+        if "datetime" in vixdf.columns:
+            times_series = pd.to_datetime(vixdf["datetime"]).dt.time
+        else:
+            # vixdf.index.time returns a numpy array, so wrap it in a Series to keep the index
+            times_series = pd.Series(vixdf.index.time, index=vixdf.index)
 
         # Determine the trading session
-        self.data["trading_session"] = self._determine_trading_session(current_time)
+        vixdf["trading_session"] = self._determine_trading_session(times_series)
 
         return vixdf
 
-    @property
-    def trading_session(self) -> TradingSession:
-        return self.data["trading_session"]
+    def trading_session(self, data):
+        val = data.get("trading_session", TradingSession.UNKNOWN.value)
 
-    @property
-    def safe_for_longs(self) -> bool:
+        return val
+
+    def safe_for_longs(self, data):
         """Helper property: Longs are generally unsafe during high volatility/panic."""
         # Cumulative must be above the Slow EMA (Trend) and above the Fast EMA (Acceleration/Momentum)
-        ad_trend_strong = (
-            self.data[f"ad_ema_{self.ema_slow_period}"]
-            and self.data["ad_cumulative"] > self.data[f"ad_ema_{self.ema_slow_period}"]
-        )
-        ad_trending_up = (
-            self.data[f"ad_ema_{self.ema_fast_period}"]
-            and self.data["ad_cumulative"] > self.data[f"ad_ema_{self.ema_fast_period}"]
-        )
+        ad_cumulative = data.get("ad_cumulative", 0.0)
+        ad_cumulative = isna_safe(ad_cumulative)
+
+        slow_ema = data.get(f"ad_ema_{self.ema_slow_period}")
+        fast_ema = data.get(f"ad_ema_{self.ema_fast_period}")
+
+        # Validity Guard: Return False if EMAs are missing/NaN
+        is_emas_valid = pd.notna(slow_ema) & pd.notna(fast_ema)
+
+        # Convert to na safe (0.0 float)
+        slow_ema = isna_safe(slow_ema)
+        fast_ema = isna_safe(fast_ema)
+
+        ad_trend_strong = ad_cumulative > slow_ema
+        ad_trending_up = ad_cumulative > fast_ema
+
+        vix = data.get("vix", 0.0)
+        vix = isna_safe(vix)
 
         return (
-            self.data["vix"] < self.vix_levels["high"]
-            and ad_trend_strong
-            and ad_trending_up
+            is_emas_valid
+            & (vix < self.vix_levels["high"])
+            & ad_trend_strong
+            & ad_trending_up
         )
 
-    @property
-    def safe_for_shorts(self) -> bool:
+    def safe_for_shorts(self, data):
         """Helper property: Shorts are favored during high volatility/panic or bearish market breadth."""
         # Cumulative must be below the Slow EMA (Trend) and below the Fast EMA (Decline/Momentum)
-        ad_trend_weak = (
-            self.data[f"ad_ema_{self.ema_slow_period}"]
-            and self.data["ad_cumulative"] < self.data[f"ad_ema_{self.ema_slow_period}"]
-        )
-        ad_trending_down = (
-            self.data[f"ad_ema_{self.ema_fast_period}"]
-            and self.data["ad_cumulative"] < self.data[f"ad_ema_{self.ema_fast_period}"]
-        )
+        ad_cumulative = data.get("ad_cumulative", 0.0)
+        ad_cumulative = isna_safe(ad_cumulative)
+
+        slow_ema = data.get(f"ad_ema_{self.ema_slow_period}", 0.0)
+        fast_ema = data.get(f"ad_ema_{self.ema_fast_period}", 0.0)
+
+        # Validity Guard: Return False if EMAs are missing/NaN
+        is_emas_valid = pd.notna(slow_ema) & pd.notna(fast_ema)
+
+        # Convert to na safe (0.0 float)
+        slow_ema = isna_safe(slow_ema)
+        fast_ema = isna_safe(fast_ema)
+
+        ad_trend_weak = ad_cumulative < slow_ema
+        ad_trending_down = ad_cumulative < fast_ema
+
+        vix = data.get("vix", 0.0)
+        vix = isna_safe(vix)
 
         return (
-            self.data["vix"] > self.vix_levels["low"]
-            and ad_trend_weak
-            and ad_trending_down
+            is_emas_valid
+            & (vix > self.vix_levels["low"])
+            & ad_trend_weak
+            & ad_trending_down
         )

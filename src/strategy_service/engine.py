@@ -102,25 +102,27 @@ class StrategyEngine:
 
     def _generate_regime_features(self):
         # Generate features for the regime strategy
-        self.regime_strategy.generate_features(
-            self.symbol_dataframes[self.regime_symbol],
-            {
-                symbol: self.symbol_dataframes[symbol]
-                for symbol in self.advance_decline_symbols
-            },
+        self.symbol_dataframes[self.regime_symbol] = (
+            self.regime_strategy.generate_features(
+                self.symbol_dataframes[self.regime_symbol],
+                {
+                    symbol: self.symbol_dataframes[symbol]
+                    for symbol in self.advance_decline_symbols
+                },
+            )
         )
 
     def _generate_trade_features(self, symbol: str):
         # Since long and short strategies share the same feature logic
         # and config, we only need to compute features once.
         if symbol in self.long_strategies:
-            self.long_strategies[symbol].generate_features(
-                self.symbol_dataframes[symbol]
-            )
+            self.symbol_dataframes[symbol] = self.long_strategies[
+                symbol
+            ].generate_features(self.symbol_dataframes[symbol])
         elif symbol in self.short_strategies:
-            self.short_strategies[symbol].generate_features(
-                self.symbol_dataframes[symbol]
-            )
+            self.symbol_dataframes[symbol] = self.short_strategies[
+                symbol
+            ].generate_features(self.symbol_dataframes[symbol])
 
     def _generate_signals(self, symbol: str):
         df = self.symbol_dataframes[symbol]
@@ -129,15 +131,30 @@ class StrategyEngine:
 
         latest_data = df.iloc[-1]
         prev_data = df.iloc[-2]
+        regime_data = self.symbol_dataframes[self.regime_symbol].iloc[-1]
         signals = []
 
         if symbol in self.long_strategies:
-            signals.extend(self.long_strategies[symbol].buy(latest_data))
-            signals.extend(self.long_strategies[symbol].exit(latest_data, prev_data))
+            signals.extend(
+                self.long_strategies[symbol].buy(latest_data, regime_data=regime_data)
+            )
+            signals.extend(
+                self.long_strategies[symbol].exit(
+                    latest_data, prev_data, regime_data=regime_data
+                )
+            )
 
         if symbol in self.short_strategies:
-            signals.extend(self.short_strategies[symbol].short(latest_data))
-            signals.extend(self.short_strategies[symbol].exit(latest_data, prev_data))
+            signals.extend(
+                self.short_strategies[symbol].short(
+                    latest_data, regime_data=regime_data
+                )
+            )
+            signals.extend(
+                self.short_strategies[symbol].exit(
+                    latest_data, prev_data, regime_data=regime_data
+                )
+            )
 
         return signals
 

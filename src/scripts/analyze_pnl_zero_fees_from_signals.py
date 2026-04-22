@@ -3,7 +3,7 @@ Pair LONG/SHORT with the next EXIT_* per symbol and side using an *aggregate* op
 
 - The **first** LONG (or SHORT) for a symbol opens a single logical position.
 - Any further LONG (or SHORT) for that symbol **before** the first matching exit is treated
-  as the same position (entry uses **weighted average cost** with per-entry slippage); those rows are counted in
+  as the same position (entry price remains the **first** open); those rows are counted in
   `aggregated_entry_signals` but do not create extra PnL legs.
 - The **first** EXIT_LONG (or EXIT_SHORT) after that closes the position and realizes PnL.
 
@@ -30,66 +30,21 @@ class OpenLeg:
 
 @dataclass
 class AggregateOpen:
-    """Aggregate layered entries into a single position using weighted average cost (WAC)."""
+    """First open for a symbol/side; later opens before exit are folded in."""
 
     first: OpenLeg
-    total_units: float
-    total_entry_value: float
-    entry_order_values: list[float]
     extra_opens: int = 0
 
 
 _ACTION_ORDER = {"LONG": 0, "SHORT": 1, "EXIT_LONG": 2, "EXIT_SHORT": 3}
 
-# --- Indian markets friction model (round-trip) ---
-# Rates provided by user; update here if your broker/exchange differs.
-STT_RATE = 0.00025  # 0.025% on sell side
-STAMP_DUTY_RATE = 0.00003  # 0.003% on buy side
-TRANS_CHARGE_RATE = 0.0000297  # NSE typical
-SEBI_FEE_RATE = 0.000001
-GST_RATE = 0.18
-SLIPPAGE_BPS = 0.0002  # 2 bps buffer for market impact
 
-
-def _calculate_precise_fees(
-    *,
-    entry_order_values: list[float],
-    exit_val: float,
-    entry_is_buy: bool,
-) -> float:
-    """Total friction (brokerage + statutory) for a round trip.
-
-    Notes:
-    - Brokerage is modeled as 0.03% capped at ₹20 **per order per leg**.
-    - STT applies on the **sell** leg; stamp duty applies on the **buy** leg.
-    """
-    entry_val = float(sum(entry_order_values))
-
-    # Standard discount brokerage: 0.03% capped at ₹20 per order/leg
-    brokerage_entry = sum(min(v * 0.0003, 20) for v in entry_order_values)
-    brokerage_exit = min(exit_val * 0.0003, 20)
-    brokerage = brokerage_entry + brokerage_exit
-
-    if entry_is_buy:
-        stamp = entry_val * STAMP_DUTY_RATE
-        stt = exit_val * STT_RATE
-    else:
-        stt = entry_val * STT_RATE
-        stamp = exit_val * STAMP_DUTY_RATE
-
-    trans = (entry_val + exit_val) * TRANS_CHARGE_RATE
-    sebi = (entry_val + exit_val) * SEBI_FEE_RATE
-
-    # GST is applicable on Brokerage + Trans + SEBI
-    gst = GST_RATE * (brokerage + trans + sebi)
-
-    return brokerage + stt + stamp + trans + sebi + gst
-
-
-def _trade_pnl_pct(pnl: float, entry_value: float) -> float:
-    if not entry_value:
+def _trade_pnl_pct(side: str, entry_price: float, exit_price: float) -> float:
+    if not entry_price:
         return 0.0
-    return pnl / entry_value * 100.0
+    if side == "LONG":
+        return (exit_price - entry_price) / entry_price * 100.0
+    return (entry_price - exit_price) / entry_price * 100.0
 
 
 def _max_drawdown_from_pnls(pnls: pd.Series) -> float:
@@ -129,7 +84,6 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
         _f=p.eq(0),
         _gp=p.clip(lower=0),
         _gn=(-p.clip(upper=0)),
-        _ev=trades_df["entry_value"],
     )
     g = t.groupby("symbol", sort=True)
     summary = g.agg(
@@ -139,14 +93,10 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
         flat=("_f", "sum"),
         total_pnl=("pnl", "sum"),
         avg_pnl=("pnl", "mean"),
-        total_entry_value=("_ev", "sum"),
-        avg_pnl_pct=("pnl_pct", "mean"),
         gross_profit=("_gp", "sum"),
         gross_loss=("_gn", "sum"),
         best_trade=("pnl", "max"),
         worst_trade=("pnl", "min"),
-        best_trade_pct=("pnl_pct", "max"),
-        worst_trade_pct=("pnl_pct", "min"),
     ).reset_index()
 
     summary["win_pct"] = (
@@ -155,11 +105,6 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
     summary["sym_pf"] = summary["gross_profit"] / summary["gross_loss"].where(
         summary["gross_loss"] > 0
     )
-    summary["total_pnl_pct"] = (
-        100.0
-        * summary["total_pnl"]
-        / summary["total_entry_value"].where(summary["total_entry_value"] > 0)
-    ).fillna(0.0)
 
     side_ct = (
         trades_df.groupby(["symbol", "side"])
@@ -177,16 +122,12 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
     num = [
         "win_pct",
         "total_pnl",
-        "total_pnl_pct",
         "avg_pnl",
-        "avg_pnl_pct",
         "gross_profit",
         "gross_loss",
         "sym_pf",
         "best_trade",
         "worst_trade",
-        "best_trade_pct",
-        "worst_trade_pct",
     ]
     summary[num] = summary[num].round(4)
     summary["profit_factor"] = summary["sym_pf"].apply(
@@ -205,16 +146,12 @@ def _matched_trades_by_symbol_summary(trades_df: pd.DataFrame) -> pd.DataFrame:
         "flat",
         "win_pct",
         "total_pnl",
-        "total_pnl_pct",
         "avg_pnl",
-        "avg_pnl_pct",
         "gross_profit",
         "gross_loss",
         "profit_factor",
         "best_trade",
         "worst_trade",
-        "best_trade_pct",
-        "worst_trade_pct",
     ]
     return summary[out_cols]
 
@@ -233,28 +170,11 @@ def _register_open(
     ts: pd.Timestamp,
     price: float,
     reason: str,
-    *,
-    side: Literal["LONG", "SHORT"],
-    units: float,
 ) -> None:
     cur = agg.get(sym)
-    if side == "LONG":
-        exec_price = price * (1.0 + SLIPPAGE_BPS)  # buy worse
-    else:
-        exec_price = price * (1.0 - SLIPPAGE_BPS)  # sell worse
-    entry_value = exec_price * units
     if cur is None:
-        agg[sym] = AggregateOpen(
-            first=OpenLeg(ts, price, reason),
-            total_units=units,
-            total_entry_value=entry_value,
-            entry_order_values=[entry_value],
-            extra_opens=0,
-        )
+        agg[sym] = AggregateOpen(OpenLeg(ts, price, reason), 0)
     else:
-        cur.total_units += units
-        cur.total_entry_value += entry_value
-        cur.entry_order_values.append(entry_value)
         cur.extra_opens += 1
 
 
@@ -279,29 +199,11 @@ def _close_round_trip(
 
     leg = cur.first
     n_agg = 1 + cur.extra_opens
-    entry_value = cur.total_entry_value
-    total_units = cur.total_units
-    avg_entry_price = (entry_value / total_units) if total_units else 0.0
-
+    ep, xp = leg.price, price
     if side == "LONG":
-        exit_price = price * (1.0 - SLIPPAGE_BPS)  # sell worse
-        entry_is_buy = True
+        pnl = (xp - ep) * units
     else:
-        exit_price = price * (1.0 + SLIPPAGE_BPS)  # buy-to-cover worse
-        entry_is_buy = False
-
-    exit_value = exit_price * total_units
-    if side == "LONG":
-        gross_pnl = exit_value - entry_value
-    else:
-        gross_pnl = entry_value - exit_value
-
-    fees_total = _calculate_precise_fees(
-        entry_order_values=cur.entry_order_values,
-        exit_val=exit_value,
-        entry_is_buy=entry_is_buy,
-    )
-    pnl = gross_pnl - fees_total
+        pnl = (ep - xp) * units
 
     trades.append(
         {
@@ -309,15 +211,11 @@ def _close_round_trip(
             "side": side,
             "entry_time": leg.timestamp,
             "exit_time": ts,
-            "avg_entry_price": avg_entry_price,
-            "exit_price": exit_price,
-            "units": total_units,
-            "entry_value": entry_value,
-            "exit_value": exit_value,
-            "fees_total": fees_total,
-            "gross_pnl": gross_pnl,
+            "entry_price": ep,
+            "exit_price": xp,
+            "units": units,
             "pnl": pnl,
-            "pnl_pct": _trade_pnl_pct(pnl, entry_value),
+            "pnl_pct": _trade_pnl_pct(side, ep, xp),
             "exit_reason": reason,
             "aggregated_entry_signals": n_agg,
         }
@@ -348,9 +246,9 @@ def _match_aggregate_round_trips(
         reason = row.reason
 
         if action == "LONG":
-            _register_open(long_agg, sym, ts, price, reason, side="LONG", units=units)
+            _register_open(long_agg, sym, ts, price, reason)
         elif action == "SHORT":
-            _register_open(short_agg, sym, ts, price, reason, side="SHORT", units=units)
+            _register_open(short_agg, sym, ts, price, reason)
         elif action == "EXIT_LONG":
             _close_round_trip(
                 long_agg,
@@ -396,7 +294,7 @@ def _print_signal_overview(
     )
     print(f"Signals file: {signals_path}")
     print(
-        f"Units per round-trip: {units} (PnL = price diff * units; fees: Indian-market model w/ brokerage cap + statutory)\n"
+        f"Units per round-trip: {units} (PnL = price diff * units; no fees/slippage)\n"
     )
 
     vc = df["action"].value_counts()
@@ -425,10 +323,8 @@ def _format_trade_detail_table(trades_df: pd.DataFrame) -> pd.DataFrame:
     cols = [
         "symbol",
         "side",
-        "avg_entry_price",
+        "entry_price",
         "exit_price",
-        "gross_pnl",
-        "fees_total",
         "pnl",
         "pnl_pct",
         "entry_time",
@@ -437,14 +333,7 @@ def _format_trade_detail_table(trades_df: pd.DataFrame) -> pd.DataFrame:
         "exit_reason",
     ]
     detail = trades_df.loc[:, cols].copy()
-    nums = [
-        "avg_entry_price",
-        "exit_price",
-        "gross_pnl",
-        "fees_total",
-        "pnl",
-        "pnl_pct",
-    ]
+    nums = ["entry_price", "exit_price", "pnl", "pnl_pct"]
     detail[nums] = detail[nums].map(lambda x: f"{x:,.4f}")
     detail[["entry_time", "exit_time"]] = detail[["entry_time", "exit_time"]].astype(
         str
@@ -454,13 +343,10 @@ def _format_trade_detail_table(trades_df: pd.DataFrame) -> pd.DataFrame:
 
 def _print_global_metrics(trades_df: pd.DataFrame) -> None:
     p = trades_df["pnl"]
-    pp = trades_df["pnl_pct"]
     total = p.sum()
     wins = int(p.gt(0).sum())
     losses = int(p.lt(0).sum())
     n = len(trades_df)
-    total_entry_value = float(trades_df["entry_value"].sum()) if n else 0.0
-    total_pnl_pct = (total / total_entry_value * 100.0) if total_entry_value else 0.0
 
     gp_series = p.clip(lower=0)
     gl_series = -p.clip(upper=0)
@@ -469,41 +355,26 @@ def _print_global_metrics(trades_df: pd.DataFrame) -> None:
     pf = _profit_factor(gross_profit, gross_loss)
 
     max_dd = _max_drawdown_from_pnls(p)
-    max_dd_pct = _max_drawdown_from_pnls(pp)
     max_dd_abs = abs(max_dd) if max_dd < 0 else 0.0
     recovery = (
         (total / max_dd_abs) if max_dd_abs > 0 else (None if total != 0 else None)
-    )
-    max_dd_pct_abs = abs(max_dd_pct) if max_dd_pct < 0 else 0.0
-    recovery_pct = (
-        (total_pnl_pct / max_dd_pct_abs)
-        if max_dd_pct_abs > 0
-        else (None if total_pnl_pct != 0 else None)
     )
 
     win_rate_pct = 100.0 * wins / n if n else 0.0
     avg_win = gp_series[gp_series > 0].mean() if wins else 0.0
     avg_loss_mag = gl_series[gl_series > 0].mean() if losses else 0.0
     payoff_ratio = (avg_win / avg_loss_mag) if avg_loss_mag > 0 else None
-    avg_pnl_pct = float(pp.mean()) if n else 0.0
 
     print("Summary:")
-    print(f"  Total PnL % (net / total entry notional): {total_pnl_pct:,.4f}%")
-    print(f"  Avg trade PnL % (mean of trade pnl_pct): {avg_pnl_pct:,.4f}%")
     if pf is None:
         print("  Profit factor (gross gains / gross losses): n/a (no losing trades)")
     else:
         print(f"  Profit factor (gross gains / gross losses): {pf:,.4f}")
     print(f"  Maximum drawdown (cum PnL, exit-time order): {max_dd:,.4f}")
-    print(f"  Maximum drawdown % (cum pnl_pct, exit-time order): {max_dd_pct:,.4f}%")
     if recovery is None:
         print("  Recovery factor (net PnL / |max DD|): n/a")
     else:
         print(f"  Recovery factor (net PnL / |max DD|): {recovery:,.4f}")
-    if recovery_pct is None:
-        print("  Recovery factor % (net PnL% / |max DD%|): n/a")
-    else:
-        print(f"  Recovery factor % (net PnL% / |max DD%|): {recovery_pct:,.4f}")
     print(f"  Win rate: {win_rate_pct:,.2f}%")
     if payoff_ratio is None:
         print("  Avg win / avg loss (payoff): n/a (no losing trades)")
@@ -559,19 +430,8 @@ def analyze(signals_path: Path, units: float) -> None:
     print()
 
     by_side = trades_df.groupby("side", as_index=False).agg(
-        trades=("pnl", "count"),
-        pnl=("pnl", "sum"),
-        entry_value=("entry_value", "sum"),
-        avg_pnl_pct=("pnl_pct", "mean"),
+        trades=("pnl", "count"), pnl=("pnl", "sum")
     )
-    by_side["total_pnl_pct"] = (
-        100.0
-        * by_side["pnl"]
-        / by_side["entry_value"].where(by_side["entry_value"] > 0)
-    ).fillna(0.0)
-    by_side[["pnl", "entry_value", "avg_pnl_pct", "total_pnl_pct"]] = by_side[
-        ["pnl", "entry_value", "avg_pnl_pct", "total_pnl_pct"]
-    ].round(4)
     print("By side:")
     print(by_side.to_string(index=False))
     print()

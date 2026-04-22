@@ -105,6 +105,9 @@ class TestStrategyEngine(unittest.TestCase):
         engine.symbol_dataframes["AAPL"] = pd.DataFrame(
             {"close": [150, 151]}, index=[t1, t2]
         )
+        engine.symbol_dataframes["SPY"] = pd.DataFrame(
+            {"trading_session": [2]}, index=[t2]
+        )
 
         # Setup mock strategies
         mock_long_strategy = MagicMock()

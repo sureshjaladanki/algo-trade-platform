@@ -1,3 +1,4 @@
+import pandas as pd
 from src.strategy_service.strategies.trade_strategy import TradeStrategy
 
 
@@ -16,12 +17,15 @@ class ShortStrategy(TradeStrategy):
         )
 
     # Focus on trend following / resistance levels
-    def check_entry(self, data):
+    def check_entry(self, data, regime_data=None):
         # Condition 1: Trading Session is safe for intraday positions (Shorting a trade)
-        safe_for_intraday_positions = super().check_entry(data)
+        safe_for_intraday_positions, _ = super().check_entry(data, regime_data)
 
         # Condition 2: Market Regime is safe for shorts
-        safe_for_short = self.regime.safe_for_shorts if self.regime else True
+        if self.regime and regime_data is not None:
+            safe_for_short = self.regime.safe_for_shorts(regime_data)
+        else:
+            safe_for_short = True
 
         # Condition 3: Micro Trend is DOWN (9 EMA < 21 EMA)
         micro_trend_down = data.get(self.ema_micro_fast_key, float("inf")) < data.get(
@@ -42,38 +46,26 @@ class ShortStrategy(TradeStrategy):
 
         return (
             safe_for_intraday_positions
-            and safe_for_short
-            and micro_trend_down
-            and pullback
-            and price_above_vwma_macro_fast
-            and price_above_vwma_macro_slow
-        )
+            & safe_for_short
+            & micro_trend_down
+            & pullback
+            & price_above_vwma_macro_fast
+            & price_above_vwma_macro_slow
+        ), "Entry Conditions Met"
 
-    def short(self, data):
-        """Execute Short SELL if entry conditions are met."""
-        if self.check_entry(data):
-            return [
-                {
-                    "timestamp": data.name if hasattr(data, "name") else None,
-                    "action": "SHORT",
-                    "symbol": self.symbol,
-                    "price": data["close"],
-                    "reason": "Entry Conditions Met",
-                }
-            ]
-
-        return []
-
-    def exit(self, data, prev_data=None):
+    def check_exit(self, data, prev_data=None, regime_data=None):
         """
         Execute EXIT purely based on stateless, instantaneous market indicators.
         Trade-lifecycle exits (Time Stops, Trailing Stops) must be handled by the OMS.
         """
-        if prev_data is None:
-            return []
+        if isinstance(data, pd.DataFrame):
+            if prev_data is None:
+                prev_data = data.shift(1)
+        elif prev_data is None:
+            return False, ""
 
         # Exit 1: Trading Session is in squareoff window
-        should_exit = self.check_exit(data, prev_data)
+        should_exit, _ = super().check_exit(data, prev_data, regime_data)
 
         # Exit 2: Momentum Exhaustion (Instantaneous)
         # We signal an exit if the market is currently oversold.
@@ -81,15 +73,14 @@ class ShortStrategy(TradeStrategy):
         short_rsi_exit = self.config.get("short_rsi_exit", 35)
         take_profit = data.get(self.rsi_key, 50) < short_rsi_exit
 
-        # Exit 3: Micro Trend Reversal (5m 9 EMA crosses above 21 EMA)
-        # Using faster EMAs (9/21) for exits cuts losses much quicker than waiting for macro (45/105) reversal.
+        # Exit 3: Micro Trend Reversal (9 EMA crosses above 21 EMA — exit short on bullish micro cross)
         current_trend_up = data.get(self.ema_micro_fast_key, float("inf")) > data.get(
             self.ema_micro_slow_key, float("inf")
         )
         prev_trend_down = prev_data.get(
             self.ema_micro_fast_key, float("inf")
         ) <= prev_data.get(self.ema_micro_slow_key, float("inf"))
-        trend_reversal = current_trend_up and prev_trend_down
+        trend_reversal = current_trend_up & prev_trend_down
 
         # Exit 4: Trend Failure Stop (Price breaks above VWAP + Buffer)
         # This is a structural market failure, valid regardless of entry price
@@ -102,9 +93,13 @@ class ShortStrategy(TradeStrategy):
 
         current_stop_loss = data["close"] > stop_loss_price
         prev_no_stop_loss = prev_data["close"] <= prev_stop_loss_price
-        stop_loss = current_stop_loss and prev_no_stop_loss
+        stop_loss = current_stop_loss & prev_no_stop_loss
 
-        if should_exit or take_profit or trend_reversal or stop_loss:
+        exits = should_exit | take_profit | trend_reversal | stop_loss
+
+        if isinstance(should_exit, pd.Series):
+            reason = "Exit Condition Met"
+        else:
             if should_exit:
                 reason = "End of Day Squareoff"
             elif take_profit:
@@ -114,6 +109,34 @@ class ShortStrategy(TradeStrategy):
             else:
                 reason = "Trend Failure (VWAP Stop)"
 
+        return exits, reason
+
+    def short(self, data, regime_data=None):
+        """Execute Short SELL if entry conditions are met."""
+        entries, reason = self.check_entry(data, regime_data)
+        if isinstance(data, pd.DataFrame):
+            return entries.fillna(False)
+
+        if entries:
+            return [
+                {
+                    "timestamp": data.name if hasattr(data, "name") else None,
+                    "action": "SHORT",
+                    "symbol": self.symbol,
+                    "price": data["close"],
+                    "reason": reason,
+                }
+            ]
+
+        return []
+
+    def exit(self, data, prev_data=None, regime_data=None):
+        exits, reason = self.check_exit(data, prev_data, regime_data)
+
+        if isinstance(data, pd.DataFrame):
+            return exits.fillna(False)
+
+        if exits:
             return [
                 {
                     "timestamp": data.name if hasattr(data, "name") else None,

@@ -39,11 +39,11 @@ class TradeStrategy(ABC):
             else:
                 df["rvol"] = 1
 
-            if (
-                all(key in self.symbol_profile for key in ["prev_close", "prev_atr"])
-                and self.gap_atr_ratio is None
-            ):
-                self.gap_atr_ratio = self._generate_gap_atr_ratio(df)
+            # if (
+            #     all(key in self.symbol_profile for key in ["prev_close", "prev_atr"])
+            #     and self.gap_atr_ratio is None
+            # ):
+            #     self.gap_atr_ratio = self._generate_gap_atr_ratio(df)
 
         # 1. Micro Indicators (1-minute timeframe)
         df = add_vwap(df)
@@ -62,26 +62,27 @@ class TradeStrategy(ABC):
 
         return df
 
-    def _generate_gap_atr_ratio(self, df: pd.DataFrame):
-        latest_date = None  # Initialize to prevent UnboundLocalError
+    # Note: Need check if this is really helping with postive signals
+    # def _generate_gap_atr_ratio(self, df: pd.DataFrame):
+    #     latest_date = None  # Initialize to prevent UnboundLocalError
 
-        if "datetime" in df.columns:
-            latest_date = pd.to_datetime(df["datetime"]).iloc[-1].date()
-        elif isinstance(df.index, pd.DatetimeIndex):
-            latest_date = df.index[-1].date()
+    #     if "datetime" in df.columns:
+    #         latest_date = pd.to_datetime(df["datetime"]).iloc[-1].date()
+    #     elif isinstance(df.index, pd.DatetimeIndex):
+    #         latest_date = df.index[-1].date()
 
-        # Check if we successfully extracted a date
-        if latest_date:
-            # 1. Calculate the Opening Gap (Latest Open - Yesterday's Close)
-            gap_abs = df["open"].iloc[-1] - self.symbol_profile["prev_close"]
+    #     # Check if we successfully extracted a date
+    #     if latest_date:
+    #         # 1. Calculate the Opening Gap (Latest Open - Yesterday's Close)
+    #         gap_abs = df["open"].iloc[-1] - self.symbol_profile["prev_close"]
 
-            # 2. Gap Analysis relative to ATR
-            # Gap as a multiple of ATR (e.g., 0.5 means the gap is 50% of the daily ATR)
-            # Positive = Gap Up, Negative = Gap Down
-            gap_atr_ratio = gap_abs / self.symbol_profile["prev_atr"]
-            return gap_atr_ratio
+    #         # 2. Gap Analysis relative to ATR
+    #         # Gap as a multiple of ATR (e.g., 0.5 means the gap is 50% of the daily ATR)
+    #         # Positive = Gap Up, Negative = Gap Down
+    #         gap_atr_ratio = gap_abs / self.symbol_profile["prev_atr"]
+    #         return gap_atr_ratio
 
-        return None
+    #     return None
 
     def _load_config(self) -> dict:
         # Assuming the script is run from the root of the project
@@ -93,50 +94,73 @@ class TradeStrategy(ABC):
             print(f"Warning: Config file for {self.symbol} not found.")
             return {}
 
-    def check_entry(self, data):
+    def check_entry(self, data, regime_data=None):
+        if self.regime and regime_data is not None:
+            trading_session = self.regime.trading_session(regime_data)
+        else:
+            trading_session = TradingSession.OPENING.value
+
         # Condition 1: Trading Session is safe for intraday positions
-        if self.regime:
+        if self.regime and regime_data is not None:
             safe_for_intraday_positions = (
-                TradingSession.WARMUP
-                < self.regime.trading_session
-                < TradingSession.CLOSING
-            )
+                TradingSession.WARMUP.value < trading_session
+            ) & (trading_session < TradingSession.CLOSING.value)
         else:
             safe_for_intraday_positions = True
 
         # Condition 2: Trading Volume is above the Time-Segmented Average Volume threshold for the symbol
-        session_name = (
-            self.regime.trading_session.name.lower() if self.regime else "opening"
-        )
-        thresholds = self.config.get("session_volume_threshold", {})
-        threshold = (
-            thresholds.get(session_name, 1.0) if isinstance(thresholds, dict) else 1.0
-        )
+        # For vectorization, we'll just use the default "opening" threshold if we can't easily map the session name.
+        # To keep it simple, we'll use a single threshold or map it if it's a Series.
+        # If it's a Series, mapping session names is complex, so we'll just use 1.0 for now or map it using replace.
+        threshold = 1.0
+        if isinstance(trading_session, pd.Series):
+            # Map integer values back to session names for threshold lookup
+            session_map = {
+                v.value: k.lower() for k, v in TradingSession.__members__.items()
+            }
+            thresholds = self.config.get("session_volume_threshold", {})
+            threshold_map = {k: thresholds.get(v, 1.0) for k, v in session_map.items()}
+            threshold = trading_session.map(threshold_map).fillna(1.0)
+        else:
+            session_name = (
+                TradingSession(trading_session).name.lower()
+                if self.regime and regime_data is not None
+                else "opening"
+            )
+            thresholds = self.config.get("session_volume_threshold", {})
+            threshold = thresholds.get(session_name, 1.0)
+
         trading_volume_above_threshold = data.get("rvol", 1.0) > threshold
 
         # Condition 3: Gap ATR Ratio is within acceptable limits
-        gap_atr_ratio_limit = self.config.get("gap_atr_ratio_limit", 1.0)
-        gap_atr_ratio_within_limit = (
-            abs(self.gap_atr_ratio) <= gap_atr_ratio_limit
-            if self.gap_atr_ratio is not None
-            else True
-        )
+        # gap_atr_ratio_limit = self.config.get("gap_atr_ratio_limit", 1.0)
+        # gap_atr_ratio_within_limit = (
+        #     abs(self.gap_atr_ratio) <= gap_atr_ratio_limit
+        #     if self.gap_atr_ratio is not None
+        #     else True
+        # )
 
         return (
-            safe_for_intraday_positions
-            and trading_volume_above_threshold
-            and gap_atr_ratio_within_limit
-        )
+            safe_for_intraday_positions & trading_volume_above_threshold
+        ), "Entry Conditions Met"
 
-    def check_exit(self, data, prev_data=None):
+    def check_exit(self, data, prev_data=None, regime_data=None):
         """Determine if exit needs to be mandated."""
+        if isinstance(data, pd.DataFrame):
+            if self.regime and regime_data is not None:
+                trading_session = self.regime.trading_session(regime_data)
+                current_exit = trading_session > TradingSession.CLOSING.value
+                just_crossed = current_exit & ~current_exit.shift(1, fill_value=False)
+                return just_crossed, "End of Day Squareoff"
+            return pd.Series(False, index=data.index), "End of Day Squareoff"
+
         current_exit = (
-            self.regime.trading_session > TradingSession.CLOSING
-            if self.regime
+            self.regime.trading_session(regime_data) > TradingSession.CLOSING.value
+            if self.regime and regime_data is not None
             else False
         )
 
         just_crossed = current_exit and not self._prev_exit
         self._prev_exit = current_exit
 
-        return just_crossed
+        return just_crossed, "End of Day Squareoff"

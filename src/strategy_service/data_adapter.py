@@ -19,6 +19,12 @@ class IDataAdapter(ABC):
         """Yield 1-minute candles that have closed by reading from current day data."""
         pass
 
+    # method to read the 1-minute candle history for the current day for vectorbt backtest
+    @abstractmethod
+    def read_1m_candles_current_day(self, symbol: str) -> pd.DataFrame:
+        """Fetch 1-minute candle history for a given symbol for the current day."""
+        pass
+
 
 class DataAdapter(IDataAdapter):
     def __init__(self):
@@ -38,8 +44,10 @@ class DataAdapter(IDataAdapter):
 
     def process_next_1m_candle(self, symbol: str):
         """Yield 1-minute candles that have closed by reading from current day data."""
-        filepath = f"{self.data_path}/{symbol}_1m_current_day.csv"
-        df = self._read_dataframe(filepath)
+        df = self.read_1m_candles_current_day(symbol)
 
         for _, candle in df.iterrows():
             yield candle
+
+    def read_1m_candles_current_day(self, symbol: str) -> pd.DataFrame:
+        return self._read_dataframe(f"{self.data_path}/{symbol}_1m_current_day.csv")

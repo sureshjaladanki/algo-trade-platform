@@ -45,30 +45,35 @@ class TestLongStrategy(unittest.TestCase):
             "vwma_21": 110.0,
             "vwma_45": 112.0,
         }
-        self.assertTrue(self.strategy.check_entry(data))
+        entries, _ = self.strategy.check_entry(data)
+        self.assertTrue(entries)
 
         # Invalid: Micro trend down
         invalid_data = data.copy()
         invalid_data["ema_9"] = 102.0
         invalid_data["ema_21"] = 103.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: No pullback
         invalid_data = data.copy()
         invalid_data["rsi_70"] = 50.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: Price not below macro fast VWMA (still below slow)
         invalid_data = data.copy()
         invalid_data["close"] = 115.0
         invalid_data["vwma_21"] = 110.0
         invalid_data["vwma_45"] = 120.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
         # Invalid: Price not below macro slow VWMA
         invalid_data = data.copy()
         invalid_data["vwma_45"] = 100.0
-        self.assertFalse(self.strategy.check_entry(invalid_data))
+        entries, _ = self.strategy.check_entry(invalid_data)
+        self.assertFalse(entries)
 
     def test_buy(self):
         data = {
@@ -115,12 +120,13 @@ class TestLongStrategy(unittest.TestCase):
         self.assertEqual(action[0]["reason"], "Take Profit (RSI Overbought)")
 
     def test_exit_trend_reversal(self):
+        # Bearish micro cross: was 9 EMA > 21 EMA, now 9 EMA < 21 EMA
         prev_data = {
             "close": 105.0,
             "low": 104.0,
             "high": 106.0,
             "vwap": 100.0,
-            "ema_9": 103.0,
+            "ema_9": 105.0,
             "ema_21": 104.0,
             "rsi_70": 50.0,
         }
@@ -129,7 +135,7 @@ class TestLongStrategy(unittest.TestCase):
             "low": 104.0,
             "high": 106.0,
             "vwap": 100.0,
-            "ema_9": 105.0,
+            "ema_9": 103.0,
             "ema_21": 104.0,
             "rsi_70": 50.0,
         }
@@ -153,7 +159,8 @@ class TestLongStrategy(unittest.TestCase):
             "low": 100.0,
             "high": 116.0,
             "vwap": 100.0,
-            "ema_9": 102.0,
+            # Keep micro trend up so bearish EMA cross does not fire (only volatility widened)
+            "ema_9": 104.0,
             "ema_21": 103.0,
             "rsi_70": 50.0,
         }
