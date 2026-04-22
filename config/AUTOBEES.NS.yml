@@ -4,7 +4,6 @@ session_volume_threshold:
   midday: 0.74
   closing: 0.66
 vwap_stop_loss_pct: 0.64
-gap_atr_ratio_limit: 0.95
 ema_micro_fast_period: 9
 ema_micro_slow_period: 21
 long_rsi_entry: 59

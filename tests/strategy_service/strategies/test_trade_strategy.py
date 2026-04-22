@@ -99,8 +99,6 @@ class TestTradeStrategy(unittest.TestCase):
         )
         self.assertFalse(entries)
 
-        # Note: `gap_atr_ratio_limit` is currently not enforced by application code.
-
 
 if __name__ == "__main__":
     unittest.main()

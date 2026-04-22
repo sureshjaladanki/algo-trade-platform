@@ -18,7 +18,6 @@ class TradeStrategy(ABC):
         self.symbol_profile = symbol_profile
         self.regime = regime
         self.config = self._load_config()
-        self.gap_atr_ratio = None
         self._prev_exit = False
 
     def generate_features(self, df):
@@ -39,12 +38,6 @@ class TradeStrategy(ABC):
             else:
                 df["rvol"] = 1
 
-            # if (
-            #     all(key in self.symbol_profile for key in ["prev_close", "prev_atr"])
-            #     and self.gap_atr_ratio is None
-            # ):
-            #     self.gap_atr_ratio = self._generate_gap_atr_ratio(df)
-
         # 1. Micro Indicators (1-minute timeframe)
         df = add_vwap(df)
         vwma_macro_fast_period = self.config.get("vwma_macro_fast_period", 21)
@@ -61,28 +54,6 @@ class TradeStrategy(ABC):
         df = add_rsi(df, rsi_period=rsi_period)
 
         return df
-
-    # Note: Need check if this is really helping with postive signals
-    # def _generate_gap_atr_ratio(self, df: pd.DataFrame):
-    #     latest_date = None  # Initialize to prevent UnboundLocalError
-
-    #     if "datetime" in df.columns:
-    #         latest_date = pd.to_datetime(df["datetime"]).iloc[-1].date()
-    #     elif isinstance(df.index, pd.DatetimeIndex):
-    #         latest_date = df.index[-1].date()
-
-    #     # Check if we successfully extracted a date
-    #     if latest_date:
-    #         # 1. Calculate the Opening Gap (Latest Open - Yesterday's Close)
-    #         gap_abs = df["open"].iloc[-1] - self.symbol_profile["prev_close"]
-
-    #         # 2. Gap Analysis relative to ATR
-    #         # Gap as a multiple of ATR (e.g., 0.5 means the gap is 50% of the daily ATR)
-    #         # Positive = Gap Up, Negative = Gap Down
-    #         gap_atr_ratio = gap_abs / self.symbol_profile["prev_atr"]
-    #         return gap_atr_ratio
-
-    #     return None
 
     def _load_config(self) -> dict:
         # Assuming the script is run from the root of the project
@@ -131,14 +102,6 @@ class TradeStrategy(ABC):
             threshold = thresholds.get(session_name, 1.0)
 
         trading_volume_above_threshold = data.get("rvol", 1.0) > threshold
-
-        # Condition 3: Gap ATR Ratio is within acceptable limits
-        # gap_atr_ratio_limit = self.config.get("gap_atr_ratio_limit", 1.0)
-        # gap_atr_ratio_within_limit = (
-        #     abs(self.gap_atr_ratio) <= gap_atr_ratio_limit
-        #     if self.gap_atr_ratio is not None
-        #     else True
-        # )
 
         return (
             safe_for_intraday_positions & trading_volume_above_threshold

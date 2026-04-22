@@ -8,7 +8,6 @@ from src.strategy_service.strategies.long_strategy import LongStrategy
 from src.strategy_service.strategies.short_strategy import ShortStrategy
 from src.strategy_service.data_adapter import DataAdapter, IDataAdapter
 from src.strategy_service.features.rvol import get_volume_profile
-from src.strategy_service.features.atr import get_atr
 
 
 class StrategyEngine:
@@ -48,12 +47,6 @@ class StrategyEngine:
         self.symbol_dataframes[symbol] = pd.DataFrame()
 
     def _init_trade_symbol_data(self, symbol: str):
-        # symbol 1day candles history dataframe
-        symbol_1d_candles_history_dataframe = (
-            self.data_adapter.read_1d_candles_history_dataframe(symbol)
-        )
-        day_atr_profile = get_atr(symbol_1d_candles_history_dataframe)
-
         # symbol 1min candles history dataframe
         symbol_1m_candles_history_dataframe = (
             self.data_adapter.read_1m_candles_history_dataframe(symbol)
@@ -64,7 +57,6 @@ class StrategyEngine:
         symbol_profile = {
             "minute_of_day_volume": minute_of_day_volume_profile,
         }
-        symbol_profile |= day_atr_profile  # merge the two dictionaries
 
         # Get the latest date available in the history dataframe, this is the previous day's date
         latest_date = symbol_1m_candles_history_dataframe.index.normalize().max()

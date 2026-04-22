@@ -33,25 +33,17 @@ class TestStrategyEngine(unittest.TestCase):
         self.assertIsNotNone(engine.regime_strategy)
 
     @patch("src.strategy_service.engine.StrategyEngine._load_config")
-    @patch("src.strategy_service.engine.get_atr")
     @patch("src.strategy_service.engine.get_volume_profile")
-    def test_init_data(self, mock_get_volume_profile, mock_get_atr, mock_load_config):
+    def test_init_data(self, mock_get_volume_profile, mock_load_config):
         mock_load_config.return_value = self.mock_config
-        mock_get_atr.return_value = {"prev_atr": 2.5}
         mock_get_volume_profile.return_value = {"09:30": 1000}
 
         # Setup mock dataframes for data adapter
-        dates = pd.date_range(start="2023-01-01", periods=2)
-        mock_1d_df = pd.DataFrame({"close": [100, 101]}, index=dates)
-
         # 1m df with the last date being 2023-01-02
         dates_1m = pd.date_range(start="2023-01-01 09:30", periods=100, freq="1min")
         mock_1m_df = pd.DataFrame({"close": np.random.rand(100)}, index=dates_1m)
 
-        self.mock_data_adapter.build_1d_candles_history_dataframe.return_value = (
-            mock_1d_df
-        )
-        self.mock_data_adapter.build_1m_candles_history_dataframe.return_value = (
+        self.mock_data_adapter.read_1m_candles_history_dataframe.return_value = (
             mock_1m_df
         )
 

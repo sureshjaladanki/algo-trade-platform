@@ -8,7 +8,6 @@ This document describes what the current `strategy_service` actually does with t
   - Loads `config/strategy_engine.yml` to choose trade symbols and the regime inputs.
   - Builds symbol profiles from historical files:
     - `data/processed/<SYMBOL>_1m_history.csv` (minute-of-day volume profile)
-    - `data/processed/<SYMBOL>_1d_30d.csv` (previous close + previous ATR)
   - Replays the “current day” minute stream from `data/processed/<SYMBOL>_1m_current_day.csv`.
   - When run as a script, writes `data/output/all_signals.csv`.
 
@@ -32,8 +31,6 @@ Implemented in `TradeStrategy.check_entry()`:
 - **Session gate**: only trade when `TradingSession.WARMUP < session < TradingSession.CLOSING`.
 - **Liquidity gate (RVOL)**: require `rvol > session_volume_threshold[opening|midday|closing]`.
   - `rvol` is computed vs each symbol’s minute-of-day average volume profile derived from `*_1m_history.csv`.
-- **Gap filter**: require `abs(gap_atr_ratio) <= gap_atr_ratio_limit`.
-  - `gap_atr_ratio` is computed once per run using the “current day” open vs `prev_close`, normalized by `prev_atr` from `*_1d_30d.csv`.
 
 ### Long entry
 - **Regime**: `RegimeStrategy.safe_for_longs` must be true.
@@ -87,7 +84,6 @@ Then:
 ### Keys currently used by `strategy_service`
 - `rsi_period`
 - `session_volume_threshold` (opening/midday/closing)
-- `gap_atr_ratio_limit`
 - `ema_micro_fast_period`, `ema_micro_slow_period`
 - `adx_period`, `adx_threshold`
 - `vwma_macro_fast_period`, `vwma_macro_slow_period`
@@ -99,8 +95,7 @@ These appear in per-ETF configs but are not referenced by the current entry/exit
 
 - `stop_loss_pct`
 - `max_pos_size`, `min_pos_size`
-- `vwap_atr_stop_multiplier`
-- `profit_margin_pct_threshold`, `profit_margin_atr_multiplier`, `min_rr_ratio`
+- `profit_margin_pct_threshold`, `min_rr_ratio`
 - `bb_period`, `bb_std_dev`, `min_bbw_pct`
 - `ema_macro_fast_period`, `ema_macro_slow_period`
 
@@ -114,14 +109,13 @@ The per-ETF files primarily tune:
 - **Pullback depth** (RSI entry/exit levels)
 - **Trend selectivity** (ADX threshold)
 - **VWAP tolerance** (`vwap_stop_loss_pct`)
-- **Liquidity + gap strictness** (`session_volume_threshold`, `gap_atr_ratio_limit`)
+- **Liquidity strictness** (`session_volume_threshold`)
 
 ### NIFTYBEES.NS (Nifty 50)
 - **Why tighter structure**: most liquid and typically cleaner intraday structure.
 - **Config highlights**:
   - RSI(11): long entry 56 / exit 72; short entry 42 / exit 35
   - VWAP stop buffer: 0.52%
-  - Gap filter: 0.78 ATR (stricter)
   - ADX threshold: 11
 
 ### JUNIORBEES.NS (Nifty Next 50)
@@ -129,7 +123,6 @@ The per-ETF files primarily tune:
 - **Config highlights**:
   - RSI(11): long entry 58 / exit 74; short entry 40 / exit 33
   - VWAP stop buffer: 0.60%
-  - Gap filter: 0.85 ATR
   - ADX threshold: 12
 
 ### BANKBEES.NS (Bank Nifty)
@@ -137,15 +130,13 @@ The per-ETF files primarily tune:
 - **Config highlights**:
   - RSI(11): long entry 60 / exit 76; short entry 38 / exit 31
   - VWAP stop buffer: 0.70%
-  - Gap filter: 1.05 ATR
   - ADX threshold: 14
 
 ### ITBEES.NS (Nifty IT)
-- **Why cue/gap-aware**: IT is more prone to gap-driven sessions.
+- **Why cue-aware**: IT is more prone to session-driven swings.
 - **Config highlights**:
   - RSI(12): long entry 56 / exit 73; short entry 42 / exit 34
   - VWAP stop buffer: 0.48%
-  - Gap filter: 0.95 ATR
   - ADX threshold: 12
 
 ### PSUBNKBEES.NS (Nifty PSU Bank)
@@ -153,7 +144,6 @@ The per-ETF files primarily tune:
 - **Config highlights**:
   - RSI(11): long entry 59 / exit 75; short entry 39 / exit 32
   - VWAP stop buffer: 0.74%
-  - Gap filter: 1.10 ATR
   - ADX threshold: 13
 
 ### AUTOBEES.NS (Nifty Auto)
@@ -161,7 +151,6 @@ The per-ETF files primarily tune:
 - **Config highlights**:
   - RSI(11): long entry 59 / exit 75; short entry 39 / exit 32
   - VWAP stop buffer: 0.64%
-  - Gap filter: 0.95 ATR
   - ADX threshold: 13
 
 ## Outputs
