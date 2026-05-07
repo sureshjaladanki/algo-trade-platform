@@ -1,0 +1,22 @@
+artifact_path: file:C:/JVS/Code/algo-trade-platform/mlruns/1/models/m-dfe870bec3e14d7396b064f0baee4f1a/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.13.12
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: ubj
+    xgb_version: 3.2.0
+mlflow_version: 3.12.0
+model_id: m-dfe870bec3e14d7396b064f0baee4f1a
+model_size_bytes: 234483
+model_uuid: m-dfe870bec3e14d7396b064f0baee4f1a
+prompts: null
+run_id: b9a175b892f54d6f902874f5dea7c1a4
+utc_time_created: '2026-05-06 15:16:30.815154'

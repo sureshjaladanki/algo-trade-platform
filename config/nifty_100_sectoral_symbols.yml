@@ -1,0 +1,110 @@
+regime_symbol: ^INDIAVIX
+sectoral_indices:
+  ^CNXPSUBANK:
+    trade_symbols:
+      - BANKBARODA.NS
+      - CANBK.NS
+      - PNB.NS
+      - SBIN.NS
+      - UNIONBANK.NS
+  NIFTY_PVT_BANK.NS:
+    trade_symbols:
+      - AXISBANK.NS
+      - HDFCBANK.NS
+      - ICICIBANK.NS
+      - KOTAKBANK.NS
+  ^CNXFINANCE:
+    trade_symbols:
+      - BAJAJFINSV.NS
+      - BAJFINANCE.NS
+      - CHOLAFIN.NS
+      - HDFCAMC.NS
+      - HDFCLIFE.NS
+      - JIOFIN.NS
+      - MUTHOOTFIN.NS
+      - PFC.NS
+      - RECLTD.NS
+      - SBILIFE.NS
+      - SHRIRAMFIN.NS
+  # - ^CNXFMCG:
+  #   trade_symbols:
+  #     - BRITANNIA.NS
+  #     - GODREJCP.NS
+  #     - HINDUNILVR.NS
+  #     - ITC.NS
+  #     - NESTLEIND.NS
+  #     - TATACONSUM.NS
+  #     - UNITDSPR.NS
+  #     - VBL.NS
+  # - NIFTY_CONSR_DURBL:
+  #   trade_symbols:
+  #     - TITAN.NS
+  # - NIFTYCEMENT:
+  #   trade_symbols:
+  #     - AMBUJACEM.NS
+  #     - GRASIM.NS
+  #     - SHREECEM.NS
+  #     - ULTRACEMCO.NS
+  # - ^CNXREALTY:
+  #   trade_symbols:
+  #     - DLF.NS
+  #     - LODHA.NS
+  ^CNXAUTO:
+    trade_symbols:
+      - BAJAJ-AUTO.NS
+      - BOSCHLTD.NS
+      - EICHERMOT.NS
+      - HYUNDAI.NS
+      - M&M.NS
+      - MARUTI.NS
+      - MOTHERSON.NS
+      - TMCV.NS
+      - TMPV.NS
+      - TVSMOTOR.NS
+  ^CNXENERGY:
+    trade_symbols:
+      - ABB.NS
+      - ADANIENSOL.NS
+      - ADANIGREEN.NS
+      - ADANIPOWER.NS
+      - CGPOWER.NS
+      - COALINDIA.NS
+      - GAIL.NS
+      - IOC.NS
+      - NTPC.NS
+      - ONGC.NS
+      - POWERGRID.NS
+      - RELIANCE.NS
+      - SIEMENS.NS
+      - TATAPOWER.NS
+  ^CNXMETAL:
+    trade_symbols:
+      - ADANIENT.NS
+      - HINDALCO.NS
+      - HINDZINC.NS
+      - JINDALSTEL.NS
+      - JSWSTEEL.NS
+      - TATASTEEL.NS
+      - VEDL.NS
+  NIFTY_OIL_AND_GAS.NS:
+    trade_symbols:
+      - BPCL.NS
+      - GAIL.NS
+      - IOC.NS
+      - ONGC.NS
+      - RELIANCE.NS
+  ^CNXPHARMA:
+    trade_symbols:
+      - CIPLA.NS
+      - DIVISLAB.NS
+      - DRREDDY.NS
+      - SUNPHARMA.NS
+      - TORNTPHARM.NS
+      - ZYDUSLIFE.NS
+  ^CNXIT:
+    trade_symbols:
+      - HCLTECH.NS
+      - INFY.NS
+      - TCS.NS
+      - TECHM.NS
+      - WIPRO.NS

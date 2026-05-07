@@ -1,0 +1,30 @@
+# Period configuration for symbol feature computation.
+#
+# Each section corresponds to one feature function in src/features/.
+# Values here are loaded by src/features/symbol_features.py and used as the
+# defaults for compute_1m_features and compute_5m_features.
+
+ema:
+  period: 14
+
+bollinger:
+  period: 20
+
+volume_zscore:
+  period: 20
+
+relative_volume:
+  # Lookback expressed in trading days (rolling over same minute_of_day).
+  period: 14
+
+atr_gap:
+  # Daily ATR window in trading days.
+  period: 14
+
+rsi:
+  period: 14
+  roc_period: 5
+
+adx:
+  period: 14
+  roc_period: 5
