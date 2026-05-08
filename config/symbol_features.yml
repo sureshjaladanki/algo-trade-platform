@@ -23,8 +23,8 @@ atr_gap:
 
 rsi:
   period: 14
-  roc_period: 5
+  roc_period: 3
 
 adx:
   period: 14
-  roc_period: 5
+  roc_period: 3

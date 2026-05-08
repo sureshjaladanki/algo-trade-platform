@@ -44,6 +44,14 @@ def add_atr_gap(df: pl.DataFrame, period: int = 14) -> pl.DataFrame:
     df = df.with_columns(
         ((pl.col("close") - pl.col("prev_day_close")) / pl.col("prev_day_atr")).alias("gap_atr")
     )
+    # prev_day_atr can be 0 on a flat day -> division yields +/-inf.
+    # Replace with NaN so XGBoost can route it through its missing-value branch.
+    df = df.with_columns(
+        pl.when(pl.col("gap_atr").is_infinite())
+          .then(float("nan"))
+          .otherwise(pl.col("gap_atr"))
+          .alias("gap_atr")
+    )
 
     # Drop intermediate columns
     df = df.drop(["prev_day_close", "prev_day_atr"])

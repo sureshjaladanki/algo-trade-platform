@@ -1,0 +1,9 @@
+# Period configuration for market feature computation.
+#
+# Notes:
+# - Features are computed on 5-minute resampled candles.
+# - `roc.period` is a lookback in *5m bars*.
+
+roc:
+  period: 3
+

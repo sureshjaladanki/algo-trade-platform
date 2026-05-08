@@ -1,0 +1,11 @@
+# Period configuration for sectoral regime feature computation.
+#
+# Each section corresponds to one sector-level feature.
+#
+# Notes:
+# - Features are computed on 5-minute resampled candles.
+# - `roc.period` is a lookback in *5m bars*.
+
+roc:
+  period: 3
+

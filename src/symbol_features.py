@@ -2,7 +2,7 @@ from pathlib import Path
 
 import polars as pl
 
-from features import (
+from .features import (
     add_trading_day,
     add_minute_of_day,
     add_vwap,
@@ -14,7 +14,7 @@ from features import (
     add_rsi,
     add_adx,
 )
-from utils import load_config
+from .utils import load_config
 
 
 # Resolve <repo_root>/config/symbol_features.yml relative to this file

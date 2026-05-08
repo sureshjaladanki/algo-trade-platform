@@ -31,5 +31,5 @@ def add_vwap(df: pl.DataFrame) -> pl.DataFrame:
     ])
 
     # Drop intermediate columns
-    df = df.drop(["price_volume", "vol_price_diff_sq", "vwap_std"])
+    df = df.drop(["price_volume", "vwap", "vol_price_diff_sq", "vwap_std"])
     return df

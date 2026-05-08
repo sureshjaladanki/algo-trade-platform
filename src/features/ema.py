@@ -18,4 +18,6 @@ def add_ema(df: pl.DataFrame, period: int = 14) -> pl.DataFrame:
     df = df.with_columns(
         ((pl.col("close") - pl.col(ema_col)) / pl.col(ema_col)).alias(pct_col)
     )
+    df = df.drop(ema_col)
+
     return df

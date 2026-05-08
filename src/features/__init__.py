@@ -8,6 +8,8 @@ from .relative_volume import add_relative_volume
 from .atr_gap import add_atr_gap
 from .rsi import add_rsi
 from .adx import add_adx
+from .advance_decline import add_advance_decline
+from .roc import add_roc
 
 __all__ = [
     "add_trading_day",
@@ -20,4 +22,6 @@ __all__ = [
     "add_atr_gap",
     "add_rsi",
     "add_adx",
+    "add_advance_decline",
+    "add_roc",
 ]
