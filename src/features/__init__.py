@@ -10,10 +10,12 @@ from .rsi import add_rsi
 from .adx import add_adx
 from .advance_decline import add_advance_decline
 from .roc import add_roc
+from .trading_session import add_trading_session
 
 __all__ = [
     "add_trading_day",
     "add_minute_of_day",
+    "add_trading_session",
     "add_vwap",
     "add_ema",
     "add_bollinger",

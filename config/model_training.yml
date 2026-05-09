@@ -6,3 +6,24 @@
 lookahead_minutes: 15
 stop_loss_pct: 0.5
 take_profit_pct: 0.25
+
+# Target (label) configuration
+#
+# `long_target` in `src/features/long_target.py` uses:
+# - 0: stop-loss hit first
+# - 1: hold / no-action
+# - 2: take-profit hit first
+target:
+  # Single structure keyed by class name. Each entry defines:
+  # - num: the integer label produced by `long_target`
+  # - weight: per-class weighting for training sample weights
+  classes:
+    stop_loss:
+      num: 0
+      weight: 1.5
+    hold:
+      num: 1
+      weight: 1.0
+    take_profit:
+      num: 2
+      weight: 2.0

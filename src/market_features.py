@@ -4,7 +4,7 @@ from pathlib import Path
 
 import polars as pl
 
-from .features import add_roc
+from .features import add_minute_of_day, add_trading_session, add_roc
 from .utils import load_config
 
 
@@ -15,11 +15,31 @@ _CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "market_features
 _CFG = load_config(_CONFIG_PATH)
 
 
-def compute_5m_market_features(
-    market_df_1m: pl.DataFrame,
+def compute_1m_market_features(
+    market_df: pl.DataFrame,
     datetime_col: str = "timestamp",
     *,
-    roc_period: int = _CFG["roc"]["period"],
+    trading_sessions = _CFG["trading_sessions"],
+) -> pl.DataFrame:
+    """
+    Computes 1-minute market features.
+
+    Currently includes:
+    - `minute_of_day`
+    - `trading_session` (categorical bucket)
+    """
+    market_df = add_minute_of_day(market_df, datetime_col)
+    market_df = add_trading_session(market_df, trading_sessions=trading_sessions)
+    market_df = market_df.drop("minute_of_day")
+
+    return market_df
+
+
+def compute_5m_market_features(
+    market_df: pl.DataFrame,
+    datetime_col: str = "timestamp",
+    *,
+    roc_period: int = _CFG["roc"]["period"]
 ) -> pl.DataFrame:
     """
     Resamples 1m market data to 5m, computes ROC on 5m bars, and returns a 5m
@@ -29,7 +49,7 @@ def compute_5m_market_features(
     can be joined onto 1m data without lookahead bias.
     """
     # 1) Resample market df to 5m
-    df_5m = market_df_1m.group_by_dynamic(datetime_col, every="5m").agg(
+    df_5m = market_df.group_by_dynamic(datetime_col, every="5m").agg(
         [
             pl.col("high").max().alias("high"),
             pl.col("low").min().alias("low"),
@@ -65,6 +85,7 @@ def build_market_features(
     Orchestrates building market features then joins the 5m features onto the
     1m market dataframe via an as-of backward join.
     """
+    market_df = compute_1m_market_features(market_df, datetime_col)
     df_5m_features = compute_5m_market_features(market_df, datetime_col)
     return market_df.join_asof(df_5m_features, on=datetime_col, strategy="backward")
 

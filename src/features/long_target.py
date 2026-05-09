@@ -1,13 +1,15 @@
 import polars as pl
+from typing import Dict
+from ..constants import DEFAULT_TARGET_CLASSES
 
-
-def generate_long_target(
+def add_long_target(
     df: pl.DataFrame,
     price_col: str = "close",
     *,
     lookahead_minutes: int = 15,
     take_profit_pct: float = 0.5,
     stop_loss_pct: float = 0.25,
+    target_classes: Dict = DEFAULT_TARGET_CLASSES,
 ) -> pl.DataFrame:
     """
     Triple Barrier Method (long-only) label.
@@ -16,13 +18,14 @@ def generate_long_target(
     - upper barrier: +take_profit_pct (percent units, e.g. 0.5 means +0.5%)
     - lower barrier: -stop_loss_pct  (percent units, e.g. 0.25 means -0.25%)
 
-    Labeling (within the next `lookahead_minutes` bars):
-      1  if the upper barrier is hit first
-     -1  if the lower barrier is hit first
-      0  if neither barrier is hit within the window
+    Labeling (within the next `lookahead_minutes` bars) defaults to: DEFAULT_TARGET_CLASSES
     """
     if lookahead_minutes <= 0:
         raise ValueError("lookahead_minutes must be > 0")
+
+    stop_loss = int(target_classes.get("stop_loss", {}).get("num", 0))
+    hold = int(target_classes.get("hold", {}).get("num", 1))
+    take_profit = int(target_classes.get("take_profit", {}).get("num", 2))
 
     price = pl.col(price_col)
     
@@ -50,9 +53,9 @@ def generate_long_target(
             _sl_time=first_sl
         )
         .with_columns(
-            long_target=pl.when(pl.col("_tp_time") < pl.col("_sl_time")).then(2)
-            .when(pl.col("_sl_time") < pl.col("_tp_time")).then(0)
-            .otherwise(1)
+            long_target=pl.when(pl.col("_tp_time") < pl.col("_sl_time")).then(take_profit)
+            .when(pl.col("_sl_time") < pl.col("_tp_time")).then(stop_loss)
+            .otherwise(hold)
             .cast(pl.Int8)
         )
         # Drop rows that don't have a full lookahead window available

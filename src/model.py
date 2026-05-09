@@ -3,14 +3,17 @@ import pandas as pd
 import xgboost as xgb
 import polars as pl
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict
 import numpy as np
+from .constants import DEFAULT_TARGET_CLASSES
 
 def train_xgboost_model(
     df_train: pl.DataFrame, 
     df_test: pl.DataFrame,
     feature_cols: List[str], 
     target_col: str = "target", 
+    *,
+    target_classes: Dict = DEFAULT_TARGET_CLASSES,
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
     Trains an XGBoost classification model using provided train and test sets.
@@ -33,17 +36,8 @@ def train_xgboost_model(
     X_test = df_test.select(feature_cols).to_pandas()
     y_test = df_test.select(target_col).to_numpy().ravel()
 
-    # --- WEIGHTING LOGIC ---
-    # Define class weights.
-    # TODO: Define Target class and its weights.
-    class_weights = {
-        0: 2.0,  # High weight
-        1: 0.5,  # Low weight
-        2: 2.0   # High weight
-    }
-    
-    # Map the weights to the training labels. This creates an array the same length as y_train.
-    sample_weights = np.array([class_weights[t] for t in y_train])
+    class_weights = {int(v.get("num")): float(v.get("weight")) for v in target_classes.values()}
+    sample_weights = np.array([class_weights.get(int(t), 1.0) for t in y_train], dtype=float)
 
     cat_cols = [c for c in X_train.columns if isinstance(X_train[c].dtype, pd.CategoricalDtype)]
 
@@ -55,17 +49,21 @@ def train_xgboost_model(
         print(f"Categorical features (auto-detected from dtype): {cat_cols}")
 
     with mlflow.start_run():
-        # Log the class weights used to MLflow for reproducibility
-        mlflow.log_dict(class_weights, "class_weights.json")
+        # Log target metadata for reproducibility (when provided)
+        if target_classes:
+            mlflow.log_dict(target_classes, "target_classes.json")
+
 
         params = {
             "objective": "multi:softprob",  # Changed from binary:logistic
-            "num_class": 3,               # Explicitly state the number of classes
+            "num_class": len(target_classes), # number of classes inferred from data
             "eval_metric": "mlogloss",     # Use multi-class logloss
             "max_depth": 5,
             "learning_rate": 0.05,
             "n_estimators": 100,
             "random_state": 42,
+            "subsample": 0.8,           # Critical for generalization
+            "colsample_bytree": 0.8,    # Critical for feature robustness
             # Required for native categorical handling in XGBoost 2.x.
             # `hist` is also the default in 2.x but we pin it explicitly
             # because `enable_categorical=True` requires it.

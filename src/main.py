@@ -9,7 +9,7 @@ from .data import load_csv_data
 from .market_features import build_market_features
 from .sectoral_features import build_sectoral_features
 from .symbol_features import build_symbol_features
-from .features.long_target import generate_long_target
+from .features.long_target import add_long_target
 from .model import train_xgboost_model
 from .utils import load_config
 
@@ -75,6 +75,9 @@ def run_pipeline(
     stop_loss_pct = training_config.get("stop_loss_pct")
     take_profit_pct = training_config.get("take_profit_pct")
 
+    target = training_config.get("target", {})
+    target_classes = target.get("classes", {})
+
     # Single source of truth for the sector <-> integer-code mapping. Built from
     # the YAML config so train, test, and inference all share identical codes.
     sector_enum = pl.Enum(list(sectoral_indices.keys()))
@@ -89,7 +92,7 @@ def run_pipeline(
     vix_df = build_market_features(vix_df, datetime_col="date")
     
     # We only need the market features to join later
-    vix_features = vix_df.select(["date", "market_vix_5m", "market_vix_roc_5m"])
+    vix_features = vix_df.select(["date", "market_vix_5m", "market_vix_roc_5m", "trading_session"])
     
     all_symbols_df = []
     
@@ -141,11 +144,12 @@ def run_pipeline(
             sym_df = sym_df.join_asof(vix_features, on="date", strategy="backward")
             
             # Generate long target
-            sym_df = generate_long_target(
+            sym_df = add_long_target(
                 sym_df,
                 lookahead_minutes=lookahead_minutes,
                 stop_loss_pct=stop_loss_pct,
                 take_profit_pct=take_profit_pct,
+                target_classes=target_classes,
             )
             
             # Add symbol identifier
@@ -190,6 +194,7 @@ def run_pipeline(
         # Market (5m joined to 1m)
         "market_vix_5m",
         "market_vix_roc_5m",
+        "trading_session",
         # Sector (5m joined to 1m)
         "sector",
         "sector_index_roc_5m",
@@ -202,7 +207,13 @@ def run_pipeline(
         print(f"Warning: Missing feature columns: {missing_cols}")
         feature_cols = [col for col in feature_cols if col in final_df.columns]
     
-    clf, acc = train_xgboost_model(df_train, df_test, feature_cols=feature_cols, target_col="long_target")
+    clf, acc = train_xgboost_model(
+        df_train,
+        df_test,
+        feature_cols=feature_cols,
+        target_col="long_target",
+        target_classes=target_classes,
+    )
     print("====================================")
     print(f"Pipeline finished. Final test accuracy: {acc:.4f}")
     print("Run `mlflow ui` in your terminal to view the experiment tracking.")
