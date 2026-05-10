@@ -179,6 +179,7 @@ def run_pipeline(
     print("5. Training XGBoost model and logging to MLflow...")
     feature_cols = [
         # Symbol (1m)
+        "close", # Close price is used in the vectorBT backtest metrics
         "close_vwap_zscore",
         "close_ema_14_pct",
         "minute_of_day",
@@ -212,7 +213,11 @@ def run_pipeline(
         df_test,
         feature_cols=feature_cols,
         target_col="long_target",
-        target_classes=target_classes,
+        training_context={
+            "target_classes": target_classes,
+            "stop_loss_pct": stop_loss_pct,
+            "take_profit_pct": take_profit_pct,
+        }
     )
     print("====================================")
     print(f"Pipeline finished. Final test accuracy: {acc:.4f}")

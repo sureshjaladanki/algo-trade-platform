@@ -3,8 +3,10 @@ import pandas as pd
 import xgboost as xgb
 import polars as pl
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Dict
 import numpy as np
+
+from .backtest import run_vectorbt_backtest
 from .constants import DEFAULT_TARGET_CLASSES
 
 def train_xgboost_model(
@@ -13,7 +15,11 @@ def train_xgboost_model(
     feature_cols: List[str], 
     target_col: str = "target", 
     *,
-    target_classes: Dict = DEFAULT_TARGET_CLASSES,
+    training_context: Dict = {
+        "target_classes": DEFAULT_TARGET_CLASSES,
+        "take_profit_pct": 0.5,
+        "stop_loss_pct": 0.25,
+    },
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
     Trains an XGBoost classification model using provided train and test sets.
@@ -36,7 +42,7 @@ def train_xgboost_model(
     X_test = df_test.select(feature_cols).to_pandas()
     y_test = df_test.select(target_col).to_numpy().ravel()
 
-    class_weights = {int(v.get("num")): float(v.get("weight")) for v in target_classes.values()}
+    class_weights = {int(v.get("num")): float(v.get("weight")) for v in training_context["target_classes"].values()}
     sample_weights = np.array([class_weights.get(int(t), 1.0) for t in y_train], dtype=float)
 
     cat_cols = [c for c in X_train.columns if isinstance(X_train[c].dtype, pd.CategoricalDtype)]
@@ -50,13 +56,12 @@ def train_xgboost_model(
 
     with mlflow.start_run():
         # Log target metadata for reproducibility (when provided)
-        if target_classes:
-            mlflow.log_dict(target_classes, "target_classes.json")
-
+        mlflow.log_dict(training_context["target_classes"], "target_classes.json")
+        print(f"logged target classes to MLflow.")
 
         params = {
             "objective": "multi:softprob",  # Changed from binary:logistic
-            "num_class": len(target_classes), # number of classes inferred from data
+            "num_class": len(training_context["target_classes"]), # number of classes inferred from data
             "eval_metric": "mlogloss",     # Use multi-class logloss
             "max_depth": 5,
             "learning_rate": 0.05,
@@ -71,6 +76,7 @@ def train_xgboost_model(
             "tree_method": "hist",
         }
         mlflow.log_params(params)
+        print(f"logged parameters to MLflow.")
 
         # Persist the category->code mapping for each categorical column so
         # downstream inference can rebuild an identical encoding even if the
@@ -80,11 +86,21 @@ def train_xgboost_model(
                 {"column": c, "categories": list(X_train[c].cat.categories)},
                 f"categories_{c}.json",
             )
+            print(f"logged category mapping for {c} to MLflow.")
 
+        print(f"Training XGBoost model.")
         clf = xgb.XGBClassifier(**params)
         clf.fit(X_train, y_train, sample_weight=sample_weights)
 
         y_pred = clf.predict(X_test)
+        y_prob = clf.predict_proba(X_test)
+        
+        tp_class = int(training_context["target_classes"]["take_profit"]["num"])
+        tp_idx = list(clf.classes_).index(tp_class)
+        tp_probs = y_prob[:, tp_idx]
+        
+        entries = pl.Series("entries", tp_probs > 0.7)
+        exits = pl.Series("exits", tp_probs < 0.5)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)
@@ -100,10 +116,7 @@ def train_xgboost_model(
             "f1_macro": f1_macro,
         }
         mlflow.log_metrics(metrics)
-        
-        # Log the model
-        mlflow.xgboost.log_model(clf, "xgboost_model")
-        
+
         print(f"Model trained successfully.")
         print(
             "Accuracy: "
@@ -111,4 +124,23 @@ def train_xgboost_model(
             f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} "
         )
         
+        # Run vectorBT backtest
+        bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
+            "stop_loss_pct": training_context["stop_loss_pct"],
+            "freq": "1min",
+            "fees": 0.0004,
+            "metric_prefix": "backtest_",
+        })
+        mlflow.log_metrics(bt_metrics)
+        
+        print(f"Model backtest results logged to MLflow.")
+        for k, v in bt_metrics.items():
+            print(f"  {k}: {v:.4f}")
+
+        
+        # Log the model
+        mlflow.xgboost.log_model(clf, "xgboost_model")
+
+        print(f"Model logged to MLflow.")
+
     return clf, acc

@@ -1,0 +1,5 @@
+-r requirements.txt
+
+mlflow>=2.10.0
+kaggle>=1.6.14
+vectorbt>=0.26.0
