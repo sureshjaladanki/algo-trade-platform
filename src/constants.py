@@ -18,9 +18,8 @@ DEFAULT_TRADING_SESSIONS = {
     "square_off": 15 * 60 + 29,     # 15:29
 }
 
-FEATURE_COLS = [
+MODEL_FEATURE_COLS = [
     # Symbol (1m)
-    "close", # Close price is used in the vectorBT backtest metrics
     "close_vwap_zscore",
     "close_ema_14_pct",
     "minute_of_day",
@@ -43,3 +42,7 @@ FEATURE_COLS = [
     "sector_ad_5m",
 ]
 
+FEATURE_COLS = [
+    "close", # Close price is used in the vectorBT backtest metrics
+    *MODEL_FEATURE_COLS
+]

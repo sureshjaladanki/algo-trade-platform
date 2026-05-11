@@ -8,7 +8,7 @@ from .trade_features import build_all_features
 from .utils.date import filter_by_period, parse_period
 from .model import train_xgboost_model
 from .utils import load_config
-from .constants import FEATURE_COLS
+from .constants import MODEL_FEATURE_COLS
 
 # Filtering the final final_df is correct logically, 
 # but it’s slower because you compute features for years you’ll throw away.
@@ -30,8 +30,8 @@ def run_pipeline(
     print(f"Loading training configuration from {training_config_path}...")
     training_config = load_config(training_config_path)
     
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.35)
-    take_profit_pct = training_config.get("take_profit_pct", 0.7)
+    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
+    take_profit_pct = training_config.get("take_profit_pct", 0.5)
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
@@ -55,7 +55,7 @@ def run_pipeline(
         sys.exit(1)
     
     print("5. Training XGBoost model and logging to MLflow...")
-    feature_cols = FEATURE_COLS
+    feature_cols = MODEL_FEATURE_COLS
     
     # Ensure all feature columns exist
     missing_cols = [col for col in feature_cols if col not in final_df.columns]

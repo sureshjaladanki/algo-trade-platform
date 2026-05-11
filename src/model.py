@@ -17,8 +17,8 @@ def train_xgboost_model(
     *,
     training_context: Dict = {
         "target_classes": DEFAULT_TARGET_CLASSES,
-        "take_profit_pct": 0.7,
-        "stop_loss_pct": 0.35,
+        "take_profit_pct": 0.5,
+        "stop_loss_pct": 0.25,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
@@ -37,9 +37,15 @@ def train_xgboost_model(
     # Pandas DataFrames preserve per-column dtypes (incl. `category`), which
     # XGBoost reads to decide which columns are categorical.
     X_train = df_train.select(feature_cols).to_pandas()
-    y_train = df_train.select(target_col).to_numpy().ravel()
-
     X_test = df_test.select(feature_cols).to_pandas()
+
+    # Cast integer columns to float64 to avoid MLflow schema warnings about missing values
+    int_cols = X_train.select_dtypes(include=['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64']).columns
+    if len(int_cols) > 0:
+        X_train[int_cols] = X_train[int_cols].astype("float64")
+        X_test[int_cols] = X_test[int_cols].astype("float64")
+
+    y_train = df_train.select(target_col).to_numpy().ravel()
     y_test = df_test.select(target_col).to_numpy().ravel()
 
     class_weights = {int(v.get("num")): float(v.get("weight")) for v in training_context["target_classes"].values()}
@@ -49,8 +55,9 @@ def train_xgboost_model(
 
     # MLflow tracking
     mlflow.set_experiment("Algo_Trading_Experiment")
-    # XGBClassifier uses sklearn autolog hooks; model is logged to artifact path "model".
-    mlflow.xgboost.autolog()
+    # Avoid deprecated model logging behavior in MLflow autolog.
+    # We'll log the model ourselves in a version-compatible way.
+    mlflow.xgboost.autolog(log_models=False)
 
     print(f"Training on {len(df_train)} samples, testing on {len(df_test)} samples.")
     if cat_cols:
@@ -115,6 +122,9 @@ def train_xgboost_model(
             "f1_macro": f1_macro,
         }
         mlflow.log_metrics(metrics)
+
+        # Log the model
+        mlflow.xgboost.log_model(clf, name="model")
 
         print(f"Model trained successfully.")
         print(

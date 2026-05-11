@@ -8,7 +8,7 @@ import polars as pl
 from .trade_features import build_all_features
 from .utils.date import filter_by_period, parse_period
 from .utils import load_config
-from .constants import FEATURE_COLS
+from .constants import MODEL_FEATURE_COLS
 from .backtest import run_vectorbt_backtest_sweep
 
 def run_backtest_pipeline(
@@ -58,9 +58,9 @@ def run_backtest_pipeline(
 
     training_config = load_config(training_config_path)
     target_classes = training_config.get("target", {}).get("classes", {})
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.35)
+    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
 
-    feature_cols = [col for col in FEATURE_COLS if col in df_test.columns]
+    feature_cols = [col for col in MODEL_FEATURE_COLS if col in df_test.columns]
     
     # Drop nulls as done in training
     df_test = df_test.drop_nulls(subset=feature_cols)
@@ -74,8 +74,8 @@ def run_backtest_pipeline(
     tp_idx = list(clf.classes_).index(tp_class)
     tp_probs = y_prob[:, tp_idx]
 
-    entry_thresholds = [0.6, 0.65, 0.7, 0.75]
-    exit_thresholds = [0.35, 0.4, 0.45, 0.5]
+    entry_thresholds = [0.6, 0.65, 0.7, 0.75, 0.8]
+    exit_thresholds = [0.4, 0.45, 0.5, 0.55]
 
     print(f"Running vectorBT backtest sweep over "
           f"{len(entry_thresholds) * len(exit_thresholds)} combinations...")

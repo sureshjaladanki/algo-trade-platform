@@ -60,7 +60,7 @@ def run_vectorbt_backtest(
         .astype(bool)
     )
 
-    sl_stop = (backtest_context.get("stop_loss_pct", 0.35) / 100.0)
+    sl_stop = (backtest_context.get("stop_loss_pct", 0.25) / 100.0)
 
     pf = vbt.Portfolio.from_signals(
         close=close_df,
@@ -130,7 +130,7 @@ def run_vectorbt_backtest_sweep(
     exits_df = pd.concat(exits_list, axis=1, keys=multi_index)
     close_df_sweep = pd.concat([close_df] * len(combinations), axis=1, keys=multi_index)
 
-    sl_stop = (backtest_context.get("stop_loss_pct", 0.35) / 100.0)
+    sl_stop = (backtest_context.get("stop_loss_pct", 0.25) / 100.0)
 
     pf = vbt.Portfolio.from_signals(
         close=close_df_sweep,

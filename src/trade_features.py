@@ -29,8 +29,8 @@ def build_all_features(
     sectoral_indices = config.get("sectoral_indices", {})
 
     lookahead_minutes = int(training_config.get("lookahead_minutes", 30))
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.35)
-    take_profit_pct = training_config.get("take_profit_pct", 0.7)
+    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
+    take_profit_pct = training_config.get("take_profit_pct", 0.5)
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
