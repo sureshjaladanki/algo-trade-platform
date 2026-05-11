@@ -18,3 +18,28 @@ DEFAULT_TRADING_SESSIONS = {
     "square_off": 15 * 60 + 29,     # 15:29
 }
 
+FEATURE_COLS = [
+    # Symbol (1m)
+    "close", # Close price is used in the vectorBT backtest metrics
+    "close_vwap_zscore",
+    "close_ema_14_pct",
+    "minute_of_day",
+    "bb_pct_b",
+    "vol_z_score",
+    "rvol",
+    "gap_atr",
+    # Symbol (5m joined to 1m)
+    "rsi_5m",
+    "adx_5m",
+    "rsi_5m_roc",
+    "adx_5m_roc",
+    # Market (5m joined to 1m)
+    "market_vix_5m",
+    "market_vix_roc_5m",
+    "trading_session",
+    # Sector (5m joined to 1m)
+    "sector",
+    "sector_index_roc_5m",
+    "sector_ad_5m",
+]
+

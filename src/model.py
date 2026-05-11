@@ -99,8 +99,8 @@ def train_xgboost_model(
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
         
-        entries = pl.Series("entries", tp_probs > 0.7)
-        exits = pl.Series("exits", tp_probs < 0.5)
+        entries = pl.Series("entries", tp_probs > 0.75)
+        exits = pl.Series("exits", tp_probs < 0.35)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)
@@ -127,8 +127,6 @@ def train_xgboost_model(
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
             "stop_loss_pct": training_context["stop_loss_pct"],
-            "freq": "1min",
-            "fees": 0.0004,
             "metric_prefix": "backtest_",
         })
         mlflow.log_metrics(bt_metrics)
