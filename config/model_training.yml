@@ -3,9 +3,9 @@
 # lookahead_minutes: For 1-minute bars, how many minutes ahead to compare price
 # when building the binary direction target (see `generate_target`).
 
-lookahead_minutes: 15
-stop_loss_pct: 0.25
-take_profit_pct: 0.5
+lookahead_minutes: 30
+stop_loss_pct: 0.35
+take_profit_pct: 0.7
 
 # Target (label) configuration
 #

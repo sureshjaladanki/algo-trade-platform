@@ -6,17 +6,17 @@ def add_long_target(
     df: pl.DataFrame,
     price_col: str = "close",
     *,
-    lookahead_minutes: int = 15,
-    take_profit_pct: float = 0.5,
-    stop_loss_pct: float = 0.25,
+    lookahead_minutes: int = 30,
+    take_profit_pct: float = 0.7,
+    stop_loss_pct: float = 0.35,
     target_classes: Dict = DEFAULT_TARGET_CLASSES,
 ) -> pl.DataFrame:
     """
     Triple Barrier Method (long-only) label.
 
     Barriers are defined relative to the current price:
-    - upper barrier: +take_profit_pct (percent units, e.g. 0.5 means +0.5%)
-    - lower barrier: -stop_loss_pct  (percent units, e.g. 0.25 means -0.25%)
+    - upper barrier: +take_profit_pct (percent units, e.g. 0.7 means +0.7%)
+    - lower barrier: -stop_loss_pct  (percent units, e.g. 0.35 means -0.35%)
 
     Labeling (within the next `lookahead_minutes` bars) defaults to: DEFAULT_TARGET_CLASSES
     """

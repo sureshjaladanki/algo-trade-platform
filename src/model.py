@@ -17,8 +17,8 @@ def train_xgboost_model(
     *,
     training_context: Dict = {
         "target_classes": DEFAULT_TARGET_CLASSES,
-        "take_profit_pct": 0.5,
-        "stop_loss_pct": 0.25,
+        "take_profit_pct": 0.7,
+        "stop_loss_pct": 0.35,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
@@ -49,7 +49,9 @@ def train_xgboost_model(
 
     # MLflow tracking
     mlflow.set_experiment("Algo_Trading_Experiment")
-    
+    # XGBClassifier uses sklearn autolog hooks; model is logged to artifact path "model".
+    mlflow.xgboost.autolog()
+
     print(f"Training on {len(df_train)} samples, testing on {len(df_test)} samples.")
     if cat_cols:
         print(f"Categorical features (auto-detected from dtype): {cat_cols}")
@@ -75,8 +77,6 @@ def train_xgboost_model(
             "enable_categorical": True,
             "tree_method": "hist",
         }
-        mlflow.log_params(params)
-        print(f"logged parameters to MLflow.")
 
         # Persist the category->code mapping for each categorical column so
         # downstream inference can rebuild an identical encoding even if the
@@ -86,7 +86,6 @@ def train_xgboost_model(
                 {"column": c, "categories": list(X_train[c].cat.categories)},
                 f"categories_{c}.json",
             )
-            print(f"logged category mapping for {c} to MLflow.")
 
         print(f"Training XGBoost model.")
         clf = xgb.XGBClassifier(**params)
@@ -99,8 +98,8 @@ def train_xgboost_model(
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
         
-        entries = pl.Series("entries", tp_probs > 0.75)
-        exits = pl.Series("exits", tp_probs < 0.35)
+        entries = pl.Series("entries", tp_probs > 0.7)
+        exits = pl.Series("exits", tp_probs < 0.5)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)
@@ -134,11 +133,5 @@ def train_xgboost_model(
         print(f"Model backtest results logged to MLflow.")
         for k, v in bt_metrics.items():
             print(f"  {k}: {v:.4f}")
-
-        
-        # Log the model
-        mlflow.xgboost.log_model(clf, "xgboost_model")
-
-        print(f"Model logged to MLflow.")
 
     return clf, acc

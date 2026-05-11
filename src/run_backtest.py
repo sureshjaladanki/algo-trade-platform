@@ -53,12 +53,12 @@ def run_backtest_pipeline(
     latest_run_id = runs.iloc[0].run_id
     print(f"Latest run ID: {latest_run_id}")
 
-    model_uri = f"runs:/{latest_run_id}/xgboost_model"
+    model_uri = f"runs:/{latest_run_id}/model"
     clf = mlflow.xgboost.load_model(model_uri)
 
     training_config = load_config(training_config_path)
     target_classes = training_config.get("target", {}).get("classes", {})
-    stop_loss_pct = training_config.get("stop_loss_pct")
+    stop_loss_pct = training_config.get("stop_loss_pct", 0.35)
 
     feature_cols = [col for col in FEATURE_COLS if col in df_test.columns]
     
@@ -74,8 +74,8 @@ def run_backtest_pipeline(
     tp_idx = list(clf.classes_).index(tp_class)
     tp_probs = y_prob[:, tp_idx]
 
-    entry_thresholds = [0.7, 0.72, 0.75, 0.77, 0.8]
-    exit_thresholds = [0.42, 0.45, 0.47, 0.5]
+    entry_thresholds = [0.6, 0.65, 0.7, 0.75]
+    exit_thresholds = [0.35, 0.4, 0.45, 0.5]
 
     print(f"Running vectorBT backtest sweep over "
           f"{len(entry_thresholds) * len(exit_thresholds)} combinations...")

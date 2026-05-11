@@ -30,8 +30,8 @@ def run_pipeline(
     print(f"Loading training configuration from {training_config_path}...")
     training_config = load_config(training_config_path)
     
-    stop_loss_pct = training_config.get("stop_loss_pct")
-    take_profit_pct = training_config.get("take_profit_pct")
+    stop_loss_pct = training_config.get("stop_loss_pct", 0.35)
+    take_profit_pct = training_config.get("take_profit_pct", 0.7)
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})

@@ -1,8 +1,8 @@
 # Default vectorBT backtest settings (see `run_vectorbt_backtest`).
-stop_loss_pct: 0.25
+stop_loss_pct: 0.35
 freq: "1min"
 # 0.07% is the average feee + 0.03% buffer for slippage for intraday equity in India
-fees: 0.0007
+fees: 0.001
 slippage: 0.0005
 init_cash: 100000
 metric_prefix: "backtest_"
