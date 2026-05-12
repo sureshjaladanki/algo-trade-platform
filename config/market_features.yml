@@ -2,9 +2,9 @@
 #
 # Notes:
 # - Features are computed on 5-minute resampled candles.
-# - `roc.period` is the SMA window length on *5m* bar-to-bar pct change of close.
+# - `zscore.period` is the window length for the rolling Z-score.
 
-roc:
+zscore:
   period: 3
 
 # Intraday session boundaries (minute_of_day = hour*60 + minute).

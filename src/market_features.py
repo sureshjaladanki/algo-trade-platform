@@ -4,7 +4,7 @@ from pathlib import Path
 
 import polars as pl
 
-from .features import add_minute_of_day, add_trading_session, add_roc
+from .features import add_minute_of_day, add_trading_session, add_zscore
 from .utils import load_config
 
 
@@ -39,11 +39,11 @@ def compute_5m_market_features(
     market_df: pl.DataFrame,
     datetime_col: str = "timestamp",
     *,
-    roc_period: int = _CFG["roc"]["period"]
+    zscore_period: int = _CFG["zscore"]["period"]
 ) -> pl.DataFrame:
     """
-    Resamples 1m market data to 5m, computes smoothed ROC (SMA of close
-    pct-change) on 5m bars, and returns a 5m feature dataframe.
+    Resamples 1m market data to 5m, computes smoothed Z-score (Z-score of close)
+    on 5m bars, and returns a 5m feature dataframe.
 
     The returned timestamps are shifted forward by 5 minutes so the features
     can be joined onto 1m data without lookahead bias.
@@ -57,15 +57,15 @@ def compute_5m_market_features(
         ]
     )
 
-    # 2) Compute ROC on 5m market data
-    df_5m = add_roc(df_5m, period=roc_period)
+    # 2) Compute Z-score on 5m market data
+    df_5m = add_zscore(df_5m, period=zscore_period)
 
     # 3) Select only feature columns
     df_5m_features = df_5m.select(
         [
             pl.col(datetime_col),
             pl.col("close").alias("market_vix_5m"),
-            pl.col("roc").alias("market_vix_roc_5m"),
+            pl.col("zscore").alias("market_vix_zscore_5m"),
         ]
     )
 

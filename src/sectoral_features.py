@@ -5,7 +5,7 @@ from typing import Dict
 
 import polars as pl
 
-from .features import add_advance_decline, add_roc
+from .features import add_advance_decline, add_zscore
 from .utils import load_config
 
 
@@ -21,11 +21,11 @@ def compute_5m_sector_features(
     symbol_dfs: Dict[str, pl.DataFrame],
     datetime_col: str = "timestamp",
     *,
-    roc_period: int = _CFG["roc"]["period"],
+    zscore_period: int = _CFG["zscore"]["period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m sector data and 1m symbol data to 5m, computes smoothed ROC
-    (SMA of close pct-change) and Advance/Decline on 5m bars, and returns a 5m
+    Resamples 1m sector data and 1m symbol data to 5m, computes smoothed Z-score
+    (Z-score of close) and Advance/Decline on 5m bars, and returns a 5m
     feature dataframe.
 
     The returned timestamps are shifted forward by 5 minutes so the features
@@ -50,14 +50,14 @@ def compute_5m_sector_features(
     # 3) Compute A/D across symbols (joins onto df_5m)
     df_5m = add_advance_decline(df_5m, symbol_5m_dfs, datetime_col=datetime_col)
 
-    # 4) Compute ROC on 5m sector data
-    df_5m = add_roc(df_5m, period=roc_period)
+    # 4) Compute Z-score on 5m sector data
+    df_5m = add_zscore(df_5m, period=zscore_period)
 
     # 5) Select only feature columns
     df_5m_features = df_5m.select(
         [
             pl.col(datetime_col),
-            pl.col("roc").alias("sector_index_roc_5m"),
+            pl.col("zscore").alias("sector_index_zscore_5m"),
             pl.col("advance_decline").alias("sector_ad_5m"),
         ]
     )

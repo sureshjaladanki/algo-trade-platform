@@ -30,16 +30,16 @@ MODEL_FEATURE_COLS = [
     # Symbol (5m joined to 1m)
     "rsi_5m",
     "adx_5m",
-    "rsi_5m_roc",
-    "adx_5m_roc",
-    "atr_5m",
-    "atr_5m_roc",
+    "rsi_5m_zscore",
+    "adx_5m_zscore",
+    "natr_5m",
+    "natr_5m_zscore",
     # Market (5m joined to 1m)
     "market_vix_5m",
-    "market_vix_roc_5m",
+    "market_vix_zscore_5m",
     "trading_session",
     # Sector (5m joined to 1m)
     "sector",
-    "sector_index_roc_5m",
+    "sector_index_zscore_5m",
     "sector_ad_5m",
 ]

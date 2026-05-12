@@ -49,7 +49,7 @@ def build_all_features(
     vix_df = build_market_features(vix_df, datetime_col="date")
 
     # We only need the market features to join later
-    vix_features = vix_df.select(["date", "market_vix_5m", "market_vix_roc_5m", "trading_session"])
+    vix_features = vix_df.select(["date", "market_vix_5m", "market_vix_zscore_5m", "trading_session"])
 
     all_symbols_df = []
 
@@ -88,7 +88,7 @@ def build_all_features(
             pl.lit(sector_symbol).cast(sector_enum).alias("sector")
         )
 
-        sector_features = sector_df.select(["date", "sector", "sector_index_roc_5m", "sector_ad_5m"])
+        sector_features = sector_df.select(["date", "sector", "sector_index_zscore_5m", "sector_ad_5m"])
 
         for sym, sym_df in symbol_dfs.items():
             print(f"   Building features for symbol: {sym}")
