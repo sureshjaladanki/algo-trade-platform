@@ -11,6 +11,7 @@ from .features import (
     add_volume_zscore,
     add_relative_volume,
     add_atr_gap,
+    add_atr,
     add_rsi,
     add_adx,
 )
@@ -78,9 +79,11 @@ def compute_5m_features(
     rsi_roc_period: int = _CFG["rsi"]["roc_period"],
     adx_period: int = _CFG["adx"]["period"],
     adx_roc_period: int = _CFG["adx"]["roc_period"],
+    atr_period: int = _CFG["atr_5m"]["period"],
+    atr_roc_period: int = _CFG["atr_5m"]["roc_period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m data to 5m and computes RSI and ADX (with ROC = SMA of
+    Resamples 1m data to 5m and computes ATR, RSI, and ADX (with ROC = SMA of
     bar-to-bar pct change) on the 5m bars using the pure indicator functions.
 
     The returned dataframe contains only the datetime column and the 5m
@@ -96,8 +99,9 @@ def compute_5m_features(
         pl.col("close").last().alias("close")
     ])
 
-    # Compute RSI and ADX (and their ROCs) on 5m data. The indicator
-    # functions are timeperiod-agnostic; we rename them here to make their 5m provenance explicit.
+    # ATR (gap-free first bar of day), then RSI and ADX (and their ROCs) on 5m.
+    # Indicator functions are timeperiod-agnostic; we rename here for 5m provenance.
+    df_5m = add_atr(df_5m, datetime_col=datetime_col, period=atr_period, roc_period=atr_roc_period)
     df_5m = add_rsi(df_5m, period=rsi_period, roc_period=rsi_roc_period)
     df_5m = add_adx(df_5m, period=adx_period, roc_period=adx_roc_period)
 
@@ -107,6 +111,8 @@ def compute_5m_features(
         pl.col("adx").alias("adx_5m"),
         pl.col("rsi_roc").alias("rsi_5m_roc"),
         pl.col("adx_roc").alias("adx_5m_roc"),
+        pl.col("atr").alias("atr_5m"),
+        pl.col("atr_roc").alias("atr_5m_roc"),
     ])
 
     # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias

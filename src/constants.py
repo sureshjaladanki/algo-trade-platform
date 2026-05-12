@@ -32,6 +32,8 @@ MODEL_FEATURE_COLS = [
     "adx_5m",
     "rsi_5m_roc",
     "adx_5m_roc",
+    "atr_5m",
+    "atr_5m_roc",
     # Market (5m joined to 1m)
     "market_vix_5m",
     "market_vix_roc_5m",

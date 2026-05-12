@@ -5,6 +5,7 @@ from .ema import add_ema
 from .bollinger import add_bollinger
 from .volume_zscore import add_volume_zscore
 from .relative_volume import add_relative_volume
+from .atr import add_atr
 from .atr_gap import add_atr_gap
 from .rsi import add_rsi
 from .adx import add_adx
@@ -21,6 +22,7 @@ __all__ = [
     "add_bollinger",
     "add_volume_zscore",
     "add_relative_volume",
+    "add_atr",
     "add_atr_gap",
     "add_rsi",
     "add_adx",
