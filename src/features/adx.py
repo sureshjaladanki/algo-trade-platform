@@ -18,6 +18,10 @@ def add_adx(df: pl.DataFrame, period: int = 14, roc_period: int = 5) -> pl.DataF
         ts_ADX(pl.col("high"), pl.col("low"), pl.col("close"), period).alias("adx")
     )
     df = df.with_columns(
-        (pl.col("adx") - pl.col("adx").rolling_mean(window_size=roc_period)).alias("adx_roc")
+        pl.col("adx")
+        .pct_change()
+        .shift(1)
+        .rolling_mean(window_size=roc_period)
+        .alias("adx_roc")
     )
     return df

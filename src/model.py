@@ -105,8 +105,8 @@ def train_xgboost_model(
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
         
-        entries = pl.Series("entries", tp_probs > 0.7)
-        exits = pl.Series("exits", tp_probs < 0.5)
+        entries = pl.Series("entries", tp_probs > 0.65)
+        exits = pl.Series("exits", tp_probs < 0.4)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)

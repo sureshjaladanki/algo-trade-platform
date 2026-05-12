@@ -2,7 +2,7 @@
 #
 # Notes:
 # - Features are computed on 5-minute resampled candles.
-# - `roc.period` is a lookback in *5m bars*.
+# - `roc.period` is the SMA window length on *5m* bar-to-bar pct change of close.
 
 roc:
   period: 3

@@ -41,8 +41,3 @@ MODEL_FEATURE_COLS = [
     "sector_index_roc_5m",
     "sector_ad_5m",
 ]
-
-FEATURE_COLS = [
-    "close", # Close price is used in the vectorBT backtest metrics
-    *MODEL_FEATURE_COLS
-]

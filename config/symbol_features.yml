@@ -23,8 +23,10 @@ atr_gap:
 
 rsi:
   period: 14
+  # SMA window on bar-to-bar pct change of RSI (5m).
   roc_period: 3
 
 adx:
   period: 14
+  # SMA window on bar-to-bar pct change of ADX (5m).
   roc_period: 3

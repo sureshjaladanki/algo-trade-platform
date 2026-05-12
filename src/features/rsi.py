@@ -17,6 +17,10 @@ def add_rsi(df: pl.DataFrame, period: int = 14, roc_period: int = 5) -> pl.DataF
         ts_RSI(pl.col("close"), period).alias("rsi")
     )
     df = df.with_columns(
-        (pl.col("rsi") - pl.col("rsi").rolling_mean(window_size=roc_period)).alias("rsi_roc")
+        pl.col("rsi")
+        .pct_change()
+        .shift(1)
+        .rolling_mean(window_size=roc_period)
+        .alias("rsi_roc")
     )
     return df

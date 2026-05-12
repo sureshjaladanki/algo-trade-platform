@@ -24,8 +24,9 @@ def compute_5m_sector_features(
     roc_period: int = _CFG["roc"]["period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m sector data and 1m symbol data to 5m, computes ROC and
-    Advance/Decline features on 5m bars, and returns a 5m feature dataframe.
+    Resamples 1m sector data and 1m symbol data to 5m, computes smoothed ROC
+    (SMA of close pct-change) and Advance/Decline on 5m bars, and returns a 5m
+    feature dataframe.
 
     The returned timestamps are shifted forward by 5 minutes so the features
     can be joined onto 1m data without lookahead bias.

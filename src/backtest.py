@@ -114,7 +114,7 @@ def run_vectorbt_backtest_sweep(
     test_pd = test_pd.drop_duplicates(subset=["date", "symbol"], keep="last")
 
     close_df = test_pd.pivot(index="date", columns="symbol", values="close")
-    probs_df = test_pd.pivot(index="date", columns="symbol", values="tp_probs").astype(np.float64).fillna(0.0)
+    probs_df = test_pd.pivot(index="date", columns="symbol", values="tp_probs").astype(np.float64)
 
     combinations = list(itertools.product(entry_thresholds, exit_thresholds))
     
@@ -154,7 +154,13 @@ def run_vectorbt_backtest_sweep(
     })
     
     # Since metrics are calculated per symbol due to our MultiIndex (entry, exit, symbol),
-    # we need to group by the thresholds and take the mean across symbols
-    sweep_results = metrics.groupby(['entry_threshold', 'exit_threshold']).mean().reset_index()
+    # we need to group by the thresholds and take the mean across symbols (sum for total_trades)
+    sweep_results = metrics.groupby(['entry_threshold', 'exit_threshold']).agg({
+        f"{metric_prefix}total_return": "mean",
+        f"{metric_prefix}win_rate": "mean",
+        f"{metric_prefix}max_drawdown": "mean",
+        f"{metric_prefix}sharpe_ratio": "mean",
+        f"{metric_prefix}total_trades": "sum",
+    }).reset_index()
     
     return sweep_results

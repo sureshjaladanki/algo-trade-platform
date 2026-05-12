@@ -80,8 +80,8 @@ def compute_5m_features(
     adx_roc_period: int = _CFG["adx"]["roc_period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m data to 5m and computes RSI and ADX features (with ROCs)
-    on the 5m bars using the pure indicator functions.
+    Resamples 1m data to 5m and computes RSI and ADX (with ROC = SMA of
+    bar-to-bar pct change) on the 5m bars using the pure indicator functions.
 
     The returned dataframe contains only the datetime column and the 5m
     feature columns; its timestamps are shifted forward by 5 minutes so the
