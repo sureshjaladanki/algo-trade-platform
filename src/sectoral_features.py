@@ -5,7 +5,6 @@ from typing import Dict
 
 import polars as pl
 
-from .features import add_advance_decline, add_zscore
 from .utils import load_config
 
 
@@ -20,13 +19,9 @@ def compute_5m_sector_features(
     sector_df: pl.DataFrame,
     symbol_dfs: Dict[str, pl.DataFrame],
     datetime_col: str = "timestamp",
-    *,
-    zscore_period: int = _CFG["zscore"]["period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m sector data and 1m symbol data to 5m, computes smoothed Z-score
-    (Z-score of close) and Advance/Decline on 5m bars, and returns a 5m
-    feature dataframe.
+    Resamples 1m sector data to 5m and returns a 5m feature dataframe.
 
     The returned timestamps are shifted forward by 5 minutes so the features
     can be joined onto 1m data without lookahead bias.
@@ -40,25 +35,10 @@ def compute_5m_sector_features(
         ]
     )
 
-    # 2) Resample all symbol dfs to 5m (close only)
-    symbol_5m_dfs: Dict[str, pl.DataFrame] = {}
-    for sym, df in symbol_dfs.items():
-        symbol_5m_dfs[sym] = df.group_by_dynamic(datetime_col, every="5m").agg(
-            [pl.col("close").last().alias("close")]
-        )
-
-    # 3) Compute A/D across symbols (joins onto df_5m)
-    df_5m = add_advance_decline(df_5m, symbol_5m_dfs, datetime_col=datetime_col)
-
-    # 4) Compute Z-score on 5m sector data
-    df_5m = add_zscore(df_5m, period=zscore_period)
-
-    # 5) Select only feature columns
+    # 2) Select only feature columns (currently none, but keeping structure for future)
     df_5m_features = df_5m.select(
         [
             pl.col(datetime_col),
-            pl.col("zscore").alias("sector_index_zscore_5m"),
-            pl.col("advance_decline").alias("sector_ad_5m"),
         ]
     )
 

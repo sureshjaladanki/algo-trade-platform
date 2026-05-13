@@ -25,10 +25,10 @@ target:
   classes:
     stop_loss:
       num: 0
-      weight: 1.0
+      weight: 1.5
     hold:
       num: 1
-      weight: 0.2
+      weight: 1.0
     take_profit:
       num: 2
-      weight: 1.5
+      weight: 1.0

@@ -87,12 +87,14 @@ def train_xgboost_model(
             "objective": "multi:softprob",  # Changed from binary:logistic
             "num_class": len(training_context["target_classes"]), # number of classes inferred from data
             "eval_metric": "mlogloss",     # Use multi-class logloss
-            "max_depth": 7,
+            "max_depth": 5,             # Reduced from 7 to prevent overfitting
             "learning_rate": 0.02,
             "n_estimators": 300,
             "random_state": 42,
             "subsample": 0.8,           # Critical for generalization
-            "colsample_bytree": 0.8,    # Critical for feature robustness
+            "colsample_bytree": 0.7,    # Reduced slightly for feature robustness
+            "min_child_weight": 5,      # Increased to make the model more conservative (improves precision)
+            "gamma": 1.0,               # Added minimum loss reduction to split (improves precision)
             # Required for native categorical handling in XGBoost 2.x.
             # `hist` is also the default in 2.x but we pin it explicitly
             # because `enable_categorical=True` requires it.
@@ -162,7 +164,7 @@ def train_xgboost_model(
         ).to_series().to_numpy()
 
         take_profit_above_threshold = df_test.select(
-            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
+            (pl.col(natr_col) * take_profit_natr > take_profit_pct / 100.0)
             .fill_null(False)
             .alias("natr_tp_ok")
         ).to_series().to_numpy()

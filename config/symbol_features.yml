@@ -7,10 +7,10 @@
 ema:
   period: 14
 
-bollinger:
-  period: 20
+ema_slope:
+  period: 5
 
-volume_zscore:
+bollinger:
   period: 20
 
 relative_volume:
@@ -23,15 +23,9 @@ atr_gap:
 
 rsi:
   period: 3
-  # SMA window on bar-to-bar pct change of RSI (5m).
-  zscore_period: 3
 
 adx:
   period: 14
-  # SMA window on bar-to-bar pct change of ADX (5m).
-  zscore_period: 3
 
 atr:
   period: 8
-  # SMA window on bar-to-bar pct change of ATR (5m).
-  zscore_period: 3

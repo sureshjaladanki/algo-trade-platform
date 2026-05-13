@@ -4,8 +4,4 @@
 #
 # Notes:
 # - Features are computed on 5-minute resampled candles.
-# - `zscore.period` is the window length for the rolling Z-score.
-
-zscore:
-  period: 3
 

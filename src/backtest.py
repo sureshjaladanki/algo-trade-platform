@@ -131,7 +131,7 @@ def run_vectorbt_backtest_sweep(
     )
     take_profit_above_threshold = (
         df_test.select(
-            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
+            (pl.col(natr_col) * take_profit_natr > take_profit_pct / 100.0)
             .fill_null(False)
             .alias("natr_tp_ok")
         )

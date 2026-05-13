@@ -50,7 +50,7 @@ def build_all_features(
     vix_df = build_market_features(vix_df, datetime_col="date")
 
     # We only need the market features to join later
-    vix_features = vix_df.select(["date", "market_vix_5m", "market_vix_zscore_5m", "trading_session"])
+    vix_features = vix_df.select(["date", "market_vix_5m"])
 
     all_symbols_df = []
 
