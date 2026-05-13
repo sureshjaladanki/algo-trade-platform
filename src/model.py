@@ -87,9 +87,9 @@ def train_xgboost_model(
             "objective": "multi:softprob",  # Changed from binary:logistic
             "num_class": len(training_context["target_classes"]), # number of classes inferred from data
             "eval_metric": "mlogloss",     # Use multi-class logloss
-            "max_depth": 5,
-            "learning_rate": 0.05,
-            "n_estimators": 100,
+            "max_depth": 7,
+            "learning_rate": 0.02,
+            "n_estimators": 300,
             "random_state": 42,
             "subsample": 0.8,           # Critical for generalization
             "colsample_bytree": 0.8,    # Critical for feature robustness
@@ -120,28 +120,6 @@ def train_xgboost_model(
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
 
-        natr_col = training_context["natr_col"]
-        stop_loss_natr = float(training_context["stop_loss_natr"])
-        take_profit_natr = float(training_context["take_profit_natr"])
-        take_profit_pct = float(training_context.get("take_profit_pct", 0.35))
-
-        # NATR-scaled stop-loss exit: previous-bar return breaches -stop_loss_natr * NATR.
-        # Shift is partitioned by symbol so the lag never crosses instrument boundaries.
-        stop_loss_exit = df_test.select(
-            (
-                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
-                <= -pl.col(natr_col) * stop_loss_natr
-            )
-            .fill_null(False)
-            .alias("ret_exit")
-        ).to_series().to_numpy()
-
-        take_profit_above_threshold = df_test.select(
-            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
-            .fill_null(False)
-            .alias("natr_tp_ok")
-        ).to_series().to_numpy()
-
         entries = pl.Series("entries", (tp_probs > 0.65) & take_profit_above_threshold)
         exits = pl.Series("exits", (tp_probs < 0.4) | stop_loss_exit)
         
@@ -169,6 +147,28 @@ def train_xgboost_model(
             f"{acc:.4f} | "
             f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} "
         )
+        
+        natr_col = training_context["natr_col"]
+        stop_loss_natr = float(training_context["stop_loss_natr"])
+        take_profit_natr = float(training_context["take_profit_natr"])
+        take_profit_pct = float(training_context.get("take_profit_pct", 0.35))
+
+        # NATR-scaled stop-loss exit: previous-bar return breaches -stop_loss_natr * NATR.
+        # Shift is partitioned by symbol so the lag never crosses instrument boundaries.
+        stop_loss_exit = df_test.select(
+            (
+                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
+                <= -pl.col(natr_col) * stop_loss_natr
+            )
+            .fill_null(False)
+            .alias("ret_exit")
+        ).to_series().to_numpy()
+
+        take_profit_above_threshold = df_test.select(
+            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
+            .fill_null(False)
+            .alias("natr_tp_ok")
+        ).to_series().to_numpy()
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={

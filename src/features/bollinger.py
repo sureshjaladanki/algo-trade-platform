@@ -17,16 +17,10 @@ def add_bollinger(df: pl.DataFrame, period: int = 20) -> pl.DataFrame:
     df = df.with_columns(
         ((pl.col("close") - pl.col("bb_lower")) / (pl.col("bb_upper") - pl.col("bb_lower"))).alias("bb_pct_b")
     )
-    df = df.with_columns(
-        pl.when(pl.col("bb_pct_b").is_infinite()).then(None).otherwise(pl.col("bb_pct_b")).alias("bb_pct_b")
-    )
     # bb_upper - bb_lower collapses to 0 when bb_std is 0 (flat window) -> division yields +/-inf.
     # Replace with NaN so XGBoost can route it through its missing-value branch.
     df = df.with_columns(
-        pl.when(pl.col("bb_pct_b").is_infinite())
-          .then(float("nan"))
-          .otherwise(pl.col("bb_pct_b"))
-          .alias("bb_pct_b")
+        pl.when(pl.col("bb_pct_b").is_infinite()).then(None).otherwise(pl.col("bb_pct_b")).alias("bb_pct_b")
     )
     df = df.drop(["bb_mean", "bb_std", "bb_upper", "bb_lower"])
     return df
