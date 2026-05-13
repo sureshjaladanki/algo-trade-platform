@@ -58,15 +58,14 @@ def run_backtest_pipeline(
 
     training_config = load_config(training_config_path)
     target_classes = training_config.get("target", {}).get("classes", {})
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
 
     feature_cols = [col for col in MODEL_FEATURE_COLS if col in df_test.columns]
     
-    # target_col = training_config.get("target", {}).get("column", "long_target")
-    # subset_cols = feature_cols + [target_col] if target_col in df_test.columns else feature_cols
+    target_col = training_config.get("target", {}).get("column", "long_target")
+    subset_cols = feature_cols + [target_col] if target_col in df_test.columns else feature_cols
     
     # Drop nulls as done in training
-    df_test = df_test.drop_nulls(subset=feature_cols)
+    df_test = df_test.drop_nulls(subset=subset_cols)
 
     X_test = df_test.select(feature_cols).to_pandas()
 
@@ -82,7 +81,7 @@ def run_backtest_pipeline(
     tp_probs = y_prob[:, tp_idx]
 
     entry_thresholds = [0.6, 0.65, 0.7, 0.75]
-    exit_thresholds = [0.3, 0.35, 0.4, 0.45, 0.5]
+    exit_thresholds = [0.3, 0.35, 0.4, 0.45]
 
     print(f"Running vectorBT backtest sweep over "
           f"{len(entry_thresholds) * len(exit_thresholds)} combinations...")
@@ -91,7 +90,8 @@ def run_backtest_pipeline(
         df_test,
         tp_probs,
         entry_thresholds,
-        exit_thresholds
+        exit_thresholds,
+        backtest_context=training_config
     )
 
     if sweep_results.empty:

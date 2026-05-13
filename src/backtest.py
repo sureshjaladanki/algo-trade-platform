@@ -7,13 +7,13 @@ import numpy as np
 import polars as pl
 import pandas as pd
 import vectorbt as vbt
+import itertools
 
 from .utils import load_config
 
 _CONFIG_ROOT = Path(__file__).resolve().parents[1] / "config"
 _DEFAULT_BACKTEST_PATH = _CONFIG_ROOT / "backtest.yml"
 _DEFAULT_BACKTEST_CONTEXT = load_config(_DEFAULT_BACKTEST_PATH)
-
 
 def run_vectorbt_backtest(
     df_test: pl.DataFrame,
@@ -60,13 +60,10 @@ def run_vectorbt_backtest(
         .astype(bool)
     )
 
-    sl_stop = (backtest_context.get("stop_loss_pct", 0.25) / 100.0)
-
     pf = vbt.Portfolio.from_signals(
         close=close_df,
         entries=entries_df,
         exits=exits_df,
-        sl_stop=sl_stop,
         freq=backtest_context["freq"],
         fees=backtest_context["fees"],
         slippage=backtest_context["slippage"],
@@ -92,37 +89,86 @@ def run_vectorbt_backtest_sweep(
     backtest_context: Dict[str, Any] = None
 ) -> pd.DataFrame:
     """
-    Run a vectorBT long-only simulation sweeping across multiple entry and exit thresholds.
+    Run a vectorBT long-only simulation sweeping entry/exit probability thresholds.
+
+    Entries and exits follow `train_xgboost_model` / `model.py`: enter only when
+    NATR * take_profit_natr exceeds take_profit_pct; exit when probability is
+    below the exit threshold or on the NATR-scaled single-bar stop signal.
+    NATR settings come from `config/backtest.yml` (merged with optional `backtest_context`).
     """
-    import itertools
-    import pandas as pd
 
     backtest_context = backtest_context or {}
     backtest_context = {**_DEFAULT_BACKTEST_CONTEXT, **backtest_context}
+    natr_col = backtest_context["natr_col"]
 
-    required = {"date", "symbol", "close"}
+    required = {"date", "symbol", "close", natr_col}
     if not required.issubset(set(df_test.columns)):
         return pd.DataFrame()
 
     if len(tp_probs) != len(df_test):
         return pd.DataFrame()
 
+    """
+    NATR-scaled single-bar stop mask and entry gate
+    (natr * take_profit_natr > take_profit_pct). Defaults from `config/backtest.yml`;
+    `overrides` can supply training-time values (e.g. `training_context` in `model.py`).
+    """
+    stop_loss_natr = float(backtest_context["stop_loss_natr"])
+    take_profit_natr = float(backtest_context["take_profit_natr"])
+    take_profit_pct = float(backtest_context["take_profit_pct"])
+
+    stop_loss_exit = (
+        df_test.select(
+            (
+                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
+                <= -pl.col(natr_col) * stop_loss_natr
+            )
+            .fill_null(False)
+            .alias("ret_exit")
+        )
+        .to_series()
+        .to_numpy()
+    )
+    take_profit_above_threshold = (
+        df_test.select(
+            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
+            .fill_null(False)
+            .alias("natr_tp_ok")
+        )
+        .to_series()
+        .to_numpy()
+    )
+
     test_pd = df_test.select(["date", "symbol", "close"]).to_pandas()
     test_pd["tp_probs"] = tp_probs
+    test_pd["stop_loss_exit"] = stop_loss_exit
+    test_pd["take_profit_above_threshold"] = take_profit_above_threshold
 
     # Drop duplicates in case multiple rows have the same date and symbol
     test_pd = test_pd.drop_duplicates(subset=["date", "symbol"], keep="last")
 
     close_df = test_pd.pivot(index="date", columns="symbol", values="close")
-    probs_df = test_pd.pivot(index="date", columns="symbol", values="tp_probs").astype(np.float64)
+    probs_df = test_pd.pivot(index="date", columns="symbol", values="tp_probs").astype(
+        np.float64
+    )
+    sl_exit_df = (
+        test_pd.pivot(index="date", columns="symbol", values="stop_loss_exit")
+        .fillna(False)
+        .astype(bool)
+    )
+    tp_ok_df = (
+        test_pd.pivot(index="date", columns="symbol", values="take_profit_above_threshold")
+        .fillna(False)
+        .astype(bool)
+    )
 
     combinations = list(itertools.product(entry_thresholds, exit_thresholds))
-    
+
     entries_list = []
     exits_list = []
     for en, ex in combinations:
-        entries_list.append((probs_df > en).astype(bool))
-        exits_list.append((probs_df < ex).astype(bool))
+        entries_list.append(((probs_df > en) & tp_ok_df).astype(bool))
+        exits_list.append(((probs_df < ex) | sl_exit_df).astype(bool))
         
     multi_index = pd.MultiIndex.from_tuples(combinations, names=['entry_threshold', 'exit_threshold'])
     
@@ -130,13 +176,10 @@ def run_vectorbt_backtest_sweep(
     exits_df = pd.concat(exits_list, axis=1, keys=multi_index)
     close_df_sweep = pd.concat([close_df] * len(combinations), axis=1, keys=multi_index)
 
-    sl_stop = (backtest_context.get("stop_loss_pct", 0.25) / 100.0)
-
     pf = vbt.Portfolio.from_signals(
         close=close_df_sweep,
         entries=entries_df,
         exits=exits_df,
-        sl_stop=sl_stop,
         freq=backtest_context["freq"],
         fees=backtest_context["fees"],
         slippage=backtest_context["slippage"],

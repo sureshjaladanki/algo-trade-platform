@@ -8,8 +8,8 @@ lookahead_minutes: 15
 stop_loss_pct: 0.25
 take_profit_pct: 0.35
 # Triple-barrier labeling: multiples of `natr_col` at the entry bar (see `add_long_target`).
-take_profit_natr: 1.5
-stop_loss_natr: 1.0
+take_profit_natr: 2.0
+stop_loss_natr: 1.5
 natr_col: natr_5m
 
 # Target (label) configuration
@@ -25,10 +25,10 @@ target:
   classes:
     stop_loss:
       num: 0
-      weight: 5.0
+      weight: 1.0
     hold:
       num: 1
-      weight: 1.0
+      weight: 0.2
     take_profit:
       num: 2
-      weight: 5.0
+      weight: 1.5

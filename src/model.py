@@ -119,9 +119,6 @@ def train_xgboost_model(
         tp_class = int(training_context["target_classes"]["take_profit"]["num"])
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
-
-        entries = pl.Series("entries", (tp_probs > 0.65) & take_profit_above_threshold)
-        exits = pl.Series("exits", (tp_probs < 0.4) | stop_loss_exit)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)
@@ -169,6 +166,9 @@ def train_xgboost_model(
             .fill_null(False)
             .alias("natr_tp_ok")
         ).to_series().to_numpy()
+
+        entries = pl.Series("entries", (tp_probs > 0.65) & take_profit_above_threshold)
+        exits = pl.Series("exits", (tp_probs < 0.4) | stop_loss_exit)
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
