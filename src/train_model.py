@@ -31,7 +31,10 @@ def run_pipeline(
     training_config = load_config(training_config_path)
     
     stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
-    take_profit_pct = training_config.get("take_profit_pct", 0.5)
+    take_profit_pct = float(training_config.get("take_profit_pct", 0.35))
+    take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
+    stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
+    natr_col = str(training_config.get("natr_col", "natr_5m"))
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
@@ -72,6 +75,9 @@ def run_pipeline(
             "target_classes": target_classes,
             "stop_loss_pct": stop_loss_pct,
             "take_profit_pct": take_profit_pct,
+            "take_profit_natr": take_profit_natr,
+            "stop_loss_natr": stop_loss_natr,
+            "natr_col": natr_col,
         }
     )
     print("====================================")

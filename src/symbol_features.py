@@ -11,9 +11,9 @@ from .features import (
     add_volume_zscore,
     add_relative_volume,
     add_atr_gap,
-    add_natr,
+    add_atr,
     add_rsi,
-    add_adx,
+    add_adx
 )
 from .utils import load_config
 
@@ -79,8 +79,8 @@ def compute_5m_features(
     rsi_zscore_period: int = _CFG["rsi"]["zscore_period"],
     adx_period: int = _CFG["adx"]["period"],
     adx_zscore_period: int = _CFG["adx"]["zscore_period"],
-    atr_period: int = _CFG["atr_5m"]["period"],
-    atr_zscore_period: int = _CFG["atr_5m"]["zscore_period"],
+    atr_period: int = _CFG["atr"]["period"],
+    atr_zscore_period: int = _CFG["atr"]["zscore_period"],
 ) -> pl.DataFrame:
     """
     Resamples 1m data to 5m and computes ATR, RSI, and ADX (with Z-score)
@@ -99,9 +99,9 @@ def compute_5m_features(
         pl.col("close").last().alias("close")
     ])
 
-    # ATR (gap-free first bar of day), then RSI and ADX (and their Z-scores) on 5m.
-    # Indicator functions are timeperiod-agnostic; we rename here for 5m provenance.
-    df_5m = add_natr(df_5m, datetime_col=datetime_col, period=atr_period, zscore_period=atr_zscore_period)
+    # Raw ATR on 5m (gap-free first bar of day), then RSI and ADX (and their Z-scores).
+    # NATR is derived on the 1m frame after join_asof (see `build_symbol_features`).
+    df_5m = add_atr(df_5m, datetime_col=datetime_col, period=atr_period, zscore_period=atr_zscore_period)
     df_5m = add_rsi(df_5m, period=rsi_period, zscore_period=rsi_zscore_period)
     df_5m = add_adx(df_5m, period=adx_period, zscore_period=adx_zscore_period)
 
@@ -111,8 +111,8 @@ def compute_5m_features(
         pl.col("adx").alias("adx_5m"),
         pl.col("rsi_zscore").alias("rsi_5m_zscore"),
         pl.col("adx_zscore").alias("adx_5m_zscore"),
-        pl.col("natr").alias("natr_5m"),
-        pl.col("natr_zscore").alias("natr_5m_zscore"),
+        pl.col("atr").alias("atr_5m"),
+        pl.col("atr_zscore").alias("atr_5m_zscore"),
     ])
 
     # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias
@@ -131,6 +131,9 @@ def build_symbol_features(df: pl.DataFrame, datetime_col: str = "timestamp") -> 
     """
     Orchestrates building both 1m and 5m features for a single symbol's bar data,
     then joins the 5m features onto the 1m frame via an as-of backward join.
+
+    5m bars carry raw ATR (`atr_5m`); after the join, `natr_5m = atr_5m / close` on the
+    1m grid. Raw `atr_5m` columns is dropped so downstream code uses `natr_5m` instead.
     """
     df_1m = compute_1m_features(df, datetime_col)
     df_5m_features = compute_5m_features(df_1m, datetime_col)
@@ -138,5 +141,9 @@ def build_symbol_features(df: pl.DataFrame, datetime_col: str = "timestamp") -> 
     # Join asof backward
     # For each 1m row, find the most recent 5m feature row where 5m_timestamp <= 1m_timestamp
     df_joined = df_1m.join_asof(df_5m_features, on=datetime_col, strategy="backward")
+
+    # Normalize joined 5m ATR by the current 1m close; z-score NATR on the 1m timeline.
+    df_joined = df_joined.with_columns((pl.col("atr_5m") / pl.col("close")).alias("natr_5m"))
+    df_joined = df_joined.drop("atr_5m")
 
     return df_joined

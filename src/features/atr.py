@@ -1,21 +1,21 @@
 import polars as pl
 
 
-def add_natr(
+def add_atr(
     df: pl.DataFrame,
     datetime_col: str = "timestamp",
     period: int = 8,
     zscore_period: int = 3,
 ) -> pl.DataFrame:
     """
-    Adds 'natr' (Normalized SMA of true range over `period` bars) and 'natr_zscore'
-    (Z-score of NATR over its `zscore_period` bars).
+    Adds ``atr`` (SMA of true range over ``period`` bars) and ``atr_zscore``
+    (z-score of ATR over ``zscore_period`` bars).
 
-    The first 5m bar of each calendar trading day uses HL-only true range so
-    the session open gap does not inflate TR.
+    The first bar of each calendar trading day uses HL-only true range so the
+    session open gap does not inflate TR.
 
-    Timeperiod-agnostic: generic column names. The caller may rename to a
-    timeframe-specific scheme (e.g. 'natr_5m', 'natr_5m_zscore').
+    Timeframe-agnostic column names; callers may rename (e.g. ``atr_5m``,
+    ``atr_5m_zscore``).
     """
     df = df.with_columns(pl.col(datetime_col).dt.date().alias("trading_day"))
     df = df.with_columns(pl.col("close").shift(1).alias("prev_close"))
@@ -37,15 +37,18 @@ def add_natr(
         .otherwise(standard_tr)
         .alias("tr")
     )
-    df = df.with_columns((pl.col("tr").rolling_mean(window_size=period) / pl.col("close")).alias("natr"))
+    df = df.with_columns(pl.col("tr").rolling_mean(window_size=period).alias("atr"))
     df = df.with_columns([
-        pl.col("natr").rolling_mean(window_size=zscore_period).alias("natr_mean"),
-        pl.col("natr").rolling_std(window_size=zscore_period).alias("natr_std")
+        pl.col("atr").rolling_mean(window_size=zscore_period).alias("atr_mean"),
+        pl.col("atr").rolling_std(window_size=zscore_period).alias("atr_std"),
     ])
     df = df.with_columns(
-        ((pl.col("natr") - pl.col("natr_mean")) / pl.col("natr_std")).alias("natr_zscore")
+        ((pl.col("atr") - pl.col("atr_mean")) / pl.col("atr_std")).alias("atr_zscore")
     )
     df = df.with_columns(
-        pl.when(pl.col("natr_zscore").is_infinite()).then(float("nan")).otherwise(pl.col("natr_zscore")).alias("natr_zscore")
+        pl.when(pl.col("atr_zscore").is_infinite())
+        .then(None)
+        .otherwise(pl.col("atr_zscore"))
+        .alias("atr_zscore")
     )
-    return df.drop("trading_day", "prev_close", "is_first_bar_of_day", "tr", "natr_mean", "natr_std")
+    return df.drop("trading_day", "prev_close", "is_first_bar_of_day", "tr", "atr_mean", "atr_std")

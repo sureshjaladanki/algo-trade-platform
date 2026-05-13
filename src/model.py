@@ -9,6 +9,7 @@ import numpy as np
 from .backtest import run_vectorbt_backtest
 from .constants import DEFAULT_TARGET_CLASSES
 
+
 def train_xgboost_model(
     df_train: pl.DataFrame, 
     df_test: pl.DataFrame,
@@ -17,7 +18,10 @@ def train_xgboost_model(
     *,
     training_context: Dict = {
         "target_classes": DEFAULT_TARGET_CLASSES,
-        "take_profit_pct": 0.5,
+        "take_profit_natr": 2.0,
+        "take_profit_pct": 0.35,
+        "stop_loss_natr": 1.5,
+        "natr_col": "natr_5m",
         "stop_loss_pct": 0.25,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
@@ -30,6 +34,17 @@ def train_xgboost_model(
     `category` dtype so that `enable_categorical=True` can pick them up
     automatically without a separate categorical_features list.
     """
+
+    # Replace inf and -inf with nulls in float feature columns so they get dropped
+    float_feature_cols = [c for c in feature_cols if df_train[c].dtype in (pl.Float32, pl.Float64)]
+    if float_feature_cols:
+        exprs = [
+            pl.when(pl.col(c).is_infinite()).then(None).otherwise(pl.col(c)).alias(c)
+            for c in float_feature_cols
+        ]
+        df_train = df_train.with_columns(exprs)
+        df_test = df_test.with_columns(exprs)
+
     # Ensure there are no nulls in features or target before training
     df_train = df_train.drop_nulls(subset=feature_cols + [target_col])
     df_test = df_test.drop_nulls(subset=feature_cols + [target_col])
@@ -104,9 +119,31 @@ def train_xgboost_model(
         tp_class = int(training_context["target_classes"]["take_profit"]["num"])
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
-        
-        entries = pl.Series("entries", tp_probs > 0.65)
-        exits = pl.Series("exits", tp_probs < 0.4)
+
+        natr_col = training_context["natr_col"]
+        stop_loss_natr = float(training_context["stop_loss_natr"])
+        take_profit_natr = float(training_context["take_profit_natr"])
+        take_profit_pct = float(training_context.get("take_profit_pct", 0.35))
+
+        # NATR-scaled stop-loss exit: previous-bar return breaches -stop_loss_natr * NATR.
+        # Shift is partitioned by symbol so the lag never crosses instrument boundaries.
+        stop_loss_exit = df_test.select(
+            (
+                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
+                <= -pl.col(natr_col) * stop_loss_natr
+            )
+            .fill_null(False)
+            .alias("ret_exit")
+        ).to_series().to_numpy()
+
+        take_profit_above_threshold = df_test.select(
+            (pl.col(natr_col) * take_profit_natr > take_profit_pct)
+            .fill_null(False)
+            .alias("natr_tp_ok")
+        ).to_series().to_numpy()
+
+        entries = pl.Series("entries", (tp_probs > 0.65) & take_profit_above_threshold)
+        exits = pl.Series("exits", (tp_probs < 0.4) | stop_loss_exit)
         
         # Calculate metrics
         acc = accuracy_score(y_test, y_pred)

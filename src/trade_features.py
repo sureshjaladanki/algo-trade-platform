@@ -29,8 +29,9 @@ def build_all_features(
     sectoral_indices = config.get("sectoral_indices", {})
 
     lookahead_minutes = int(training_config.get("lookahead_minutes", 30))
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
-    take_profit_pct = training_config.get("take_profit_pct", 0.5)
+    take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
+    stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
+    natr_col = str(training_config.get("natr_col", "natr_5m"))
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
@@ -104,8 +105,9 @@ def build_all_features(
             sym_df = add_long_target(
                 sym_df,
                 lookahead_minutes=lookahead_minutes,
-                stop_loss_pct=stop_loss_pct,
-                take_profit_pct=take_profit_pct,
+                natr_col=natr_col,
+                take_profit_natr=take_profit_natr,
+                stop_loss_natr=stop_loss_natr,
                 target_classes=target_classes,
             )
 

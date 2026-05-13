@@ -4,8 +4,13 @@
 # when building the binary direction target (see `generate_target`).
 
 lookahead_minutes: 15
+# Used by vectorbt backtest in `src/model.py` (percent units).
 stop_loss_pct: 0.25
-take_profit_pct: 0.4
+take_profit_pct: 0.35
+# Triple-barrier labeling: multiples of `natr_col` at the entry bar (see `add_long_target`).
+take_profit_natr: 2.0
+stop_loss_natr: 1.5
+natr_col: natr_5m
 
 # Target (label) configuration
 #

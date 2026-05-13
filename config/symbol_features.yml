@@ -31,7 +31,7 @@ adx:
   # SMA window on bar-to-bar pct change of ADX (5m).
   zscore_period: 3
 
-atr_5m:
+atr:
   period: 8
   # SMA window on bar-to-bar pct change of ATR (5m).
   zscore_period: 3

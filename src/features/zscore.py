@@ -17,7 +17,7 @@ def add_zscore(df: pl.DataFrame, period: int = 5) -> pl.DataFrame:
     )
     df = df.with_columns(
         pl.when(pl.col("zscore").is_infinite())
-          .then(float("nan"))
+          .then(None)
           .otherwise(pl.col("zscore"))
           .alias("zscore")
     )

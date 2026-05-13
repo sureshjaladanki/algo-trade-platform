@@ -24,7 +24,7 @@ def add_rsi(df: pl.DataFrame, period: int = 14, zscore_period: int = 5) -> pl.Da
         ((pl.col("rsi") - pl.col("rsi_mean")) / pl.col("rsi_std")).alias("rsi_zscore")
     )
     df = df.with_columns(
-        pl.when(pl.col("rsi_zscore").is_infinite()).then(float("nan")).otherwise(pl.col("rsi_zscore")).alias("rsi_zscore")
+        pl.when(pl.col("rsi_zscore").is_infinite()).then(None).otherwise(pl.col("rsi_zscore")).alias("rsi_zscore")
     )
     df = df.drop(["rsi_mean", "rsi_std"])
     return df

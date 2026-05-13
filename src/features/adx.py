@@ -24,7 +24,7 @@ def add_adx(df: pl.DataFrame, period: int = 14, zscore_period: int = 5) -> pl.Da
         ((pl.col("adx") - pl.col("adx_mean")) / pl.col("adx_std")).alias("adx_zscore")
     )
     df = df.with_columns(
-        pl.when(pl.col("adx_zscore").is_infinite()).then(float("nan")).otherwise(pl.col("adx_zscore")).alias("adx_zscore")
+        pl.when(pl.col("adx_zscore").is_infinite()).then(None).otherwise(pl.col("adx_zscore")).alias("adx_zscore")
     )
     df = df.drop(["adx_mean", "adx_std"])
     return df

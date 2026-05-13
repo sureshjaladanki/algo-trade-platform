@@ -29,6 +29,9 @@ def add_vwap(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns([
         ((pl.col("close") - pl.col("vwap")) / pl.col("vwap_std")).alias("close_vwap_zscore")
     ])
+    df = df.with_columns(
+        pl.when(pl.col("close_vwap_zscore").is_infinite()).then(None).otherwise(pl.col("close_vwap_zscore")).alias("close_vwap_zscore")
+    )
 
     # Drop intermediate columns
     df = df.drop(["price_volume", "vwap", "vol_price_diff_sq", "vwap_std"])

@@ -16,6 +16,9 @@ def add_relative_volume(df: pl.DataFrame, datetime_col: str = "timestamp", perio
     df = df.with_columns(
         (pl.col("volume") / pl.col("rel_vol")).alias("rvol")
     )
+    df = df.with_columns(
+        pl.when(pl.col("rvol").is_infinite()).then(None).otherwise(pl.col("rvol")).alias("rvol")
+    )
     # rel_vol can be 0 on illiquid minutes -> division yields +/-inf.
     # Replace with NaN so XGBoost can route it through its missing-value branch.
     df = df.with_columns(

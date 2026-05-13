@@ -48,6 +48,9 @@ def add_advance_decline(
     ad_agg = ad_agg.with_columns(
         ((pl.col("advances") - pl.col("declines")) / pl.col("total_stocks")).alias("advance_decline")
     )
+    ad_agg = ad_agg.with_columns(
+        pl.when(pl.col("advance_decline").is_infinite()).then(None).otherwise(pl.col("advance_decline")).alias("advance_decline")
+    )
     
     ad_agg = ad_agg.select([datetime_col, "advance_decline"]).sort(datetime_col)
 

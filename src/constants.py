@@ -33,7 +33,7 @@ MODEL_FEATURE_COLS = [
     "rsi_5m_zscore",
     "adx_5m_zscore",
     "natr_5m",
-    "natr_5m_zscore",
+    "atr_5m_zscore",
     # Market (5m joined to 1m)
     "market_vix_5m",
     "market_vix_zscore_5m",
