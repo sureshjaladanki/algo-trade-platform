@@ -31,4 +31,4 @@ target:
       weight: 1.0
     take_profit:
       num: 2
-      weight: 1.0
+      weight: 2.0

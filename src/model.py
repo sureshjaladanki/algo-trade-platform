@@ -35,16 +35,6 @@ def train_xgboost_model(
     automatically without a separate categorical_features list.
     """
 
-    # Replace inf and -inf with nulls in float feature columns so they get dropped
-    float_feature_cols = [c for c in feature_cols if df_train[c].dtype in (pl.Float32, pl.Float64)]
-    if float_feature_cols:
-        exprs = [
-            pl.when(pl.col(c).is_infinite()).then(None).otherwise(pl.col(c)).alias(c)
-            for c in float_feature_cols
-        ]
-        df_train = df_train.with_columns(exprs)
-        df_test = df_test.with_columns(exprs)
-
     # Ensure there are no nulls in features or target before training
     df_train = df_train.drop_nulls(subset=feature_cols + [target_col])
     df_test = df_test.drop_nulls(subset=feature_cols + [target_col])

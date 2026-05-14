@@ -1,0 +1,5 @@
+# Period configuration for market (regime) feature computation.
+#
+# Notes:
+# - 5m resampling and join behavior live in `src/market_features.py`.
+# - Keys below are available via `load_config`; add readers in code when needed.

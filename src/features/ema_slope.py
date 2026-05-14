@@ -14,6 +14,9 @@ def add_ema_slope(df: pl.DataFrame, period: int = 5) -> pl.DataFrame:
     df = df.with_columns(
         (pl.col(ema_col) / pl.col(ema_col).shift(1) - 1.0).alias(slope_col)
     )
+    df = df.with_columns(
+        pl.when(pl.col(slope_col).is_infinite()).then(None).otherwise(pl.col(slope_col)).alias(slope_col)
+    )
     df = df.drop(ema_col)
     
     return df

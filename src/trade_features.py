@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Dict
 
 import polars as pl
+import polars.selectors as cs
+    
 
 from .market_features import build_market_features
 from .sectoral_features import build_sectoral_features
@@ -89,7 +91,7 @@ def build_all_features(
             pl.lit(sector_symbol).cast(sector_enum).alias("sector")
         )
 
-        sector_features = sector_df.select(["date", "sector", "sector_index_zscore_5m", "sector_ad_5m"])
+        sector_features = sector_df.select(["date", "sector"])
 
         for sym, sym_df in symbol_dfs.items():
             print(f"   Building features for symbol: {sym}")
@@ -122,6 +124,22 @@ def build_all_features(
 
     print("3. Combining all symbol data...")
     final_df = pl.concat(all_symbols_df, how="vertical_relaxed")
+
+    # Clean up any infinite values generated during feature engineering (e.g. division by zero)
+    # Replace with NaN (null in Polars) so XGBoost can route it through its missing-value branch.
+    final_df = final_df.with_columns(
+        pl.when(cs.float().is_infinite()).then(None).otherwise(cs.float()).name.keep()
+    )
+
+    # Cast float64 to float32 to match XGBoost internal types and handle out-of-bounds values
+    final_df = final_df.with_columns(
+        cs.float().cast(pl.Float32)
+    )
+    
+    # Replace any new infs (which might have been created by float32 cast of large values) with null
+    final_df = final_df.with_columns(
+        pl.when(cs.float().is_infinite()).then(None).otherwise(cs.float()).name.keep()
+    )
 
     print(f"   Combined data shape: {final_df.shape}")
     return final_df
