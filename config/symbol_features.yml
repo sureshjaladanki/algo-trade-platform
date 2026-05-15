@@ -4,7 +4,7 @@
 # Values here are loaded by src/features/symbol_features.py and used as the
 # defaults for compute_1m_features and compute_5m_features.
 
-# fast_period -> ema_slope; slow_period -> ema (close vs EMA %)
+# fast_period -> fast_ema_slope; slow_period -> ema (close vs EMA %)
 ema:
   fast_period: 8
   slow_period: 21

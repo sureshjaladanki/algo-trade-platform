@@ -9,11 +9,11 @@ def add_ema(
 ) -> pl.DataFrame:
     """
     Adds EMA-derived features for fast and slow spans:
-    - 'ema_{fast_period}_slope': percentage change of the fast EMA vs prior bar
+    - 'fast_ema_slope': percentage change of the fast EMA vs prior bar
     - 'close_ema_{slow_period}_pct': percent difference of close vs slow EMA
     """
     fast_ema = f"ema_{fast_period}"
-    slope_col = f"ema_{fast_period}_slope"
+    slope_col = "fast_ema_slope"
     slow_ema = f"ema_{slow_period}"
     pct_col = f"close_ema_{slow_period}_pct"
 

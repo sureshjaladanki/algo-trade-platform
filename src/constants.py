@@ -14,7 +14,7 @@ MODEL_FEATURE_COLS = [
     "bb_pct_b",
     "rvol",
     "gap_atr",
-    "ema_8_slope",
+    "fast_ema_slope",
     # Symbol (5m joined to 1m)
     "rsi_5m",
     "rsi_5m_roc",
@@ -27,7 +27,7 @@ MODEL_FEATURE_COLS = [
     "fast_ema_5m_roc",
     "natr_5m",
     "atr_5m_roc",
-    "close_5m_pos",
+    # "close_5m_pos",
     # Market (5m joined to 1m)
     "market_vix_5m",
     # Sector (5m joined to 1m)
