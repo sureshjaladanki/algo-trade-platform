@@ -69,10 +69,6 @@ def run_backtest_pipeline(
 
     X_test = df_test.select(feature_cols).to_pandas()
 
-    int_cols = X_test.select_dtypes(include=['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64']).columns
-    if len(int_cols) > 0:
-        X_test[int_cols] = X_test[int_cols].astype("float64")
-
     print("Generating predictions...")
     y_prob = clf.predict_proba(X_test)
 

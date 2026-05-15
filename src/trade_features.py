@@ -211,5 +211,11 @@ def build_all_features(
         pl.when(cs.float().is_infinite()).then(None).otherwise(cs.float()).name.keep()
     )
 
+    # Integer dtypes cannot represent nulls in pandas; cast feature ints to float32
+    # so train/backtest/inference share the same schema (e.g. minute_of_day).
+    final_df = final_df.with_columns(
+        cs.integer().exclude("long_target").cast(pl.Float32)
+    )
+
     print(f"   Combined data shape: {final_df.shape}")
     return final_df

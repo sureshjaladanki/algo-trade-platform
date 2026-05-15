@@ -70,13 +70,6 @@ def train_xgboost_model(
     X_val = df_val.select(feature_cols).to_pandas()
     X_test = df_test.select(feature_cols).to_pandas()
 
-    # Cast integer columns to float64 to avoid MLflow schema warnings about missing values
-    int_cols = X_fit.select_dtypes(include=['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64']).columns
-    if len(int_cols) > 0:
-        X_fit[int_cols] = X_fit[int_cols].astype("float64")
-        X_val[int_cols] = X_val[int_cols].astype("float64")
-        X_test[int_cols] = X_test[int_cols].astype("float64")
-
     y_fit = df_fit.select(target_col).to_numpy().ravel()
     y_val = df_val.select(target_col).to_numpy().ravel()
     y_test = df_test.select(target_col).to_numpy().ravel()
