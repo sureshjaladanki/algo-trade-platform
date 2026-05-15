@@ -12,6 +12,12 @@ take_profit_natr: 2.0
 stop_loss_natr: 1.5
 natr_col: natr_5m
 
+# XGBoost (standard): chronological validation tail + early stopping. Omitted or null
+# keys use `DEFAULT_EARLY_STOPPING_ROUNDS` / `DEFAULT_VALIDATION_FRACTION` in src/constants.py.
+# Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
+early_stopping_rounds: 50
+validation_fraction: 0.2
+
 # Target (label) configuration
 #
 # `long_target` in `src/features/long_target.py` uses:
@@ -25,10 +31,10 @@ target:
   classes:
     stop_loss:
       num: 0
-      weight: 1.5
+      weight: 2.5
     hold:
       num: 1
       weight: 1.0
     take_profit:
       num: 2
-      weight: 2.0
+      weight: 2.5

@@ -7,7 +7,9 @@ from typing import List, Tuple, Dict
 import numpy as np
 
 from .backtest import run_vectorbt_backtest
-from .constants import DEFAULT_TARGET_CLASSES
+from .constants import (
+    DEFAULT_TARGET_CLASSES
+)
 
 
 def train_xgboost_model(
@@ -23,11 +25,21 @@ def train_xgboost_model(
         "stop_loss_natr": 1.5,
         "natr_col": "natr_5m",
         "stop_loss_pct": 0.25,
+        "early_stopping_rounds": 50,
+        "validation_fraction": 0.2,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
     Trains an XGBoost classification model using provided train and test sets.
     Logs parameters, metrics, and the model to MLflow.
+
+    By default, the last ``validation_fraction`` of training rows (sorted by
+    ``date``, then ``symbol``) is held out for ``eval_metric`` and XGBoost early
+    stopping uses ``early_stopping_rounds`` from ``training_context`` (defaults:
+    ``constants.DEFAULT_*``). The test set is never used for early stopping. Set
+    ``early_stopping_rounds`` to ``0`` to train on the full train set without
+    stopping. If the train set is too small or ``date`` is missing, early stopping
+    is skipped with a console warning.
 
     Categorical columns (e.g. 'sector') must already be encoded as `pl.Enum`
     or `pl.Categorical` upstream; they are passed to XGBoost via pandas
@@ -39,24 +51,40 @@ def train_xgboost_model(
     df_train = df_train.drop_nulls(subset=feature_cols + [target_col])
     df_test = df_test.drop_nulls(subset=feature_cols + [target_col])
 
+    patience = int(training_context.get("early_stopping_rounds", 50))
+    validation_fraction = float(training_context.get("validation_fraction", 0.2))
+
+    # Chronological split for early stopping validation (80/20 by default)
+    sort_keys = ["date"] + (["symbol"] if "symbol" in df_train.columns else [])
+    df_sorted = df_train.sort(sort_keys)
+    
+    validation_size = int(len(df_sorted) * validation_fraction)
+    fit_size = len(df_sorted) - validation_size
+
+    df_fit = df_sorted.head(fit_size)
+    df_val = df_sorted.tail(validation_size)
+
     # Pandas DataFrames preserve per-column dtypes (incl. `category`), which
     # XGBoost reads to decide which columns are categorical.
-    X_train = df_train.select(feature_cols).to_pandas()
+    X_fit = df_fit.select(feature_cols).to_pandas()
+    X_val = df_val.select(feature_cols).to_pandas()
     X_test = df_test.select(feature_cols).to_pandas()
 
     # Cast integer columns to float64 to avoid MLflow schema warnings about missing values
-    int_cols = X_train.select_dtypes(include=['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64']).columns
+    int_cols = X_fit.select_dtypes(include=['int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64']).columns
     if len(int_cols) > 0:
-        X_train[int_cols] = X_train[int_cols].astype("float64")
+        X_fit[int_cols] = X_fit[int_cols].astype("float64")
+        X_val[int_cols] = X_val[int_cols].astype("float64")
         X_test[int_cols] = X_test[int_cols].astype("float64")
 
-    y_train = df_train.select(target_col).to_numpy().ravel()
+    y_fit = df_fit.select(target_col).to_numpy().ravel()
+    y_val = df_val.select(target_col).to_numpy().ravel()
     y_test = df_test.select(target_col).to_numpy().ravel()
 
     class_weights = {int(v.get("num")): float(v.get("weight")) for v in training_context["target_classes"].values()}
-    sample_weights = np.array([class_weights.get(int(t), 1.0) for t in y_train], dtype=float)
+    sample_weights = np.array([class_weights.get(int(t), 1.0) for t in y_fit], dtype=float)
 
-    cat_cols = [c for c in X_train.columns if isinstance(X_train[c].dtype, pd.CategoricalDtype)]
+    cat_cols = [c for c in X_fit.columns if isinstance(X_fit[c].dtype, pd.CategoricalDtype)]
 
     # MLflow tracking
     mlflow.set_experiment("Algo_Trading_Experiment")
@@ -64,7 +92,7 @@ def train_xgboost_model(
     # We'll log the model ourselves in a version-compatible way.
     mlflow.xgboost.autolog(log_models=False)
 
-    print(f"Training on {len(df_train)} samples, testing on {len(df_test)} samples.")
+    print(f"Training on {fit_size} fit + {validation_size} validation (chronological tail), testing on {len(df_test)} samples.")
     if cat_cols:
         print(f"Categorical features (auto-detected from dtype): {cat_cols}")
 
@@ -73,23 +101,28 @@ def train_xgboost_model(
         mlflow.log_dict(training_context["target_classes"], "target_classes.json")
         print(f"logged target classes to MLflow.")
 
-        params = {
-            "objective": "multi:softprob",  # Changed from binary:logistic
-            "num_class": len(training_context["target_classes"]), # number of classes inferred from data
-            "eval_metric": "mlogloss",     # Use multi-class logloss
-            "max_depth": 5,             # Reduced from 7 to prevent overfitting
-            "learning_rate": 0.02,
-            "n_estimators": 300,
-            "random_state": 42,
-            "subsample": 0.8,           # Critical for generalization
-            "colsample_bytree": 0.7,    # Reduced slightly for feature robustness
-            "min_child_weight": 5,      # Increased to make the model more conservative (improves precision)
-            "gamma": 1.0,               # Added minimum loss reduction to split (improves precision)
-            # Required for native categorical handling in XGBoost 2.x.
-            # `hist` is also the default in 2.x but we pin it explicitly
-            # because `enable_categorical=True` requires it.
-            "enable_categorical": True,
+        params = {            
+            "objective": "multi:softprob",
+            "num_class": len(training_context["target_classes"]),
+            "eval_metric": "mlogloss",
+            
+            # LEARNING & CAPACITY
+            "learning_rate": 0.05,        # Slightly faster learning for smaller signals
+            "n_estimators": 500,          # More iterations with early stopping is better
+            "max_depth": 4,               # Reduced from 6 to prevent overfitting on noisy 1m data
+            
+            # REGULARIZATION (The "Balanced" touch)
+            "min_child_weight": 5,        # Increased from 1 to prevent splitting on tiny clusters
+            "gamma": 0.1,                 # Very light penalty to prevent tiny, meaningless splits
+            
+            # ROBUSTNESS (Keeping your good sampling logic)
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            
+            # MODERN DEFAULTS
             "tree_method": "hist",
+            "enable_categorical": True,
+            "random_state": 42,
         }
 
         # Persist the category->code mapping for each categorical column so
@@ -97,13 +130,29 @@ def train_xgboost_model(
         # YAML config drifts.
         for c in cat_cols:
             mlflow.log_dict(
-                {"column": c, "categories": list(X_train[c].cat.categories)},
+                {"column": c, "categories": list(X_fit[c].cat.categories)},
                 f"categories_{c}.json",
             )
 
+        mlflow.log_param("early_stopping_rounds", patience)
+        mlflow.log_param("validation_fraction", validation_fraction)
+
         print(f"Training XGBoost model.")
-        clf = xgb.XGBClassifier(**params)
-        clf.fit(X_train, y_train, sample_weight=sample_weights)
+        clf = xgb.XGBClassifier(**params, early_stopping_rounds=patience)
+        clf.fit(
+            X_fit, 
+            y_fit, 
+            sample_weight=sample_weights,
+            eval_set=[(X_val, y_val)],
+            verbose=False
+        )
+
+        best_iteration = getattr(clf, "best_iteration", getattr(clf, "best_iteration_", None))
+        if best_iteration is not None:
+            mlflow.log_metric("xgb_best_iteration", int(best_iteration))
+        best_score = getattr(clf, "best_score", getattr(clf, "best_score_", None))
+        if isinstance(best_score, (int, float)):
+            mlflow.log_metric("xgb_best_score", float(best_score))
 
         y_pred = clf.predict(X_test)
         y_prob = clf.predict_proba(X_test)

@@ -10,9 +10,90 @@ from .market_features import build_market_features
 from .sectoral_features import build_sectoral_features
 from .symbol_features import build_symbol_features
 from .features.long_target import add_long_target
+from .features.relative_strength import add_relative_strength
+from .features.roc import add_roc
 from .utils import load_config
 from .utils.symbol_data import load_symbol_data
 
+_TRADE_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "trade_features.yml"
+_TRADE_CFG = load_config(_TRADE_CONFIG_PATH)
+
+
+def compute_1m_trade_features(
+    trade_df: pl.DataFrame,
+    training_config: Dict,
+    datetime_col: str = "timestamp",
+) -> pl.DataFrame:
+    """
+    Computes 1-minute trade features, including the long-only triple-barrier target.
+
+    `datetime_col` names the time column on `trade_df` for callers that resample or
+    join on time; barrier labeling uses `close` and `natr_col` from the config.
+    """
+    lookahead_minutes = int(training_config.get("lookahead_minutes", 30))
+    take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
+    stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
+    natr_col = str(training_config.get("natr_col", "natr_5m"))
+    target = training_config.get("target", {})
+    target_classes = target.get("classes", {})
+
+    trade_df = add_long_target(
+        trade_df,
+        lookahead_minutes=lookahead_minutes,
+        natr_col=natr_col,
+        take_profit_natr=take_profit_natr,
+        stop_loss_natr=stop_loss_natr,
+        target_classes=target_classes,
+    )
+
+    return trade_df
+
+
+def compute_5m_trade_features(
+    trade_df: pl.DataFrame,
+    datetime_col: str = "timestamp",
+    *,
+    roc_period: int = _TRADE_CFG["relative_strength"]["roc"]
+) -> pl.DataFrame:
+    """
+    Resamples 1m trade data to 5m and returns a 5m feature dataframe.
+
+    The returned timestamps are shifted forward by 5 minutes so the features
+    can be joined onto 1m data without lookahead bias.
+    """
+    # 1) Resample trade df to 5m
+    df_5m = trade_df.group_by_dynamic(datetime_col, every="5m").agg(
+        [
+            pl.col("high").max().alias("high"),
+            pl.col("low").min().alias("low"),
+            pl.col("close").last().alias("close"),
+            pl.col("sector_close").last().alias("sector_close"),
+        ]
+    )
+
+    df_5m = add_relative_strength(
+        df_5m,
+        close_col="close",
+        sector_close_col="sector_close",
+    )
+    df_5m = add_roc(df_5m, roc_col="rs_ratio", period=roc_period)
+
+    # 2) Select only feature columns
+    df_5m_features = df_5m.select(
+        [
+            pl.col(datetime_col),
+            pl.col("rs_ratio").alias("rs_5m_ratio"),
+            pl.col("rs_ratio_roc").alias("rs_5m_roc"),
+        ]
+    )
+
+    # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias
+    df_5m_features = df_5m_features.with_columns(
+        (pl.col(datetime_col) + pl.duration(minutes=5)).alias(datetime_col)
+    )
+    df_5m_features = df_5m_features.drop_nulls()
+
+    return df_5m_features
 
 def build_all_features(
     data_dir: Path,
@@ -29,14 +110,6 @@ def build_all_features(
 
     regime_symbol = config.get("regime_symbol", "^INDIAVIX")
     sectoral_indices = config.get("sectoral_indices", {})
-
-    lookahead_minutes = int(training_config.get("lookahead_minutes", 30))
-    take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
-    stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
-    natr_col = str(training_config.get("natr_col", "natr_5m"))
-
-    target = training_config.get("target", {})
-    target_classes = target.get("classes", {})
 
     # Single source of truth for the sector <-> integer-code mapping. Built from
     # the YAML config so train, test, and inference all share identical codes.
@@ -91,11 +164,14 @@ def build_all_features(
             pl.lit(sector_symbol).cast(sector_enum).alias("sector")
         )
 
-        sector_features = sector_df.select(["date", "sector"])
+        sector_features = sector_df.select(["date", "sector", "sector_close"])
 
         for sym, sym_df in symbol_dfs.items():
             print(f"   Building features for symbol: {sym}")
             sym_df = build_symbol_features(sym_df, datetime_col="date")
+            
+            # Add symbol identifier
+            sym_df = sym_df.with_columns(pl.lit(sym).alias("symbol"))
 
             # Join sector features
             sym_df = sym_df.join_asof(sector_features, on="date", strategy="backward")
@@ -103,18 +179,12 @@ def build_all_features(
             # Join market features
             sym_df = sym_df.join_asof(vix_features, on="date", strategy="backward")
 
-            # Generate long target
-            sym_df = add_long_target(
-                sym_df,
-                lookahead_minutes=lookahead_minutes,
-                natr_col=natr_col,
-                take_profit_natr=take_profit_natr,
-                stop_loss_natr=stop_loss_natr,
-                target_classes=target_classes,
+            sym_df = compute_1m_trade_features(
+                sym_df, training_config=training_config, datetime_col="date"
             )
+            df_5m_features = compute_5m_trade_features(sym_df, datetime_col="date")
 
-            # Add symbol identifier
-            sym_df = sym_df.with_columns(pl.lit(sym).alias("symbol"))
+            sym_df = sym_df.join_asof(df_5m_features, on="date", strategy="backward")
 
             all_symbols_df.append(sym_df)
 

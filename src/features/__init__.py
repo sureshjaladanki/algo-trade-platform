@@ -9,7 +9,8 @@ from .atr_gap import add_atr_gap
 from .rsi import add_rsi
 from .adx import add_adx
 from .close_pos import add_close_pos
-from .ema_slope import add_ema_slope
+from .roc import add_roc
+from .relative_strength import add_relative_strength
 
 __all__ = [
     "add_trading_day",
@@ -23,5 +24,6 @@ __all__ = [
     "add_rsi",
     "add_adx",
     "add_close_pos",
-    "add_ema_slope",
+    "add_roc",
+    "add_relative_strength",
 ]

@@ -35,6 +35,8 @@ def run_pipeline(
     take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
     stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
     natr_col = str(training_config.get("natr_col", "natr_5m"))
+    early_stopping_rounds = int(training_config.get("early_stopping_rounds", 50))
+    validation_fraction = float(training_config.get("validation_fraction", 0.2))
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
@@ -78,6 +80,8 @@ def run_pipeline(
             "take_profit_natr": take_profit_natr,
             "stop_loss_natr": stop_loss_natr,
             "natr_col": natr_col,
+            "early_stopping_rounds": early_stopping_rounds,
+            "validation_fraction": validation_fraction,
         }
     )
     print("====================================")

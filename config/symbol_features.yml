@@ -4,11 +4,10 @@
 # Values here are loaded by src/features/symbol_features.py and used as the
 # defaults for compute_1m_features and compute_5m_features.
 
+# fast_period -> ema_slope; slow_period -> ema (close vs EMA %)
 ema:
-  period: 14
-
-ema_slope:
-  period: 5
+  fast_period: 8
+  slow_period: 21
 
 bollinger:
   period: 20
@@ -29,3 +28,6 @@ adx:
 
 atr:
   period: 8
+
+roc:
+  period: 3

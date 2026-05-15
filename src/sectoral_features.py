@@ -14,6 +14,18 @@ _CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "sectoral_featur
 
 _CFG = load_config(_CONFIG_PATH)
 
+def compute_1m_sector_features(
+    sector_df: pl.DataFrame,
+    datetime_col: str = "timestamp"
+) -> pl.DataFrame:
+    """
+    Computes 1-minute sector features.
+
+    """
+    sector_df = sector_df.with_columns(
+         pl.col("close").alias("sector_close"),
+    )
+    return sector_df
 
 def compute_5m_sector_features(
     sector_df: pl.DataFrame,
@@ -38,7 +50,7 @@ def compute_5m_sector_features(
     # 2) Select only feature columns (currently none, but keeping structure for future)
     df_5m_features = df_5m.select(
         [
-            pl.col(datetime_col),
+            pl.col(datetime_col)
         ]
     )
 
@@ -59,6 +71,7 @@ def build_sectoral_features(
     Orchestrates building sectoral features then joins the 5m features onto
     the 1m sector dataframe via an as-of backward join.
     """
+    sector_df = compute_1m_sector_features(sector_df, datetime_col)
     df_5m_features = compute_5m_sector_features(sector_df, symbol_dfs, datetime_col)
     return sector_df.join_asof(df_5m_features, on=datetime_col, strategy="backward")
 

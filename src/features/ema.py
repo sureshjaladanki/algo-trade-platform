@@ -1,26 +1,35 @@
 import polars as pl
 
 
-def add_ema(df: pl.DataFrame, period: int = 14) -> pl.DataFrame:
+def add_ema(
+    df: pl.DataFrame,
+    *,
+    fast_period: int = 8,
+    slow_period: int = 21,
+) -> pl.DataFrame:
     """
-    Adds 'ema_{period}' (EMA of close, span=period) and
-    'close_ema_{period}_pct' (percent difference of close vs EMA).
-
-    The output column names embed the period so multiple EMAs can coexist
-    on the same dataframe.
+    Adds EMA-derived features for fast and slow spans:
+    - 'ema_{fast_period}_slope': percentage change of the fast EMA vs prior bar
+    - 'close_ema_{slow_period}_pct': percent difference of close vs slow EMA
     """
-    ema_col = f"ema_{period}"
-    pct_col = f"close_ema_{period}_pct"
+    fast_ema = f"ema_{fast_period}"
+    slope_col = f"ema_{fast_period}_slope"
+    slow_ema = f"ema_{slow_period}"
+    pct_col = f"close_ema_{slow_period}_pct"
 
     df = df.with_columns(
-        pl.col("close").ewm_mean(span=period, adjust=False).alias(ema_col)
+        pl.col("close").ewm_mean(span=fast_period, adjust=False).alias(fast_ema),
+        pl.col("close").ewm_mean(span=slow_period, adjust=False).alias(slow_ema),
     )
     df = df.with_columns(
-        ((pl.col("close") - pl.col(ema_col)) / pl.col(ema_col)).alias(pct_col)
+        (pl.col(fast_ema) / pl.col(fast_ema).shift(1) - 1.0).alias(slope_col),
+        ((pl.col("close") - pl.col(slow_ema)) / pl.col(slow_ema)).alias(pct_col),
     )
     df = df.with_columns(
-        pl.when(pl.col(pct_col).is_infinite()).then(None).otherwise(pl.col(pct_col)).alias(pct_col)
+        pl.when(pl.col(slope_col).is_infinite()).then(None).otherwise(pl.col(slope_col)).alias(slope_col),
+        pl.when(pl.col(pct_col).is_infinite()).then(None).otherwise(pl.col(pct_col)).alias(pct_col),
     )
-    df = df.drop(ema_col)
+    # df = df.drop(fast_ema, slow_ema)
 
     return df
+  
