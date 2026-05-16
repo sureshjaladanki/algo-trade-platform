@@ -153,12 +153,14 @@ def run_vectorbt_backtest_sweep(
     )
     sl_exit_df = (
         test_pd.pivot(index="date", columns="symbol", values="stop_loss_exit")
-        .fillna(False)
+        .astype(np.float64)
+        .fillna(0.0)
         .astype(bool)
     )
     tp_ok_df = (
         test_pd.pivot(index="date", columns="symbol", values="take_profit_above_threshold")
-        .fillna(False)
+        .astype(np.float64)
+        .fillna(0.0)
         .astype(bool)
     )
 
