@@ -39,7 +39,7 @@ target:
       weight: 1.0
     take_profit:
       num: 2
-      weight: 5.0
+      weight: 4.5
 
 # XGBoost hyperparameters (merged over code defaults in src/constants.py).
 # Tuning guide:
@@ -47,15 +47,15 @@ target:
 # - Fewer trades / precision: raise min_child_weight, raise gamma, raise entry_tp_prob
 # - Better calibration (lower mlogloss): lower learning_rate, more n_estimators
 xgboost:
-  learning_rate: 0.03
-  n_estimators: 2000
-  max_depth: 5
-  min_child_weight: 5
-  gamma: 0.5
+  learning_rate: 0.02
+  n_estimators: 2500
+  max_depth: 4
+  min_child_weight: 8
+  gamma: 0.8
   subsample: 0.8
   colsample_bytree: 0.8
 
 # Training-time backtest gates (take-profit probability). Tune with run_backtest.py sweep.
 inference:
-  entry_tp_prob: 0.73
+  entry_tp_prob: 0.72
   exit_tp_prob: 0.35

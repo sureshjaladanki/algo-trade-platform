@@ -80,8 +80,8 @@ def run_backtest_pipeline(
     tp_idx = list(clf.classes_).index(tp_class)
     tp_probs = y_prob[:, tp_idx]
 
-    entry_thresholds = [0.6, 0.65, 0.7, 0.75]
-    exit_thresholds = [0.3, 0.35, 0.4, 0.45]
+    entry_thresholds = [0.65, 0.7, 0.75, 0.8]
+    exit_thresholds = [0.25, 0.3, 0.35, 0.4, 0.45]
 
     print(f"Running vectorBT backtest sweep over "
           f"{len(entry_thresholds) * len(exit_thresholds)} combinations...")
