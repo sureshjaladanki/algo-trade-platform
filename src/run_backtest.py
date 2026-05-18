@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 
 import mlflow
-import polars as pl
 
 from .trade_features import build_all_features
 from .utils.date import filter_by_period, parse_period

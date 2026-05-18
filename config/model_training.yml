@@ -13,7 +13,7 @@ stop_loss_natr: 1.5
 natr_col: natr_5m
 
 # XGBoost (standard): chronological validation tail + early stopping. Omitted or null
-# keys use `DEFAULT_EARLY_STOPPING_ROUNDS` / `DEFAULT_VALIDATION_FRACTION` in src/constants.py.
+# keys use defaults in src/constants.py.
 # Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
 early_stopping_rounds: 50
 validation_fraction: 0.2
@@ -24,17 +24,38 @@ validation_fraction: 0.2
 # - 0: stop-loss hit first
 # - 1: hold / no-action
 # - 2: take-profit hit first
+#
+# Class weights: sample_weight during fit only. For balanced inference on long entries:
+# - hold: baseline (majority class)
+# - stop_loss: moderate (learn what to avoid; not used for entries)
+# - take_profit: highest (aligns with entry_tp_prob gate at inference)
 target:
-  # Single structure keyed by class name. Each entry defines:
-  # - num: the integer label produced by `long_target`
-  # - weight: per-class weighting for training sample weights
   classes:
     stop_loss:
       num: 0
-      weight: 2.0
+      weight: 3.0
     hold:
       num: 1
       weight: 1.0
     take_profit:
       num: 2
-      weight: 2.0
+      weight: 5.0
+
+# XGBoost hyperparameters (merged over code defaults in src/constants.py).
+# Tuning guide:
+# - More trades / recall: lower min_child_weight, lower gamma, raise take_profit weight
+# - Fewer trades / precision: raise min_child_weight, raise gamma, raise entry_tp_prob
+# - Better calibration (lower mlogloss): lower learning_rate, more n_estimators
+xgboost:
+  learning_rate: 0.03
+  n_estimators: 2000
+  max_depth: 5
+  min_child_weight: 5
+  gamma: 0.5
+  subsample: 0.8
+  colsample_bytree: 0.8
+
+# Training-time backtest gates (take-profit probability). Tune with run_backtest.py sweep.
+inference:
+  entry_tp_prob: 0.73
+  exit_tp_prob: 0.35

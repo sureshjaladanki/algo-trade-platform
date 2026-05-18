@@ -2,7 +2,6 @@ import argparse
 import sys
 from pathlib import Path
 
-import polars as pl
 
 from .trade_features import build_all_features
 from .utils.date import filter_by_period, parse_period
@@ -40,6 +39,8 @@ def run_pipeline(
 
     target = training_config.get("target", {})
     target_classes = target.get("classes", {})
+    xgboost_params = training_config.get("xgboost", {})
+    inference = training_config.get("inference", {})
 
     final_df = build_all_features(
         data_dir=data_dir,
@@ -82,6 +83,8 @@ def run_pipeline(
             "natr_col": natr_col,
             "early_stopping_rounds": early_stopping_rounds,
             "validation_fraction": validation_fraction,
+            "xgboost": xgboost_params,
+            "inference": inference,
         }
     )
     print("====================================")

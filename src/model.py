@@ -2,13 +2,21 @@ import mlflow
 import pandas as pd
 import xgboost as xgb
 import polars as pl
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    precision_recall_fscore_support,
+)
 from typing import List, Tuple, Dict
 import numpy as np
 
 from .backtest import run_vectorbt_backtest
 from .constants import (
-    DEFAULT_TARGET_CLASSES
+    DEFAULT_TARGET_CLASSES,
+    DEFAULT_XGBOOST_PARAMS,
+    DEFAULT_INFERENCE,
 )
 
 
@@ -92,27 +100,15 @@ def train_xgboost_model(
     with mlflow.start_run():
         # Log target metadata for reproducibility (when provided)
         mlflow.log_dict(training_context["target_classes"], "target_classes.json")
-        print(f"logged target classes to MLflow.")
+        print("logged target classes to MLflow.")
 
-        params = {            
+        xgb_overrides = training_context.get("xgboost", {})
+        params = {
             "objective": "multi:softprob",
             "num_class": len(training_context["target_classes"]),
             "eval_metric": "mlogloss",
-            
-            # LEARNING & CAPACITY
-            "learning_rate": 0.05,        # Slightly faster learning for smaller signals
-            "n_estimators": 500,          # More iterations with early stopping is better
-            "max_depth": 4,               # Reduced from 6 to prevent overfitting on noisy 1m data
-            
-            # REGULARIZATION (The "Balanced" touch)
-            "min_child_weight": 5,        # Increased from 1 to prevent splitting on tiny clusters
-            "gamma": 0.1,                 # Very light penalty to prevent tiny, meaningless splits
-            
-            # ROBUSTNESS (Keeping your good sampling logic)
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            
-            # MODERN DEFAULTS
+            **DEFAULT_XGBOOST_PARAMS,
+            **xgb_overrides,
             "tree_method": "hist",
             "enable_categorical": True,
             "random_state": 42,
@@ -130,7 +126,7 @@ def train_xgboost_model(
         mlflow.log_param("early_stopping_rounds", patience)
         mlflow.log_param("validation_fraction", validation_fraction)
 
-        print(f"Training XGBoost model.")
+        print("Training XGBoost model.")
         clf = xgb.XGBClassifier(**params, early_stopping_rounds=patience)
         clf.fit(
             X_fit, 
@@ -160,23 +156,35 @@ def train_xgboost_model(
         prec_macro = precision_score(y_test, y_pred, average="macro", zero_division=0)
         rec_macro = recall_score(y_test, y_pred, average="macro", zero_division=0)
         f1_macro = f1_score(y_test, y_pred, average="macro", zero_division=0)
+
+        tp_prec, tp_rec, tp_f1, _ = precision_recall_fscore_support(
+            y_test,
+            y_pred,
+            labels=[tp_class],
+            average=None,
+            zero_division=0,
+        )
         
         metrics = {
             "accuracy": acc,
             "precision_macro": prec_macro,
             "recall_macro": rec_macro,
             "f1_macro": f1_macro,
+            "take_profit_precision": float(tp_prec[0]),
+            "take_profit_recall": float(tp_rec[0]),
+            "take_profit_f1": float(tp_f1[0]),
         }
         mlflow.log_metrics(metrics)
 
         # Log the model
         mlflow.xgboost.log_model(clf, name="model")
 
-        print(f"Model trained successfully.")
+        print("Model trained successfully.")
         print(
             "Accuracy: "
             f"{acc:.4f} | "
-            f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} "
+            f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} | "
+            f"TP P/R/F1: {tp_prec[0]:.4f}/{tp_rec[0]:.4f}/{tp_f1[0]:.4f}"
         )
         
         natr_col = training_context["natr_col"]
@@ -201,8 +209,14 @@ def train_xgboost_model(
             .alias("natr_tp_ok")
         ).to_series().to_numpy()
 
-        entries = pl.Series("entries", (tp_probs > 0.65) & take_profit_above_threshold)
-        exits = pl.Series("exits", (tp_probs < 0.4) | stop_loss_exit)
+        inference = {**DEFAULT_INFERENCE, **training_context.get("inference", {})}
+        entry_tp_prob = float(inference["entry_tp_prob"])
+        exit_tp_prob = float(inference["exit_tp_prob"])
+        mlflow.log_param("entry_tp_prob", entry_tp_prob)
+        mlflow.log_param("exit_tp_prob", exit_tp_prob)
+
+        entries = pl.Series("entries", (tp_probs > entry_tp_prob) & take_profit_above_threshold)
+        exits = pl.Series("exits", (tp_probs < exit_tp_prob) | stop_loss_exit)
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
@@ -211,7 +225,7 @@ def train_xgboost_model(
         })
         mlflow.log_metrics(bt_metrics)
         
-        print(f"Model backtest results logged to MLflow.")
+        print("Model backtest results logged to MLflow.")
         for k, v in bt_metrics.items():
             print(f"  {k}: {v:.4f}")
 
