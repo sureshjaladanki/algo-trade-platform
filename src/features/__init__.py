@@ -8,7 +8,6 @@ from .atr import add_atr
 from .atr_gap import add_atr_gap
 from .rsi import add_rsi
 from .adx import add_adx
-from .close_pos import add_close_pos
 from .roc import add_roc
 from .relative_strength import add_relative_strength
 
@@ -23,7 +22,6 @@ __all__ = [
     "add_atr_gap",
     "add_rsi",
     "add_adx",
-    "add_close_pos",
     "add_roc",
     "add_relative_strength",
 ]

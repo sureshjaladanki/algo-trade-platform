@@ -12,8 +12,7 @@ take_profit_natr: 2.0
 stop_loss_natr: 1.5
 natr_col: natr_5m
 
-# XGBoost (standard): chronological validation tail + early stopping. Omitted or null
-# keys use defaults in src/constants.py.
+# XGBoost (standard): chronological validation tail + early stopping.
 # Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
 early_stopping_rounds: 50
 validation_fraction: 0.2
@@ -28,34 +27,31 @@ validation_fraction: 0.2
 # Class weights: sample_weight during fit only. For balanced inference on long entries:
 # - hold: baseline (majority class)
 # - stop_loss: moderate (learn what to avoid; not used for entries)
-# - take_profit: highest (aligns with entry_tp_prob gate at inference)
-target:
-  classes:
-    stop_loss:
-      num: 0
-      weight: 3.0
-    hold:
-      num: 1
-      weight: 1.0
-    take_profit:
-      num: 2
-      weight: 4.5
+# - take_profit: highest (aligns with ENTRY_TP_PROB gate in src/model.py)
+target_classes:
+  stop_loss:
+    num: 0
+    weight: 3.0
+  hold:
+    num: 1
+    weight: 1.0
+  take_profit:
+    num: 2
+    weight: 3.5
 
-# XGBoost hyperparameters (merged over code defaults in src/constants.py).
+# XGBoost hyperparameters (passed through training_context["xgboost"]).
 # Tuning guide:
 # - More trades / recall: lower min_child_weight, lower gamma, raise take_profit weight
-# - Fewer trades / precision: raise min_child_weight, raise gamma, raise entry_tp_prob
+# - Fewer trades / precision: raise min_child_weight, raise gamma, raise ENTRY_TP_PROB in model.py
 # - Better calibration (lower mlogloss): lower learning_rate, more n_estimators
-xgboost:
-  learning_rate: 0.02
-  n_estimators: 2500
+xgboost_params:
+  learning_rate: 0.015
+  n_estimators: 3000
   max_depth: 4
-  min_child_weight: 8
-  gamma: 0.8
+  min_child_weight: 15
+  gamma: 1.5
   subsample: 0.8
   colsample_bytree: 0.8
 
-# Training-time backtest gates (take-profit probability). Tune with run_backtest.py sweep.
-inference:
-  entry_tp_prob: 0.72
-  exit_tp_prob: 0.35
+# Training-time backtest gates: ENTRY_TP_PROB / EXIT_TP_PROB in src/model.py.
+# Tune thresholds with run_backtest.py sweep.

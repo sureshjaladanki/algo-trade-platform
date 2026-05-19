@@ -197,7 +197,14 @@ def run_vectorbt_backtest_sweep(
         f"{metric_prefix}sharpe_ratio": pf.sharpe_ratio(),
         f"{metric_prefix}total_trades": pf.trades.count(),
     })
-    
+    float_metric_cols = [
+        c for c in metrics.columns
+        if c not in ("entry_threshold", "exit_threshold", f"{metric_prefix}total_trades")
+    ]
+    metrics[float_metric_cols] = metrics[float_metric_cols].replace(
+        [np.inf, -np.inf], np.nan
+    )
+
     # Since metrics are calculated per symbol due to our MultiIndex (entry, exit, symbol),
     # we need to group by the thresholds and take the mean across symbols (sum for total_trades)
     sweep_results = metrics.groupby(['entry_threshold', 'exit_threshold']).agg({
@@ -207,5 +214,5 @@ def run_vectorbt_backtest_sweep(
         f"{metric_prefix}sharpe_ratio": "mean",
         f"{metric_prefix}total_trades": "sum",
     }).reset_index()
-    
+
     return sweep_results

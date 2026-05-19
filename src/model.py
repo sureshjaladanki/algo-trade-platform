@@ -13,11 +13,135 @@ from typing import List, Tuple, Dict
 import numpy as np
 
 from .backtest import run_vectorbt_backtest
-from .constants import (
-    DEFAULT_TARGET_CLASSES,
-    DEFAULT_XGBOOST_PARAMS,
-    DEFAULT_INFERENCE,
-)
+from .constants import DEFAULT_TARGET_CLASSES
+
+# Take-profit probability gates for training-time backtest (see `run_backtest.py` to sweep).
+ENTRY_TP_PROB = 0.75
+EXIT_TP_PROB = 0.30
+
+
+def _sector_metric_key(sector: str) -> str:
+    """MLflow-safe prefix segment from a sector enum/category value."""
+    return (
+        str(sector)
+        .replace("^", "")
+        .replace(".", "_")
+        .replace("/", "_")
+        .replace(" ", "_")
+    )
+
+
+def _per_class_metrics(
+    metrics: Dict[str, float],
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    class_labels: List[int],
+    class_num_to_name: Dict[int, str],
+    *,
+    key_prefix: str = "",
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    per_class_prec, per_class_rec, per_class_f1, _ = precision_recall_fscore_support(
+        y_true,
+        y_pred,
+        labels=class_labels,
+        average=None,
+        zero_division=0,
+    )
+    for label, precision, recall, f1 in zip(
+        class_labels, per_class_prec, per_class_rec, per_class_f1
+    ):
+        name = class_num_to_name[label]
+        metrics[f"{key_prefix}{name}_precision"] = float(precision)
+        metrics[f"{key_prefix}{name}_recall"] = float(recall)
+        metrics[f"{key_prefix}{name}_f1"] = float(f1)
+    return per_class_prec, per_class_rec, per_class_f1
+
+
+def _generate_metrics(
+    y_test: np.ndarray,
+    y_pred: np.ndarray,
+    X_test: pd.DataFrame,
+    class_labels: List[int],
+    class_num_to_name: Dict[int, str],
+) -> Tuple[float, Dict[str, float], Dict[str, Dict], str, List[str]]:
+    """Evaluates metrics and returns formatted summaries."""
+    acc = accuracy_score(y_test, y_pred)
+    prec_macro = precision_score(y_test, y_pred, average="macro", zero_division=0)
+    rec_macro = recall_score(y_test, y_pred, average="macro", zero_division=0)
+    f1_macro = f1_score(y_test, y_pred, average="macro", zero_division=0)
+
+    metrics = {
+        "accuracy": acc,
+        "precision_macro": prec_macro,
+        "recall_macro": rec_macro,
+        "f1_macro": f1_macro,
+    }
+    
+    per_class_prec, per_class_rec, per_class_f1 = _per_class_metrics(
+        metrics,
+        y_test,
+        y_pred,
+        class_labels,
+        class_num_to_name,
+    )
+
+    sector_summaries: List[str] = []
+    sector_metrics: Dict[str, Dict] = {}
+    if "sector" in X_test.columns:
+        for sector in X_test["sector"].unique():
+            mask = (X_test["sector"] == sector).to_numpy()
+            y_test_sector = y_test[mask]
+            y_pred_sector = y_pred[mask]
+
+            if len(y_test_sector) == 0:
+                continue
+
+            sector_key = _sector_metric_key(sector)
+            sector_metrics[sector_key] = {
+                "n_samples": len(y_test_sector),
+                "accuracy": float(accuracy_score(y_test_sector, y_pred_sector)),
+                "precision_macro": float(
+                    precision_score(
+                        y_test_sector, y_pred_sector, average="macro", zero_division=0
+                    )
+                ),
+                "recall_macro": float(
+                    recall_score(
+                        y_test_sector, y_pred_sector, average="macro", zero_division=0
+                    )
+                ),
+                "f1_macro": float(
+                    f1_score(y_test_sector, y_pred_sector, average="macro", zero_division=0)
+                ),
+            }
+            sec_prec, sec_rec, sec_f1 = _per_class_metrics(
+                sector_metrics[sector_key],
+                y_test_sector,
+                y_pred_sector,
+                class_labels,
+                class_num_to_name,
+            )
+
+            sector_per_class = " | ".join(
+                f"{class_num_to_name[label]} P/R/F1: {precision:.4f}/{recall:.4f}/{f1:.4f}"
+                for label, precision, recall, f1 in zip(class_labels, sec_prec, sec_rec, sec_f1)
+            )
+            sector_summaries.append(f"  {sector} (n={len(y_test_sector)}): {sector_per_class}")
+
+    per_class_summary = " | ".join(
+        f"{class_num_to_name[label]} P/R/F1: {precision:.4f}/{recall:.4f}/{f1:.4f}"
+        for label, precision, recall, f1 in zip(
+            class_labels, per_class_prec, per_class_rec, per_class_f1
+        )
+    )
+    
+    overall_summary = (
+        f"Accuracy: {acc:.4f} | "
+        f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} | "
+        f"{per_class_summary}"
+    )
+
+    return acc, metrics, sector_metrics, overall_summary, sector_summaries
 
 
 def train_xgboost_model(
@@ -102,13 +226,11 @@ def train_xgboost_model(
         mlflow.log_dict(training_context["target_classes"], "target_classes.json")
         print("logged target classes to MLflow.")
 
-        xgb_overrides = training_context.get("xgboost", {})
         params = {
             "objective": "multi:softprob",
             "num_class": len(training_context["target_classes"]),
             "eval_metric": "mlogloss",
-            **DEFAULT_XGBOOST_PARAMS,
-            **xgb_overrides,
+            **training_context.get("xgboost_params", {}),
             "tree_method": "hist",
             "enable_categorical": True,
             "random_state": 42,
@@ -144,48 +266,35 @@ def train_xgboost_model(
             mlflow.log_metric("xgb_best_score", float(best_score))
 
         y_pred = clf.predict(X_test)
-        y_prob = clf.predict_proba(X_test)
+        y_prob = clf.predict_proba(X_test) 
         
         tp_class = int(training_context["target_classes"]["take_profit"]["num"])
         tp_idx = list(clf.classes_).index(tp_class)
         tp_probs = y_prob[:, tp_idx]
         
         # Calculate metrics
-        acc = accuracy_score(y_test, y_pred)
-        # `long_target` is multiclass (e.g. 0/1/2), so we must use a multiclass average.
-        prec_macro = precision_score(y_test, y_pred, average="macro", zero_division=0)
-        rec_macro = recall_score(y_test, y_pred, average="macro", zero_division=0)
-        f1_macro = f1_score(y_test, y_pred, average="macro", zero_division=0)
-
-        tp_prec, tp_rec, tp_f1, _ = precision_recall_fscore_support(
-            y_test,
-            y_pred,
-            labels=[tp_class],
-            average=None,
-            zero_division=0,
+        class_labels = sorted(
+            int(v["num"]) for v in training_context["target_classes"].values()
         )
-        
-        metrics = {
-            "accuracy": acc,
-            "precision_macro": prec_macro,
-            "recall_macro": rec_macro,
-            "f1_macro": f1_macro,
-            "take_profit_precision": float(tp_prec[0]),
-            "take_profit_recall": float(tp_rec[0]),
-            "take_profit_f1": float(tp_f1[0]),
+        class_num_to_name = {
+            int(v["num"]): name for name, v in training_context["target_classes"].items()
         }
+        
+        acc, metrics, sector_metrics, overall_summary, sector_summaries = _generate_metrics(
+            y_test, y_pred, X_test, class_labels, class_num_to_name
+        )
+
         mlflow.log_metrics(metrics)
 
         # Log the model
         mlflow.xgboost.log_model(clf, name="model")
 
         print("Model trained successfully.")
-        print(
-            "Accuracy: "
-            f"{acc:.4f} | "
-            f"Macro P/R/F1: {prec_macro:.4f}/{rec_macro:.4f}/{f1_macro:.4f} | "
-            f"TP P/R/F1: {tp_prec[0]:.4f}/{tp_rec[0]:.4f}/{tp_f1[0]:.4f}"
-        )
+        print(overall_summary)
+        if sector_summaries:
+            print("Per-sector test metrics:")
+            for line in sector_summaries:
+                print(line)
         
         natr_col = training_context["natr_col"]
         stop_loss_natr = float(training_context["stop_loss_natr"])
@@ -209,14 +318,11 @@ def train_xgboost_model(
             .alias("natr_tp_ok")
         ).to_series().to_numpy()
 
-        inference = {**DEFAULT_INFERENCE, **training_context.get("inference", {})}
-        entry_tp_prob = float(inference["entry_tp_prob"])
-        exit_tp_prob = float(inference["exit_tp_prob"])
-        mlflow.log_param("entry_tp_prob", entry_tp_prob)
-        mlflow.log_param("exit_tp_prob", exit_tp_prob)
+        mlflow.log_param("entry_tp_prob", ENTRY_TP_PROB)
+        mlflow.log_param("exit_tp_prob", EXIT_TP_PROB)
 
-        entries = pl.Series("entries", (tp_probs > entry_tp_prob) & take_profit_above_threshold)
-        exits = pl.Series("exits", (tp_probs < exit_tp_prob) | stop_loss_exit)
+        entries = pl.Series("entries", (tp_probs > ENTRY_TP_PROB) & take_profit_above_threshold)
+        exits = pl.Series("exits", (tp_probs < EXIT_TP_PROB) | stop_loss_exit)
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
@@ -228,5 +334,28 @@ def train_xgboost_model(
         print("Model backtest results logged to MLflow.")
         for k, v in bt_metrics.items():
             print(f"  {k}: {v:.4f}")
+
+        if sector_metrics and "sector" in df_test.columns:
+            for sector in df_test["sector"].unique():
+                if sector is None:
+                    continue
+                sector_key = _sector_metric_key(str(sector))
+                if sector_key in sector_metrics:
+                    mask = df_test["sector"] == sector
+                    sector_df_test = df_test.filter(mask)
+                    sector_entries = entries.filter(mask)
+                    sector_exits = exits.filter(mask)
+                    
+                    if len(sector_df_test) > 0:
+                        sec_bt_metrics = run_vectorbt_backtest(
+                            sector_df_test, sector_entries, sector_exits, backtest_context={
+                                "stop_loss_pct": training_context["stop_loss_pct"],
+                                "metric_prefix": "backtest_",
+                            }
+                        )
+                        sector_metrics[sector_key].update(sec_bt_metrics)
+                        
+        if sector_metrics:
+            mlflow.log_dict(sector_metrics, "sector_test_metrics.json")
 
     return clf, acc

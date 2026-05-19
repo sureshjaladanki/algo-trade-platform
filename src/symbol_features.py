@@ -13,7 +13,6 @@ from .features import (
     add_atr,
     add_rsi,
     add_adx,
-    add_close_pos,
     add_roc,
 )
 from .utils import load_config
@@ -88,7 +87,7 @@ def compute_5m_features(
     roc_period: int = _CFG["roc"]["period"],
 ) -> pl.DataFrame:
     """
-    Resamples 1m data to 5m and computes ATR, RSI, ADX (+DI / -DI), and Close Position
+    Resamples 1m data to 5m and computes ATR, RSI, and ADX (+DI / -DI)
     on the 5m bars using the pure indicator functions.
 
     The returned dataframe contains only the datetime column and the 5m
@@ -105,7 +104,7 @@ def compute_5m_features(
         pl.col("ema_8").last().alias("ema_8"),
     ])
 
-    # Raw ATR on 5m (gap-free first bar of day), then RSI, ADX (+DI/-DI), and Close Position.
+    # Raw ATR on 5m (gap-free first bar of day), then RSI and ADX (+DI/-DI).
     # NATR is derived on the 1m frame after join_asof (see `build_symbol_features`).
     df_5m = add_atr(df_5m, datetime_col=datetime_col, period=atr_period)
     df_5m = add_roc(df_5m, roc_col="atr", period=roc_period)
@@ -113,9 +112,7 @@ def compute_5m_features(
     df_5m = add_roc(df_5m, roc_col="rsi", period=roc_period)
     df_5m = add_adx(df_5m, period=adx_period)
     df_5m = add_roc(df_5m, roc_col="adx", period=roc_period)
-    df_5m = add_roc(df_5m, roc_col="di_diff", period=roc_period)
     df_5m = add_roc(df_5m, roc_col="ema_8", period=roc_period)
-    df_5m = add_close_pos(df_5m)
 
     # Add lags for RSI (5m timeline)
     # df_5m = df_5m.with_columns([
@@ -130,11 +127,9 @@ def compute_5m_features(
         pl.col("adx").alias("adx_5m"),
         pl.col("adx_roc").alias("adx_5m_roc"),
         pl.col("di_diff").alias("di_diff_5m"),
-        pl.col("di_diff_roc").alias("di_diff_5m_roc"),
         pl.col("atr").alias("atr_5m"),
         pl.col("atr_roc").alias("atr_5m_roc"),
         pl.col("ema_8_roc").alias("fast_ema_5m_roc"),
-        pl.col("close_pos").alias("close_5m_pos"),
     ])
 
     # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias

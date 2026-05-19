@@ -28,19 +28,6 @@ def run_pipeline(
     
     print(f"Loading training configuration from {training_config_path}...")
     training_config = load_config(training_config_path)
-    
-    stop_loss_pct = training_config.get("stop_loss_pct", 0.25)
-    take_profit_pct = float(training_config.get("take_profit_pct", 0.35))
-    take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
-    stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
-    natr_col = str(training_config.get("natr_col", "natr_5m"))
-    early_stopping_rounds = int(training_config.get("early_stopping_rounds", 50))
-    validation_fraction = float(training_config.get("validation_fraction", 0.2))
-
-    target = training_config.get("target", {})
-    target_classes = target.get("classes", {})
-    xgboost_params = training_config.get("xgboost", {})
-    inference = training_config.get("inference", {})
 
     final_df = build_all_features(
         data_dir=data_dir,
@@ -74,18 +61,7 @@ def run_pipeline(
         df_test,
         feature_cols=feature_cols,
         target_col="long_target",
-        training_context={
-            "target_classes": target_classes,
-            "stop_loss_pct": stop_loss_pct,
-            "take_profit_pct": take_profit_pct,
-            "take_profit_natr": take_profit_natr,
-            "stop_loss_natr": stop_loss_natr,
-            "natr_col": natr_col,
-            "early_stopping_rounds": early_stopping_rounds,
-            "validation_fraction": validation_fraction,
-            "xgboost": xgboost_params,
-            "inference": inference,
-        }
+        training_context=training_config,
     )
     print("====================================")
     print(f"Pipeline finished. Final test accuracy: {acc:.4f}")
