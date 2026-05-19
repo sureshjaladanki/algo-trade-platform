@@ -37,7 +37,7 @@ target_classes:
     weight: 1.0
   take_profit:
     num: 2
-    weight: 3.5
+    weight: 4.0
 
 # XGBoost hyperparameters (passed through training_context["xgboost"]).
 # Tuning guide:
@@ -48,8 +48,8 @@ xgboost_params:
   learning_rate: 0.015
   n_estimators: 3000
   max_depth: 4
-  min_child_weight: 15
-  gamma: 1.5
+  min_child_weight: 10
+  gamma: 1.0
   subsample: 0.8
   colsample_bytree: 0.8
 

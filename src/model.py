@@ -16,7 +16,7 @@ from .backtest import run_vectorbt_backtest
 from .constants import DEFAULT_TARGET_CLASSES
 
 # Take-profit probability gates for training-time backtest (see `run_backtest.py` to sweep).
-ENTRY_TP_PROB = 0.75
+ENTRY_TP_PROB = 0.70
 EXIT_TP_PROB = 0.30
 
 
