@@ -6,7 +6,7 @@ from typing import Optional
 import mlflow
 
 from .trade_features import build_all_features
-from .utils.date import filter_by_period, parse_period
+from .utils.date import filter_by_period, parse_period_range
 from .utils import load_config
 from .constants import MODEL_FEATURE_COLS
 from .backtest import run_vectorbt_backtest_sweep
@@ -18,18 +18,18 @@ def run_backtest_pipeline(
     test_period: str,
     model_uri: Optional[str] = None,
 ):
-    start_year, end_year = parse_period(test_period)
+    start_period, end_period = parse_period_range(test_period)
 
     final_df = build_all_features(
         data_dir=data_dir,
         symbols_config_path=symbols_config_path,
         training_config_path=training_config_path,
-        start_year=start_year,
-        end_year=end_year,
+        start_period=start_period,
+        end_period=end_period,
     )
 
     print(f"Filtering data for test period ({test_period})...")
-    df_test = filter_by_period(final_df, start_year, end_year)
+    df_test = filter_by_period(final_df, start_period, end_period)
 
     if len(df_test) == 0:
         print("Error: Test dataframe is empty. Check your periods.")
@@ -127,7 +127,12 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", type=str, default="data/GOLDEN", help="Path to the GOLDEN data directory")
     parser.add_argument("--config", type=str, default="config/trade_sectoral_symbols.yml", help="Path to the sectoral symbols config")
     parser.add_argument("--training-config", type=str, default="config/model_training.yml", help="Path to the model training config")
-    parser.add_argument("--test-period", type=str, required=True, help="Test period: yyyy or yyyy-yy (ex: 2015, 2015-18)")
+    parser.add_argument(
+        "--test-period",
+        type=str,
+        required=True,
+        help="Test period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy (e.g. 03/2020-03/2021)",
+    )
     parser.add_argument(
         "--model",
         type=str,

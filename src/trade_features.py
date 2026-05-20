@@ -99,8 +99,8 @@ def build_all_features(
     data_dir: Path,
     symbols_config_path: Path,
     training_config_path: Path,
-    start_year: int,
-    end_year: int,
+    start_period: str,
+    end_period: str,
 ) -> pl.DataFrame:
     print(f"Loading symbols configuration from {symbols_config_path}...")
     config = load_config(symbols_config_path)
@@ -121,7 +121,7 @@ def build_all_features(
         print(f"Error: Market data {vix_path} not found.")
         sys.exit(1)
 
-    vix_df = load_symbol_data(vix_path, start_year=start_year, end_year=end_year)
+    vix_df = load_symbol_data(vix_path, start_period=start_period, end_period=end_period)
     vix_df = build_market_features(vix_df, datetime_col="date")
 
     # We only need the market features to join later
@@ -136,7 +136,7 @@ def build_all_features(
             print(f"Warning: Sector data {sector_path} not found. Skipping.")
             continue
 
-        sector_df = load_symbol_data(sector_path, start_year=start_year, end_year=end_year)
+        sector_df = load_symbol_data(sector_path, start_period=start_period, end_period=end_period)
 
         trade_symbols = sector_info.get("trade_symbols", [])
         symbol_dfs: Dict[str, pl.DataFrame] = {}
@@ -146,8 +146,8 @@ def build_all_features(
             if sym_path.exists():
                 symbol_dfs[sym] = load_symbol_data(
                     sym_path,
-                    start_year=start_year,
-                    end_year=end_year,
+                    start_period=start_period,
+                    end_period=end_period,
                 )
             else:
                 print(f"Warning: Symbol data {sym_path} not found. Skipping.")

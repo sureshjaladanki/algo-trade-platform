@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 from .trade_features import build_all_features
-from .utils.date import filter_by_period, parse_period
+from .utils.date import filter_by_period, parse_period_range
 from .model import train_xgboost_model
 from .utils import load_config
 from .constants import MODEL_FEATURE_COLS
@@ -18,13 +18,11 @@ def run_pipeline(
     train_period: str,
     test_period: str,
 ):
-    train_start, train_end = parse_period(train_period)
-    test_start, test_end = parse_period(test_period)
+    train_start, train_end = parse_period_range(train_period)
+    test_start, test_end = parse_period_range(test_period)
 
     # Filter raw inputs early for speed/memory, but keep a warmup window so
     # rolling features (EMA/BB/RSI/ADX/etc.) have enough history
-    start_year = min(train_start, test_start)
-    end_year = max(train_end, test_end)
     
     print(f"Loading training configuration from {training_config_path}...")
     training_config = load_config(training_config_path)
@@ -33,8 +31,8 @@ def run_pipeline(
         data_dir=data_dir,
         symbols_config_path=symbols_config_path,
         training_config_path=training_config_path,
-        start_year=start_year,
-        end_year=end_year,
+        start_period=train_start,
+        end_period=test_end,
     )
     
     print(f"4. Splitting data into train ({train_period}) and test ({test_period})...")
@@ -73,8 +71,18 @@ if __name__ == "__main__":
     parser.add_argument("--data-dir", type=str, default="data/GOLDEN", help="Path to the GOLDEN data directory")
     parser.add_argument("--config", type=str, default="config/trade_sectoral_symbols.yml", help="Path to the sectoral symbols config")
     parser.add_argument("--training-config", type=str, default="config/model_training.yml", help="Path to the model training config")
-    parser.add_argument("--train-period", type=str, required=True, help="Training period: yyyy or yyyy-yy (ex: 2015, 2015-18)")
-    parser.add_argument("--test-period", type=str, required=True, help="Test period: yyyy or yyyy-yy (ex: 2015, 2015-18)")
+    parser.add_argument(
+        "--train-period",
+        type=str,
+        required=True,
+        help="Training period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy (e.g. 03/2020-03/2021)",
+    )
+    parser.add_argument(
+        "--test-period",
+        type=str,
+        required=True,
+        help="Test period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy (e.g. 03/2020-03/2021)",
+    )
     
     args = parser.parse_args()
     
