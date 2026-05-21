@@ -31,3 +31,9 @@ atr:
 
 roc:
   period: 3
+
+# sharpe:  # sharpe_5m (disabled in MODEL_FEATURE_COLS)
+#   period: 3
+
+regression_slope:
+  period: 12

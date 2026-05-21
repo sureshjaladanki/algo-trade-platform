@@ -16,9 +16,11 @@ def run_pipeline(
     symbols_config_path: Path,
     training_config_path: Path,
     train_period: str,
+    validation_period: str,
     test_period: str,
 ):
     train_start, train_end = parse_period_range(train_period)
+    val_start, val_end = parse_period_range(validation_period)
     test_start, test_end = parse_period_range(test_period)
 
     # Filter raw inputs early for speed/memory, but keep a warmup window so
@@ -31,18 +33,19 @@ def run_pipeline(
         data_dir=data_dir,
         symbols_config_path=symbols_config_path,
         training_config_path=training_config_path,
-        start_period=train_start,
-        end_period=test_end,
+        start_period=min(train_start, val_start, test_start),
+        end_period=max(train_end, val_end, test_end),
     )
     
-    print(f"4. Splitting data into train ({train_period}) and test ({test_period})...")
+    print(f"4. Splitting data into train ({train_period}), val ({validation_period}) and test ({test_period})...")
     df_train = filter_by_period(final_df, train_start, train_end)
+    df_val = filter_by_period(final_df, val_start, val_end)
     df_test = filter_by_period(final_df, test_start, test_end)
     
-    print(f"   Train shape: {df_train.shape}, Test shape: {df_test.shape}")
+    print(f"   Train shape: {df_train.shape}, Val shape: {df_val.shape}, Test shape: {df_test.shape}")
     
-    if len(df_train) == 0 or len(df_test) == 0:
-        print("Error: Train or test dataframe is empty. Check your periods.")
+    if len(df_train) == 0 or len(df_val) == 0 or len(df_test) == 0:
+        print("Error: Train, val or test dataframe is empty. Check your periods.")
         sys.exit(1)
     
     print("5. Training XGBoost model and logging to MLflow...")
@@ -56,6 +59,7 @@ def run_pipeline(
     
     clf, acc = train_xgboost_model(
         df_train,
+        df_val,
         df_test,
         feature_cols=feature_cols,
         target_col="long_target",
@@ -76,6 +80,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Training period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy (e.g. 03/2020-03/2021)",
+    )
+    parser.add_argument(
+        "--validation-period",
+        type=str,
+        required=True,
+        help="Validation period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy (e.g. 03/2020-03/2021)",
     )
     parser.add_argument(
         "--test-period",
@@ -102,4 +112,4 @@ if __name__ == "__main__":
         print(f"Error: Training config file {training_config_path} does not exist.")
         sys.exit(1)
          
-    run_pipeline(data_dir, symbols_config_path, training_config_path, args.train_period, args.test_period)
+    run_pipeline(data_dir, symbols_config_path, training_config_path, args.train_period, args.validation_period, args.test_period)

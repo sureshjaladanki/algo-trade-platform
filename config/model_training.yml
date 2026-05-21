@@ -15,7 +15,6 @@ natr_col: natr_5m
 # XGBoost (standard): chronological validation tail + early stopping.
 # Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
 early_stopping_rounds: 50
-validation_fraction: 0.2
 
 # Target (label) configuration
 #
@@ -45,7 +44,7 @@ target_classes:
 # - Fewer trades / precision: raise min_child_weight, raise gamma, raise ENTRY_TP_PROB in model.py
 # - Better calibration (lower mlogloss): lower learning_rate, more n_estimators
 xgboost_params:
-  learning_rate: 0.015
+  learning_rate: 0.02
   n_estimators: 3000
   max_depth: 4
   min_child_weight: 10

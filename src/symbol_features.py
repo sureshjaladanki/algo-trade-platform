@@ -5,6 +5,7 @@ import polars as pl
 from .features import (
     add_trading_day,
     add_minute_of_day,
+    add_cyclical_time,
     add_vwap,
     add_ema,
     add_bollinger,
@@ -14,6 +15,8 @@ from .features import (
     add_rsi,
     add_adx,
     add_roc,
+    # add_sharpe,  # sharpe_5m (disabled in MODEL_FEATURE_COLS)
+    add_regression_slope,
 )
 from .utils import load_config
 
@@ -45,8 +48,9 @@ def compute_1m_features(
     # Create a date column to group by trading day for VWAP / ATR-gap
     df = add_trading_day(df, datetime_col)
 
-    # Minute of day (used by relative volume)
+    # Minute of day (used by relative volume) and cyclical encoding for the model
     df = add_minute_of_day(df, datetime_col)
+    df = add_cyclical_time(df, minute_col="minute_of_day")
 
     # 1. VWAP (Grouped by trading day)
     df = add_vwap(df)
@@ -85,6 +89,8 @@ def compute_5m_features(
     adx_period: int = _CFG["adx"]["period"],
     atr_period: int = _CFG["atr"]["period"],
     roc_period: int = _CFG["roc"]["period"],
+    # sharpe_period: int = _CFG["sharpe"]["period"],  # sharpe_5m
+    regression_slope_period: int = _CFG["regression_slope"]["period"],
 ) -> pl.DataFrame:
     """
     Resamples 1m data to 5m and computes ATR, RSI, and ADX (+DI / -DI)
@@ -101,35 +107,33 @@ def compute_5m_features(
         pl.col("high").max().alias("high"),
         pl.col("low").min().alias("low"),
         pl.col("close").last().alias("close"),
-        pl.col("ema_8").last().alias("ema_8"),
+        # pl.col("ema_8").last().alias("ema_8"),  # fast_ema_5m_roc
     ])
 
     # Raw ATR on 5m (gap-free first bar of day), then RSI and ADX (+DI/-DI).
     # NATR is derived on the 1m frame after join_asof (see `build_symbol_features`).
     df_5m = add_atr(df_5m, datetime_col=datetime_col, period=atr_period)
-    df_5m = add_roc(df_5m, roc_col="atr", period=roc_period)
-    df_5m = add_rsi(df_5m, period=rsi_period)
-    df_5m = add_roc(df_5m, roc_col="rsi", period=roc_period)
-    df_5m = add_adx(df_5m, period=adx_period)
-    df_5m = add_roc(df_5m, roc_col="adx", period=roc_period)
-    df_5m = add_roc(df_5m, roc_col="ema_8", period=roc_period)
-
-    # Add lags for RSI (5m timeline)
-    # df_5m = df_5m.with_columns([
-    #     pl.col("rsi").shift(1).alias("rsi_5m_lag1"),
-    #     pl.col("rsi").shift(2).alias("rsi_5m_lag2"),
-    # ])
+    df_5m = add_roc(df_5m, roc_col="atr", period=roc_period)  # atr_5m_roc
+    df_5m = add_rsi(df_5m, period=rsi_period)  # rsi_5m
+    # df_5m = add_roc(df_5m, roc_col="rsi", period=roc_period)  # rsi_5m_roc
+    df_5m = add_adx(df_5m, period=adx_period)  # di_diff_5m only; adx_5m / adx_5m_roc disabled
+    # df_5m = add_roc(df_5m, roc_col="adx", period=roc_period)  # adx_5m_roc
+    # df_5m = add_roc(df_5m, roc_col="ema_8", period=roc_period)  # fast_ema_5m_roc
+    # df_5m = add_sharpe(df_5m, period=sharpe_period)  # sharpe_5m
+    df_5m = add_regression_slope(df_5m, reg_slope_col="close", period=regression_slope_period)
 
     df_5m_features = df_5m.select([
         pl.col(datetime_col),
         pl.col("rsi").alias("rsi_5m"),
-        pl.col("rsi_roc").alias("rsi_5m_roc"),
-        pl.col("adx").alias("adx_5m"),
-        pl.col("adx_roc").alias("adx_5m_roc"),
+        # pl.col("rsi_roc").alias("rsi_5m_roc"),
+        # pl.col("adx").alias("adx_5m"),
+        # pl.col("adx_roc").alias("adx_5m_roc"),
         pl.col("di_diff").alias("di_diff_5m"),
         pl.col("atr").alias("atr_5m"),
         pl.col("atr_roc").alias("atr_5m_roc"),
-        pl.col("ema_8_roc").alias("fast_ema_5m_roc"),
+        # pl.col("ema_8_roc").alias("fast_ema_5m_roc"),
+        # pl.col(f"sharpe_{sharpe_period}").alias("sharpe_5m"),
+        pl.col(f"close_reg_slope_{regression_slope_period}").alias("close_5m_reg_slope"),
     ])
 
     # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias

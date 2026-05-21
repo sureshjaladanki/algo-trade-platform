@@ -1,5 +1,6 @@
 from .trading_day import add_trading_day
 from .minute_of_day import add_minute_of_day
+from .cyclical_time import add_cyclical_time
 from .vwap import add_vwap
 from .ema import add_ema
 from .bollinger import add_bollinger
@@ -10,10 +11,13 @@ from .rsi import add_rsi
 from .adx import add_adx
 from .roc import add_roc
 from .relative_strength import add_relative_strength
+from .sharpe import add_sharpe
+from .regression_slope import add_regression_slope
 
 __all__ = [
     "add_trading_day",
     "add_minute_of_day",
+    "add_cyclical_time",
     "add_vwap",
     "add_ema",
     "add_bollinger",
@@ -24,4 +28,6 @@ __all__ = [
     "add_adx",
     "add_roc",
     "add_relative_strength",
+    "add_sharpe",
+    "add_regression_slope",
 ]

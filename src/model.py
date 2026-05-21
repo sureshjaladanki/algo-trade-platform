@@ -146,6 +146,7 @@ def _generate_metrics(
 
 def train_xgboost_model(
     df_train: pl.DataFrame, 
+    df_val: pl.DataFrame,
     df_test: pl.DataFrame,
     feature_cols: List[str], 
     target_col: str = "target", 
@@ -158,20 +159,17 @@ def train_xgboost_model(
         "natr_col": "natr_5m",
         "stop_loss_pct": 0.25,
         "early_stopping_rounds": 50,
-        "validation_fraction": 0.2,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
     """
-    Trains an XGBoost classification model using provided train and test sets.
+    Trains an XGBoost classification model using provided train, val and test sets.
     Logs parameters, metrics, and the model to MLflow.
 
-    By default, the last ``validation_fraction`` of training rows (sorted by
-    ``date``, then ``symbol``) is held out for ``eval_metric`` and XGBoost early
-    stopping uses ``early_stopping_rounds`` from ``training_context`` (defaults:
+    Validation set is used for ``eval_metric`` and XGBoost early stopping uses
+    ``early_stopping_rounds`` from ``training_context`` (defaults:
     ``constants.DEFAULT_*``). The test set is never used for early stopping. Set
     ``early_stopping_rounds`` to ``0`` to train on the full train set without
-    stopping. If the train set is too small or ``date`` is missing, early stopping
-    is skipped with a console warning.
+    stopping.
 
     Categorical columns (e.g. 'sector') must already be encoded as `pl.Enum`
     or `pl.Categorical` upstream; they are passed to XGBoost via pandas
@@ -181,20 +179,19 @@ def train_xgboost_model(
 
     # Ensure there are no nulls in features or target before training
     df_train = df_train.drop_nulls(subset=feature_cols + [target_col])
+    df_val = df_val.drop_nulls(subset=feature_cols + [target_col])
     df_test = df_test.drop_nulls(subset=feature_cols + [target_col])
 
     patience = int(training_context.get("early_stopping_rounds", 50))
-    validation_fraction = float(training_context.get("validation_fraction", 0.2))
 
-    # Chronological split for early stopping validation (80/20 by default)
     sort_keys = ["date"] + (["symbol"] if "symbol" in df_train.columns else [])
-    df_sorted = df_train.sort(sort_keys)
+    df_fit = df_train.sort(sort_keys)
     
-    validation_size = int(len(df_sorted) * validation_fraction)
-    fit_size = len(df_sorted) - validation_size
-
-    df_fit = df_sorted.head(fit_size)
-    df_val = df_sorted.tail(validation_size)
+    val_sort_keys = ["date"] + (["symbol"] if "symbol" in df_val.columns else [])
+    df_val = df_val.sort(val_sort_keys)
+    
+    fit_size = len(df_fit)
+    validation_size = len(df_val)
 
     # Pandas DataFrames preserve per-column dtypes (incl. `category`), which
     # XGBoost reads to decide which columns are categorical.
@@ -246,7 +243,6 @@ def train_xgboost_model(
             )
 
         mlflow.log_param("early_stopping_rounds", patience)
-        mlflow.log_param("validation_fraction", validation_fraction)
 
         print("Training XGBoost model.")
         clf = xgb.XGBClassifier(**params, early_stopping_rounds=patience)

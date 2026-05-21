@@ -11,7 +11,7 @@ from .sectoral_features import build_sectoral_features
 from .symbol_features import build_symbol_features
 from .features.long_target import add_long_target
 from .features.relative_strength import add_relative_strength
-from .features.roc import add_roc
+# from .features.roc import add_roc  # rs_5m_roc (disabled in MODEL_FEATURE_COLS)
 from .utils import load_config
 from .utils.symbol_data import load_symbol_data
 
@@ -52,8 +52,8 @@ def compute_1m_trade_features(
 def compute_5m_trade_features(
     trade_df: pl.DataFrame,
     datetime_col: str = "timestamp",
-    *,
-    roc_period: int = _TRADE_CFG["relative_strength"]["roc"]
+    # *,
+    # roc_period: int = _TRADE_CFG["relative_strength"]["roc"]
 ) -> pl.DataFrame:
     """
     Resamples 1m trade data to 5m and returns a 5m feature dataframe.
@@ -76,14 +76,14 @@ def compute_5m_trade_features(
         close_col="close",
         sector_close_col="sector_close",
     )
-    df_5m = add_roc(df_5m, roc_col="rs_ratio", period=roc_period)
+    # df_5m = add_roc(df_5m, roc_col="rs_ratio", period=roc_period)  # rs_5m_roc
 
     # 2) Select only feature columns
     df_5m_features = df_5m.select(
         [
             pl.col(datetime_col),
             pl.col("rs_ratio").alias("rs_5m_ratio"),
-            pl.col("rs_ratio_roc").alias("rs_5m_roc"),
+            # pl.col("rs_ratio_roc").alias("rs_5m_roc"),
         ]
     )
 

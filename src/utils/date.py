@@ -22,10 +22,9 @@ def parse_period(period: str) -> tuple[int, int]:
         month_str, year_str = period.split("/")
         month, year = int(month_str), int(year_str)
     else:
-        month, year = 1, int(period)
+        month, year = None, int(period)
     
     return month, year
-
 
 
 def filter_by_period(
@@ -37,7 +36,17 @@ def filter_by_period(
     start_month, start_year = parse_period(start_period)
     end_month, end_year = parse_period(end_period)
 
-    return df.filter(
-        (pl.col(datetime_col).dt.year() >= start_year) & (pl.col(datetime_col).dt.month() >= start_month) &
-        (pl.col(datetime_col).dt.year() <= end_year) & (pl.col(datetime_col).dt.month() <= end_month)
-    )
+    year_col = pl.col(datetime_col).dt.year()
+    month_col = pl.col(datetime_col).dt.month()
+
+    if start_month is None:
+        start_cond = year_col >= start_year
+    else:
+        start_cond = (year_col > start_year) | ((year_col == start_year) & (month_col >= start_month))
+
+    if end_month is None:
+        end_cond = year_col <= end_year
+    else:
+        end_cond = (year_col < end_year) | ((year_col == end_year) & (month_col <= end_month))
+
+    return df.filter(start_cond & end_cond)
