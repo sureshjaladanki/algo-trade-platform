@@ -61,7 +61,7 @@ def run_backtest_pipeline(
     clf = mlflow.xgboost.load_model(model_uri)
 
     training_config = load_config(training_config_path)
-    target_classes = training_config.get("target", {}).get("classes", {})
+    target_classes = training_config.get("target_classes", {})
 
     feature_cols = [col for col in MODEL_FEATURE_COLS if col in df_test.columns]
     

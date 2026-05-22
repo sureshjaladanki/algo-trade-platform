@@ -23,14 +23,12 @@ def run_vectorbt_backtest(
     backtest_context: Dict[str, Any] = None
 ) -> Dict[str, float]:
     """
-    Run a simple vectorBT long-only simulation: enter when the model predicts
-    the take-profit class with high probability; exits when probability decays
-    or SL is hit.
-
-    Returns metrics suitable for MLflow / console (NaN and Inf stripped).
+    Run a vectorBT long-only simulation using native cumulative stop-loss
+    and take-profit targets scaled by NATR.
     """
     backtest_context = backtest_context or {}
     backtest_context = {**_DEFAULT_BACKTEST_CONTEXT, **backtest_context}
+    natr_col = backtest_context.get("natr_col", "natr_5m")
 
     required = {"date", "symbol", "close"}
     if not required.issubset(set(df_test.columns)):
@@ -39,7 +37,8 @@ def run_vectorbt_backtest(
     if len(entries) != len(df_test) or len(exits) != len(df_test):
         return {}
 
-    test_pd = df_test.select(["date", "symbol", "close"]).to_pandas()
+    select_cols = ["date", "symbol", "close", "high", "low", natr_col]
+    test_pd = df_test.select(select_cols).to_pandas()
     test_pd["entries"] = entries.to_numpy()
     test_pd["exits"] = exits.to_numpy()
 
@@ -60,10 +59,26 @@ def run_vectorbt_backtest(
         .astype(bool)
     )
 
+    # Calculate native dynamic stop-loss target based on NATR
+    stop_loss_natr = float(backtest_context.get("stop_loss_natr", 1.5))
+    test_pd["sl_stop_pct"] = test_pd[natr_col] * stop_loss_natr
+
+    sl_stop_df = (
+        test_pd.pivot(index="date", columns="symbol", values="sl_stop_pct")
+        .astype(np.float64)
+        .fillna(0.0)
+    )
+    
+    high_df = test_pd.pivot(index="date", columns="symbol", values="high").astype(np.float64)
+    low_df = test_pd.pivot(index="date", columns="symbol", values="low").astype(np.float64)
+
     pf = vbt.Portfolio.from_signals(
         close=close_df,
+        high=high_df,
+        low=low_df,
         entries=entries_df,
         exits=exits_df,
+        sl_stop=sl_stop_df,
         freq=backtest_context["freq"],
         fees=backtest_context["fees"],
         slippage=backtest_context["slippage"],
@@ -91,10 +106,9 @@ def run_vectorbt_backtest_sweep(
     """
     Run a vectorBT long-only simulation sweeping entry/exit probability thresholds.
 
-    Entries and exits follow `train_xgboost_model` / `model.py`: enter only when
-    NATR * take_profit_natr exceeds take_profit_pct; exit when probability is
-    below the exit threshold or on the NATR-scaled single-bar stop signal.
-    NATR settings come from `config/backtest.yml` (merged with optional `backtest_context`).
+    Uses native cumulative stop-loss and take-profit targets scaled by NATR.
+    The threshold take_profit_pct (0.5%) acts as an entry configuration gate
+    to ensure there is sufficient expected return to cover transaction costs.
     """
 
     backtest_context = backtest_context or {}
@@ -108,27 +122,10 @@ def run_vectorbt_backtest_sweep(
     if len(tp_probs) != len(df_test):
         return pd.DataFrame()
 
-    """
-    NATR-scaled single-bar stop mask and entry gate
-    (natr * take_profit_natr > take_profit_pct). Defaults from `config/backtest.yml`;
-    `overrides` can supply training-time values (e.g. `training_context` in `model.py`).
-    """
     stop_loss_natr = float(backtest_context["stop_loss_natr"])
     take_profit_natr = float(backtest_context["take_profit_natr"])
     take_profit_pct = float(backtest_context["take_profit_pct"])
 
-    stop_loss_exit = (
-        df_test.select(
-            (
-                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
-                <= -pl.col(natr_col) * stop_loss_natr
-            )
-            .fill_null(False)
-            .alias("ret_exit")
-        )
-        .to_series()
-        .to_numpy()
-    )
     take_profit_above_threshold = (
         df_test.select(
             (pl.col(natr_col) * take_profit_natr > take_profit_pct / 100.0)
@@ -139,10 +136,13 @@ def run_vectorbt_backtest_sweep(
         .to_numpy()
     )
 
-    test_pd = df_test.select(["date", "symbol", "close"]).to_pandas()
+    select_cols = ["date", "symbol", "close", "high", "low", natr_col]
+    test_pd = df_test.select(select_cols).to_pandas()
     test_pd["tp_probs"] = tp_probs
-    test_pd["stop_loss_exit"] = stop_loss_exit
-    test_pd["take_profit_above_threshold"] = take_profit_above_threshold
+    test_pd["take_profit_ok"] = take_profit_above_threshold
+
+    # Calculate native dynamic stop-loss target based on NATR
+    test_pd["sl_stop_pct"] = test_pd[natr_col] * stop_loss_natr
 
     # Drop duplicates in case multiple rows have the same date and symbol
     test_pd = test_pd.drop_duplicates(subset=["date", "symbol"], keep="last")
@@ -151,18 +151,21 @@ def run_vectorbt_backtest_sweep(
     probs_df = test_pd.pivot(index="date", columns="symbol", values="tp_probs").astype(
         np.float64
     )
-    sl_exit_df = (
-        test_pd.pivot(index="date", columns="symbol", values="stop_loss_exit")
-        .astype(np.float64)
-        .fillna(0.0)
-        .astype(bool)
-    )
     tp_ok_df = (
-        test_pd.pivot(index="date", columns="symbol", values="take_profit_above_threshold")
+        test_pd.pivot(index="date", columns="symbol", values="take_profit_ok")
         .astype(np.float64)
         .fillna(0.0)
         .astype(bool)
     )
+
+    sl_stop_df = (
+        test_pd.pivot(index="date", columns="symbol", values="sl_stop_pct")
+        .astype(np.float64)
+        .fillna(0.0)
+    )
+
+    high_df = test_pd.pivot(index="date", columns="symbol", values="high").astype(np.float64)
+    low_df = test_pd.pivot(index="date", columns="symbol", values="low").astype(np.float64)
 
     combinations = list(itertools.product(entry_thresholds, exit_thresholds))
 
@@ -170,7 +173,7 @@ def run_vectorbt_backtest_sweep(
     exits_list = []
     for en, ex in combinations:
         entries_list.append(((probs_df > en) & tp_ok_df).astype(bool))
-        exits_list.append(((probs_df < ex) | sl_exit_df).astype(bool))
+        exits_list.append((probs_df < ex).astype(bool))
         
     multi_index = pd.MultiIndex.from_tuples(combinations, names=['entry_threshold', 'exit_threshold'])
     
@@ -178,10 +181,17 @@ def run_vectorbt_backtest_sweep(
     exits_df = pd.concat(exits_list, axis=1, keys=multi_index)
     close_df_sweep = pd.concat([close_df] * len(combinations), axis=1, keys=multi_index)
 
+    sl_stop_df_sweep = pd.concat([sl_stop_df] * len(combinations), axis=1, keys=multi_index)
+    high_df_sweep = pd.concat([high_df] * len(combinations), axis=1, keys=multi_index)
+    low_df_sweep = pd.concat([low_df] * len(combinations), axis=1, keys=multi_index)
+
     pf = vbt.Portfolio.from_signals(
         close=close_df_sweep,
+        high=high_df_sweep,
+        low=low_df_sweep,
         entries=entries_df,
         exits=exits_df,
+        sl_stop=sl_stop_df_sweep,
         freq=backtest_context["freq"],
         fees=backtest_context["fees"],
         slippage=backtest_context["slippage"],

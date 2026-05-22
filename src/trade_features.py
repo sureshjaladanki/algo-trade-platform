@@ -34,8 +34,7 @@ def compute_1m_trade_features(
     take_profit_natr = float(training_config.get("take_profit_natr", 2.0))
     stop_loss_natr = float(training_config.get("stop_loss_natr", 1.5))
     natr_col = str(training_config.get("natr_col", "natr_5m"))
-    target = training_config.get("target", {})
-    target_classes = target.get("classes", {})
+    target_classes = training_config.get("target_classes", {})
 
     trade_df = add_long_target(
         trade_df,

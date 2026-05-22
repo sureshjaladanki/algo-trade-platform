@@ -11,8 +11,8 @@ from .rsi import add_rsi
 from .adx import add_adx
 from .roc import add_roc
 from .relative_strength import add_relative_strength
-from .sharpe import add_sharpe
 from .regression_slope import add_regression_slope
+from .chop import add_chop
 
 __all__ = [
     "add_trading_day",
@@ -28,6 +28,6 @@ __all__ = [
     "add_adx",
     "add_roc",
     "add_relative_strength",
-    "add_sharpe",
     "add_regression_slope",
+    "add_chop",
 ]

@@ -7,18 +7,18 @@ DEFAULT_TARGET_CLASSES = {
 }
 
 # Feature taxonomy (active + optional). Toggle optional cols by uncommenting in MODEL_FEATURE_COLS.
-# [ INTRADAY VALUE ] ──► close_vwap_zscore, close_ema_21_pct, bb_pct_b
+# [ INTRADAY VALUE ] ──► close_vwap_zscore, close_slow_ema_pct, bb_pct_b
 # [ MICRO MOMENTUM ] ──► fast_ema_slope, fast_slow_ema_ratio
-# [ CORE TREND     ] ──► close_5m_reg_slope (period 12); optional: sharpe_5m
+# [ CORE TREND     ] ──► close_5m_reg_slope (period 12)
 # [ INDEX ALPHA    ] ──► rs_5m_ratio; optional: rs_5m_roc
-# [ MOMENTUM/ADX   ] ──► rsi_5m, natr_5m, atr_5m_roc, di_diff_5m; optional: rsi_5m_roc, adx_5m, adx_5m_roc, fast_ema_5m_roc
+# [ MOMENTUM/ADX   ] ──► rsi_5m, natr_5m, atr_5m_roc, di_diff_5m, chop_5m; optional: rsi_5m_roc, adx_5m, adx_5m_roc, fast_ema_5m_roc
 # [ CATALYST/RISK  ] ──► rvol, gap_atr
 # [ MACRO REGIME   ] ──► market_vix_5m, sector
 # [ TIME CIRCLE    ] ──► minute_of_day_sin, minute_of_day_cos; legacy: minute_of_day
 MODEL_FEATURE_COLS = [
     # Symbol (1m)
     "close_vwap_zscore",
-    "close_ema_21_pct",
+    "close_slow_ema_pct",
     "minute_of_day_sin",
     "minute_of_day_cos",
     # "minute_of_day",  # superseded by sin/cos above
@@ -35,11 +35,13 @@ MODEL_FEATURE_COLS = [
     # "adx_5m",
     # "adx_5m_roc",
     "di_diff_5m",
+    "chop_5m",
     # "fast_ema_5m_roc",
     "natr_5m",
     "atr_5m_roc",
-    # "sharpe_5m",
     "close_5m_reg_slope",
+    "di_diff_5m_reg_slope",
+    "rsi_5m_reg_slope",
     # Market (5m joined to 1m)
     "market_vix_5m",
     # Sector (5m joined to 1m)

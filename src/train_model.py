@@ -33,8 +33,8 @@ def run_pipeline(
         data_dir=data_dir,
         symbols_config_path=symbols_config_path,
         training_config_path=training_config_path,
-        start_period=min(train_start, val_start, test_start),
-        end_period=max(train_end, val_end, test_end),
+        start_period=train_start,
+        end_period=test_end,
     )
     
     print(f"4. Splitting data into train ({train_period}), val ({validation_period}) and test ({test_period})...")
@@ -57,12 +57,14 @@ def run_pipeline(
         print(f"Warning: Missing feature columns: {missing_cols}")
         feature_cols = [col for col in feature_cols if col in final_df.columns]
     
+    target_col = training_config.get("target", {}).get("column", "long_target")
+
     clf, acc = train_xgboost_model(
         df_train,
         df_val,
         df_test,
         feature_cols=feature_cols,
-        target_col="long_target",
+        target_col=target_col,
         training_context=training_config,
     )
     print("====================================")

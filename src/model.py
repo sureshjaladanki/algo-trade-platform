@@ -157,7 +157,6 @@ def train_xgboost_model(
         "take_profit_pct": 0.35,
         "stop_loss_natr": 1.5,
         "natr_col": "natr_5m",
-        "stop_loss_pct": 0.25,
         "early_stopping_rounds": 50,
     },
 ) -> Tuple[xgb.XGBClassifier, float]:
@@ -293,20 +292,8 @@ def train_xgboost_model(
                 print(line)
         
         natr_col = training_context["natr_col"]
-        stop_loss_natr = float(training_context["stop_loss_natr"])
         take_profit_natr = float(training_context["take_profit_natr"])
         take_profit_pct = float(training_context.get("take_profit_pct", 0.35))
-
-        # NATR-scaled stop-loss exit: previous-bar return breaches -stop_loss_natr * NATR.
-        # Shift is partitioned by symbol so the lag never crosses instrument boundaries.
-        stop_loss_exit = df_test.select(
-            (
-                (pl.col("close") / pl.col("close").shift(1).over("symbol") - 1.0)
-                <= -pl.col(natr_col) * stop_loss_natr
-            )
-            .fill_null(False)
-            .alias("ret_exit")
-        ).to_series().to_numpy()
 
         take_profit_above_threshold = df_test.select(
             (pl.col(natr_col) * take_profit_natr > take_profit_pct / 100.0)
@@ -318,11 +305,11 @@ def train_xgboost_model(
         mlflow.log_param("exit_tp_prob", EXIT_TP_PROB)
 
         entries = pl.Series("entries", (tp_probs > ENTRY_TP_PROB) & take_profit_above_threshold)
-        exits = pl.Series("exits", (tp_probs < EXIT_TP_PROB) | stop_loss_exit)
+        exits = pl.Series("exits", (tp_probs < EXIT_TP_PROB))
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
-            "stop_loss_pct": training_context["stop_loss_pct"],
+            **training_context,
             "metric_prefix": "backtest_",
         })
         mlflow.log_metrics(bt_metrics)
@@ -345,7 +332,7 @@ def train_xgboost_model(
                     if len(sector_df_test) > 0:
                         sec_bt_metrics = run_vectorbt_backtest(
                             sector_df_test, sector_entries, sector_exits, backtest_context={
-                                "stop_loss_pct": training_context["stop_loss_pct"],
+                                **training_context,
                                 "metric_prefix": "backtest_",
                             }
                         )

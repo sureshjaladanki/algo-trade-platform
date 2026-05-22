@@ -3,14 +3,17 @@
 # lookahead_minutes: For 1-minute bars, how many minutes ahead to compare price
 # when building the binary direction target (see `generate_target`).
 
-lookahead_minutes: 15
-# Used by vectorbt backtest in `src/model.py` (percent units).
-stop_loss_pct: 0.25
-take_profit_pct: 0.35
+lookahead_minutes: 30
+# Entry gate in `src/model.py` backtest (percent units).
+take_profit_pct: 0.5
 # Triple-barrier labeling: multiples of `natr_col` at the entry bar (see `add_long_target`).
-take_profit_natr: 2.0
+take_profit_natr: 3.0
 stop_loss_natr: 1.5
 natr_col: natr_5m
+
+# Label column produced by `add_long_target` (used for fit and null-drop in train/backtest).
+target:
+  column: long_target
 
 # XGBoost (standard): chronological validation tail + early stopping.
 # Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
@@ -47,8 +50,8 @@ xgboost_params:
   learning_rate: 0.02
   n_estimators: 3000
   max_depth: 4
-  min_child_weight: 10
-  gamma: 1.0
+  min_child_weight: 8
+  gamma: 0.8
   subsample: 0.8
   colsample_bytree: 0.8
 

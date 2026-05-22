@@ -15,8 +15,8 @@ from .features import (
     add_rsi,
     add_adx,
     add_roc,
-    # add_sharpe,  # sharpe_5m (disabled in MODEL_FEATURE_COLS)
     add_regression_slope,
+    add_chop,
 )
 from .utils import load_config
 
@@ -58,15 +58,6 @@ def compute_1m_features(
     # 2. EMA slope (fast) and close vs EMA % (slow)
     df = add_ema(df, fast_period=ema_fast_period, slow_period=ema_slow_period)
 
-    # Add lags for EMA features (1m timeline). No `.over("symbol")` here: this
-    # dataframe is one symbol per call; `symbol` is added later in `trade_features`.
-    # for period in [ema_slow_period]:
-    #     pct_col = f"close_ema_{period}_pct"
-    #     df = df.with_columns([
-    #         pl.col(pct_col).shift(1).alias(f"{pct_col}_lag1"),
-    #         pl.col(pct_col).shift(2).alias(f"{pct_col}_lag2"),
-    #     ])
-
     # 3. Bollinger %B
     df = add_bollinger(df, period=bb_period)
 
@@ -89,8 +80,8 @@ def compute_5m_features(
     adx_period: int = _CFG["adx"]["period"],
     atr_period: int = _CFG["atr"]["period"],
     roc_period: int = _CFG["roc"]["period"],
-    # sharpe_period: int = _CFG["sharpe"]["period"],  # sharpe_5m
     regression_slope_period: int = _CFG["regression_slope"]["period"],
+    chop_period: int = _CFG["chop"]["period"],
 ) -> pl.DataFrame:
     """
     Resamples 1m data to 5m and computes ATR, RSI, and ADX (+DI / -DI)
@@ -116,10 +107,12 @@ def compute_5m_features(
     df_5m = add_roc(df_5m, roc_col="atr", period=roc_period)  # atr_5m_roc
     df_5m = add_rsi(df_5m, period=rsi_period)  # rsi_5m
     # df_5m = add_roc(df_5m, roc_col="rsi", period=roc_period)  # rsi_5m_roc
+    df_5m = add_regression_slope(df_5m, reg_slope_col="rsi", period=regression_slope_period)
     df_5m = add_adx(df_5m, period=adx_period)  # di_diff_5m only; adx_5m / adx_5m_roc disabled
+    df_5m = add_chop(df_5m, period=chop_period)  # chop_5m
     # df_5m = add_roc(df_5m, roc_col="adx", period=roc_period)  # adx_5m_roc
+    df_5m = add_regression_slope(df_5m, reg_slope_col="di_diff", period=regression_slope_period)
     # df_5m = add_roc(df_5m, roc_col="ema_8", period=roc_period)  # fast_ema_5m_roc
-    # df_5m = add_sharpe(df_5m, period=sharpe_period)  # sharpe_5m
     df_5m = add_regression_slope(df_5m, reg_slope_col="close", period=regression_slope_period)
 
     df_5m_features = df_5m.select([
@@ -129,11 +122,13 @@ def compute_5m_features(
         # pl.col("adx").alias("adx_5m"),
         # pl.col("adx_roc").alias("adx_5m_roc"),
         pl.col("di_diff").alias("di_diff_5m"),
+        pl.col("chop").alias("chop_5m"),
         pl.col("atr").alias("atr_5m"),
         pl.col("atr_roc").alias("atr_5m_roc"),
         # pl.col("ema_8_roc").alias("fast_ema_5m_roc"),
-        # pl.col(f"sharpe_{sharpe_period}").alias("sharpe_5m"),
         pl.col(f"close_reg_slope_{regression_slope_period}").alias("close_5m_reg_slope"),
+        pl.col(f"di_diff_reg_slope_{regression_slope_period}").alias("di_diff_5m_reg_slope"),
+        pl.col(f"rsi_reg_slope_{regression_slope_period}").alias("rsi_5m_reg_slope"),
     ])
 
     # Shift 5m timestamp forward by 5 minutes to avoid lookahead bias
