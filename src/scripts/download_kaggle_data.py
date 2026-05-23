@@ -11,7 +11,7 @@ Two modes are supported:
   ``debashis74017/nifty-50-minute-data``.
   Symbols are the ``regime_symbol`` plus the keys of ``sectoral_indices``.
 
-The script reads ``config/nifty_100_sectoral_symbols.yml``, downloads the
+The script reads ``config/trade_sectoral_symbols.yml``, downloads the
 relevant dataset archive once into a local cache, then extracts only the
 matching CSVs into ``data/GOLDEN/<YAML_SYMBOL>.csv``.
 
@@ -19,8 +19,10 @@ Usage
 -----
     python src/scripts/download_kaggle_data.py                       # stocks (default)
     python src/scripts/download_kaggle_data.py --mode indices        # VIX + sectoral indices
+    python src/scripts/download_kaggle_data.py --skip-existing         # only missing CSVs (default)
+    python src/scripts/download_kaggle_data.py --force-symbols "^CNXMETAL,^CNXENERGY"
     python src/scripts/download_kaggle_data.py --keep-archive        # retain the zip
-    python src/scripts/download_kaggle_data.py --force               # re-download
+    python src/scripts/download_kaggle_data.py --force               # re-download archive
 
 One-time Kaggle credential setup
 --------------------------------
@@ -50,9 +52,7 @@ import yaml
 KAGGLE_STOCKS_DATASET = "debashis74017/stock-market-data-nifty-50-stocks-1-min-data"
 KAGGLE_INDICES_DATASET = "debashis74017/nifty-50-minute-data"
 
-# Map from a normalized YAML index symbol to a list of plausible filename stems
-# that the Kaggle indices dataset might use. ``_alnum_lower`` is applied to both
-# sides during matching, so case and punctuation don't matter here.
+# YAML key (normalized) -> ordered Kaggle archive filename candidates.
 INDEX_ALIASES: dict[str, list[str]] = {
     "INDIAVIX": ["INDIAVIX", "INDIA VIX", "VIX"],
     "CNXIT": ["CNXIT", "NIFTY IT", "NIFTYIT"],
@@ -61,53 +61,36 @@ INDEX_ALIASES: dict[str, list[str]] = {
     "CNXFINANCE": [
         "CNXFINANCE", "NIFTY FIN SERVICE", "NIFTY FINANCIAL SERVICES", "NIFTYFIN",
     ],
-    # No 1-min Metal index exists on Kaggle; fall back to NIFTY 50 as a proxy.
-    "CNXMETAL": ["CNXMETAL", "NIFTY METAL", "NIFTYMETAL", "NIFTY 50"],
+    "CNXMETAL": ["CNXMETAL", "NIFTY METAL", "NIFTYMETAL"],
     "CNXFMCG": ["CNXFMCG", "NIFTY FMCG", "NIFTYFMCG"],
     "CNXREALTY": ["CNXREALTY", "NIFTY REALTY", "NIFTYREALTY"],
-    # No 1-min Oil & Gas index exists on Kaggle; fall back to NIFTY 50 as a proxy.
     "NIFTY_OIL_AND_GAS": [
-        "NIFTY OIL AND GAS", "NIFTY OIL & GAS", "NIFTY_OIL_AND_GAS", "NIFTY 50",
+        "NIFTY OIL AND GAS", "NIFTY OIL & GAS", "NIFTY_OIL_AND_GAS",
     ],
-    "NIFTY_CONSR_DURBL": [
-        "NIFTY CONSR DURBL", "NIFTY CONSUMER DURABLES", "NIFTY_CONSR_DURBL",
+    "NIFTYCEMENT": [
+        "NIFTYCEMENT", "NIFTY CEMENT", "NIFTY CEMENT & CEMENT PRODUCTS",
+        "NIFTY INFRA", "NIFTYINFRA",
     ],
-    "NIFTYCEMENT": ["NIFTYCEMENT", "NIFTY CEMENT", "NIFTY CEMENT & CEMENT PRODUCTS"],
-    # Proxy mappings: dataset doesn't carry these specific indices, so we use
-    # the closest available index as a stand-in. The CSV will be saved under
-    # the requested YAML symbol's filename so downstream code can keep using
-    # the same key without changes.
-    "CNXPSUBANK": ["CNXPSUBANK", "NIFTY PSU BANK", "NIFTYPSUBANK", "NIFTY BANK"],
+    "CNXPSUBANK": ["CNXPSUBANK", "NIFTY PSU BANK", "NIFTYPSUBANK"],
     "NIFTY_PVT_BANK": [
-        "NIFTY PVT BANK", "NIFTY PRIVATE BANK", "NIFTY_PVT_BANK", "NIFTY BANK",
+        "NIFTY PVT BANK", "NIFTY PRIVATE BANK", "NIFTY_PVT_BANK",
     ],
     "CNXPHARMA": ["CNXPHARMA", "NIFTY PHARMA", "NIFTYPHARMA", "NIFTY HEALTHCARE"],
 }
 
-# After extraction, splice earlier history from a different archive member into
-# certain symbols whose primary source has a short history. The mapping is
-# ``output symbol -> source name (looked up the same way as INDEX_ALIASES)``.
-# Only rows strictly older than the target's first row are prepended, so the
-# operation is idempotent.
-INDEX_HISTORY_BACKFILL: dict[str, str] = {
-    # NIFTY HEALTHCARE only starts 2022-08-29; backfill 2015-2022 with NIFTY 50.
-    "CNXPHARMA": "NIFTY 50",
-}
+BACKFILL_PROXY = "NIFTY 50"
+BACKFILL_START = "2015-01-09 09:15:00"
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO_ROOT / "config" / "nifty_100_sectoral_symbols.yml"
+DEFAULT_CONFIG = REPO_ROOT / "config" / "trade_sectoral_symbols.yml"
 DEFAULT_OUT = REPO_ROOT / "data" / "GOLDEN"
 DEFAULT_CACHE = REPO_ROOT / "data" / "_kaggle_cache"
 DOTENV_PATH = REPO_ROOT / ".env"
 
 
 def _load_dotenv() -> None:
-    """Load secrets from the repo-root ``.env`` if present.
-
-    Existing process env vars take precedence (override=False) so callers can
-    still set ``KAGGLE_API_TOKEN`` inline at the shell when needed.
-    """
+    """Load secrets from the repo-root ``.env`` if present."""
     if not DOTENV_PATH.exists():
         return
     try:
@@ -185,8 +168,6 @@ _KNOWN_SUFFIXES = re.compile(
     r"(_with_indicators_?|_minute_data|_minute|_1m|_1min)$",
     re.IGNORECASE,
 )
-# Other timeframes present in the multi-resolution indices dataset that we
-# must NOT match when 1-min is requested.
 _NON_1MIN_SUFFIX = re.compile(
     r"_(\d+\s*minute|day|week|month|hour)\.csv$",
     re.IGNORECASE,
@@ -204,37 +185,27 @@ def is_1min_member(name: str) -> bool:
     return _NON_1MIN_SUFFIX.search(name) is None
 
 
+def _member_matches_name(member: str, candidate: str) -> bool:
+    stem = Path(member).stem
+    cleaned = _KNOWN_SUFFIXES.sub("", stem)
+    key = _alnum_lower(candidate)
+    return _alnum_lower(cleaned) == key or _alnum_lower(stem) == key
+
+
 def find_member_for_symbol(
     members: Iterable[str],
     symbol: str,
     aliases: dict[str, list[str]] | None = None,
 ) -> str | None:
-    """Locate a CSV in the archive that corresponds to ``symbol`` (best-effort).
-
-    Matching is tolerant of the dataset's various naming conventions
-    (e.g. ``RELIANCE.csv``, ``RELIANCE_minute.csv``, ``NIFTY IT_minute.csv``)
-    and of punctuation differences (``M&M`` vs ``MM``, ``BAJAJ-AUTO`` vs
-    ``BAJAJAUTO``, ``CNXIT`` vs ``NIFTY IT``).
-
-    ``aliases`` lets callers register extra candidate names for a symbol; this
-    is needed for sectoral indices where the YAML name (``^CNXIT``) differs
-    materially from the dataset filename (``NIFTY IT_minute.csv``).
-    """
-    candidate_names = (aliases or {}).get(symbol, [symbol])
+    """Locate a CSV in the archive for ``symbol`` using ordered alias matching."""
+    candidate_names = list((aliases or {}).get(symbol, [symbol]))
     if symbol not in candidate_names:
         candidate_names = [symbol, *candidate_names]
-    target_keys = {_alnum_lower(c) for c in candidate_names}
 
-    matches: list[str] = []
-    for m in members:
-        if not m.lower().endswith(".csv"):
-            continue
-        stem = Path(m).stem
-        cleaned = _KNOWN_SUFFIXES.sub("", stem)
-        if _alnum_lower(cleaned) in target_keys or _alnum_lower(stem) in target_keys:
-            matches.append(m)
-    if matches:
-        return min(matches, key=lambda x: len(Path(x).stem))
+    for candidate in candidate_names:
+        matches = [m for m in members if _member_matches_name(m, candidate)]
+        if matches:
+            return min(matches, key=lambda x: len(Path(x).stem))
     return None
 
 
@@ -271,6 +242,28 @@ def download_archive(dataset: str, cache_dir: Path, force: bool = False) -> Path
     return expected_zip
 
 
+def filter_wanted_symbols(
+    norm_to_raw: dict[str, str],
+    out_dir: Path,
+    *,
+    skip_existing: bool,
+    force_symbols: set[str],
+) -> dict[str, str]:
+    """Return the subset of symbols that should be extracted this run."""
+    if not skip_existing and not force_symbols:
+        return norm_to_raw
+
+    wanted: dict[str, str] = {}
+    for norm, raw in norm_to_raw.items():
+        if raw in force_symbols:
+            wanted[norm] = raw
+            continue
+        if skip_existing and (out_dir / f"{raw}.csv").exists():
+            continue
+        wanted[norm] = raw
+    return wanted
+
+
 def extract_symbols(
     archive: Path,
     wanted: dict[str, str],
@@ -278,19 +271,7 @@ def extract_symbols(
     aliases: dict[str, list[str]] | None = None,
     member_filter: Callable[[str], bool] | None = None,
 ) -> tuple[list[tuple[str, str]], list[str]]:
-    """Extract the wanted symbols from ``archive`` into ``out_dir``.
-
-    Returns a ``(found, missing)`` tuple where ``found`` is a list of
-    ``(symbol, archive_member)`` pairs and ``missing`` is a list of symbols
-    that could not be matched to any archive member.
-
-    ``wanted`` maps normalized lookup symbols to the YAML symbol name that
-    should be used for the output CSV filename.
-
-    ``member_filter`` (if given) pre-filters archive entries; this is used to
-    restrict matching to the 1-minute timeframe when a dataset offers
-    multiple resolutions per symbol.
-    """
+    """Extract the wanted symbols from ``archive`` into ``out_dir``."""
     out_dir.mkdir(parents=True, exist_ok=True)
     found: list[tuple[str, str]] = []
     missing: list[str] = []
@@ -310,6 +291,33 @@ def extract_symbols(
     return found, missing
 
 
+def _first_data_timestamp(csv_path: Path) -> str | None:
+    with open(csv_path, "rb") as fh:
+        fh.readline()
+        first_data = fh.readline()
+    if not first_data.strip():
+        return None
+    return first_data.split(b",", 1)[0].decode("ascii", "replace")
+
+
+def detect_backfill_targets(
+    out_dir: Path,
+    output_names: dict[str, str],
+    *,
+    backfill_start: str = BACKFILL_START,
+) -> dict[str, str]:
+    """Return symbols whose CSV starts after ``backfill_start``."""
+    targets: dict[str, str] = {}
+    for norm, raw in output_names.items():
+        csv_path = out_dir / f"{raw}.csv"
+        if not csv_path.exists():
+            continue
+        first_dt = _first_data_timestamp(csv_path)
+        if first_dt and first_dt > backfill_start:
+            targets[norm] = BACKFILL_PROXY
+    return targets
+
+
 def apply_history_backfill(
     archive: Path,
     out_dir: Path,
@@ -318,18 +326,7 @@ def apply_history_backfill(
     aliases: dict[str, list[str]] | None = None,
     member_filter: Callable[[str], bool] | None = None,
 ) -> list[tuple[str, str, int]]:
-    """Prepend earlier-history rows from a proxy member to selected symbols.
-
-    For each ``(target_symbol -> proxy_name)`` entry, finds the proxy CSV in
-    ``archive`` (using the same alias/member-filter rules as extraction) and
-    splices in every row whose timestamp is *strictly older* than the target
-    file's first data row. ``output_names`` maps normalized symbols to the
-    actual CSV filenames written by ``extract_symbols``. Headers are required
-    to match.
-
-    Returns a list of ``(symbol, source_member, rows_added)`` tuples for the
-    backfills that were actually applied. The operation is idempotent.
-    """
+    """Prepend earlier-history rows from a proxy member to selected symbols."""
     results: list[tuple[str, str, int]] = []
     if not backfill_map:
         return results
@@ -367,8 +364,8 @@ def apply_history_backfill(
                 src_header = src.readline().rstrip(b"\r\n")
                 if src_header != target_header:
                     print(
-                        f"  [backfill] {output_symbol}: header mismatch with '{source_member}' "
-                        f"({src_header!r} vs {target_header!r}); skipped."
+                        f"  [backfill] {output_symbol}: header mismatch with "
+                        f"'{source_member}' ({src_header!r} vs {target_header!r}); skipped."
                     )
                     continue
                 for line in src:
@@ -392,15 +389,19 @@ def apply_history_backfill(
     return results
 
 
+def parse_force_symbols(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    return {part.strip() for part in value.split(",") if part.strip()}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--mode", choices=["stocks", "indices"], default="stocks",
-                        help="What to download: 'stocks' (per-stock 1-min) or "
-                             "'indices' (VIX + sectoral indices 1-min). "
-                             "(default: stocks)")
+                        help="What to download: 'stocks' or 'indices' (default: stocks)")
     parser.add_argument("--dataset", type=str, default=None,
                         help="Override the Kaggle dataset slug for the chosen mode")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG,
@@ -413,6 +414,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="Re-download the archive even if it is already cached")
     parser.add_argument("--keep-archive", action="store_true",
                         help="Don't delete the cached zip after extraction")
+    parser.add_argument("--skip-existing", action="store_true", default=True,
+                        help="Skip symbols whose CSV already exists in --out (default: on)")
+    parser.add_argument("--no-skip-existing", action="store_false", dest="skip_existing",
+                        help="Extract all config symbols, overwriting existing CSVs")
+    parser.add_argument("--force-symbols", type=str, default=None,
+                        help="Comma-separated YAML symbol names to extract even if present")
     args = parser.parse_args(argv)
 
     _load_dotenv()
@@ -421,6 +428,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.config.exists():
         print(f"Config not found: {args.config}", file=sys.stderr)
         return 1
+
+    force_symbols = parse_force_symbols(args.force_symbols)
 
     if args.mode == "stocks":
         dataset = args.dataset or KAGGLE_STOCKS_DATASET
@@ -437,45 +446,61 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No {symbol_kind} found in config.", file=sys.stderr)
         return 1
 
-    print(f"Mode: {args.mode}. Found {len(raw_symbols)} {symbol_kind} in config.")
     norm_to_raw = {normalize_symbol(s): s for s in raw_symbols}
+    wanted = filter_wanted_symbols(
+        norm_to_raw,
+        args.out,
+        skip_existing=args.skip_existing,
+        force_symbols=force_symbols,
+    )
+
+    print(f"Mode: {args.mode}. Config has {len(norm_to_raw)} {symbol_kind}; "
+          f"extracting {len(wanted)} this run.")
+    if not wanted:
+        print("Nothing to extract.")
+        return 0
 
     archive = download_archive(dataset, args.cache, force=args.force)
     found, missing = extract_symbols(
         archive,
-        norm_to_raw,
+        wanted,
         args.out,
         aliases=aliases,
         member_filter=is_1min_member,
     )
 
     print()
-    print(f"Extracted {len(found)} / {len(norm_to_raw)} {symbol_kind} into {args.out}:")
+    print(f"Extracted {len(found)} / {len(wanted)} {symbol_kind} into {args.out}:")
     for sym, member in found:
-        raw = norm_to_raw[sym]
+        raw = wanted[sym]
         label = raw if sym == raw else f"{sym} -> {raw}"
         print(f"  {label:<28} <- {member}")
 
     if missing:
         print()
         print(f"Not found in dataset ({len(missing)}): "
-              f"{', '.join(norm_to_raw[s] for s in missing)}")
+              f"{', '.join(wanted[s] for s in missing)}")
         print("These may be too new for this dataset version, or named differently.")
 
-    if args.mode == "indices" and INDEX_HISTORY_BACKFILL:
-        backfilled = apply_history_backfill(
-            archive,
+    if args.mode == "indices":
+        backfill_map = detect_backfill_targets(
             args.out,
-            INDEX_HISTORY_BACKFILL,
-            output_names=norm_to_raw,
-            aliases=INDEX_ALIASES,
-            member_filter=is_1min_member,
+            {sym: wanted[sym] for sym, _ in found},
         )
-        if backfilled:
-            print()
-            print("Backfilled earlier history from proxy:")
-            for sym, source, n in backfilled:
-                print(f"  {sym:<14} <- {source}  ({n:,} rows prepended)")
+        if backfill_map:
+            backfilled = apply_history_backfill(
+                archive,
+                args.out,
+                backfill_map,
+                output_names={sym: wanted[sym] for sym in backfill_map},
+                aliases=INDEX_ALIASES,
+                member_filter=is_1min_member,
+            )
+            if backfilled:
+                print()
+                print("Backfilled earlier history from NIFTY 50:")
+                for sym, source, n in backfilled:
+                    print(f"  {sym:<14} <- {source}  ({n:,} rows prepended)")
 
     if not args.keep_archive:
         try:

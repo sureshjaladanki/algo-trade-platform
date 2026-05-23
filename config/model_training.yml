@@ -7,7 +7,7 @@ lookahead_minutes: 30
 # Entry gate in `src/model.py` backtest (percent units).
 take_profit_pct: 0.5
 # Triple-barrier labeling: multiples of `natr_col` at the entry bar (see `add_long_target`).
-take_profit_natr: 3.0
+take_profit_natr: 2.0
 stop_loss_natr: 1.5
 natr_col: natr_5m
 
@@ -17,7 +17,7 @@ target:
 
 # XGBoost (standard): chronological validation tail + early stopping.
 # Set `early_stopping_rounds` to 0 to disable early stopping (full train fit).
-early_stopping_rounds: 50
+early_stopping_rounds: 75
 
 # Target (label) configuration
 #
@@ -33,7 +33,7 @@ early_stopping_rounds: 50
 target_classes:
   stop_loss:
     num: 0
-    weight: 3.0
+    weight: 2.0
   hold:
     num: 1
     weight: 1.0
@@ -50,10 +50,18 @@ xgboost_params:
   learning_rate: 0.02
   n_estimators: 3000
   max_depth: 4
-  min_child_weight: 8
+  min_child_weight: 6
   gamma: 0.8
   subsample: 0.8
   colsample_bytree: 0.8
 
-# Training-time backtest gates: ENTRY_TP_PROB / EXIT_TP_PROB in src/model.py.
+# Training-time backtest gates: entry_tp_prob / exit_tp_prob in src/model.py.
 # Tune thresholds with run_backtest.py sweep.
+entry_tp_prob: 0.60
+exit_tp_prob: 0.30
+
+# The Multi-Regime Rolling Baseline
+# python -m src.train_model --train-period 01/2017-12/2021 --validation-period 01/2022-12/2022 --test-period 01/2023-12/2024
+
+# The Modern High-Rate Baseline
+# python -m src.train_model --train-period 01/2021-12/2023 --validation-period 01/2024-12/2024 --test-period 01/2025-03/2026

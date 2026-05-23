@@ -26,29 +26,27 @@ sectoral_indices:
       - RECLTD.NS
       - SBILIFE.NS
       - SHRIRAMFIN.NS
-  # - ^CNXFMCG:
-  #   trade_symbols:
-  #     - BRITANNIA.NS
-  #     - GODREJCP.NS
-  #     - HINDUNILVR.NS
-  #     - ITC.NS
-  #     - NESTLEIND.NS
-  #     - TATACONSUM.NS
-  #     - UNITDSPR.NS
-  #     - VBL.NS
-  # - NIFTY_CONSR_DURBL:
-  #   trade_symbols:
-  #     - TITAN.NS
-  # - NIFTYCEMENT:
-  #   trade_symbols:
-  #     - AMBUJACEM.NS
-  #     - GRASIM.NS
-  #     - SHREECEM.NS
-  #     - ULTRACEMCO.NS
-  # - ^CNXREALTY:
-  #   trade_symbols:
-  #     - DLF.NS
-  #     - LODHA.NS
+  ^CNXFMCG:
+    trade_symbols:
+      - BRITANNIA.NS
+      - GODREJCP.NS
+      - HINDUNILVR.NS
+      - ITC.NS
+      - NESTLEIND.NS
+      - TATACONSUM.NS
+      - TITAN.NS
+      - UNITDSPR.NS
+      - VBL.NS
+  NIFTYCEMENT:
+    trade_symbols:
+      - AMBUJACEM.NS
+      - GRASIM.NS
+      - SHREECEM.NS
+      - ULTRACEMCO.NS
+  ^CNXREALTY:
+    trade_symbols:
+      - DLF.NS
+      - LODHA.NS
   ^CNXAUTO:
     trade_symbols:
       - BAJAJ-AUTO.NS

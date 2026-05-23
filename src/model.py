@@ -211,7 +211,7 @@ def train_xgboost_model(
     mlflow.set_experiment("Algo_Trading_Experiment")
     # Avoid deprecated model logging behavior in MLflow autolog.
     # We'll log the model ourselves in a version-compatible way.
-    mlflow.xgboost.autolog(log_models=False)
+    mlflow.xgboost.autolog(log_models=False, log_datasets=False)
 
     print(f"Training on {fit_size} fit + {validation_size} validation (chronological tail), testing on {len(df_test)} samples.")
     if cat_cols:
@@ -301,11 +301,14 @@ def train_xgboost_model(
             .alias("natr_tp_ok")
         ).to_series().to_numpy()
 
-        mlflow.log_param("entry_tp_prob", ENTRY_TP_PROB)
-        mlflow.log_param("exit_tp_prob", EXIT_TP_PROB)
+        entry_tp_prob = float(training_context.get("entry_tp_prob", ENTRY_TP_PROB))
+        exit_tp_prob = float(training_context.get("exit_tp_prob", EXIT_TP_PROB))
 
-        entries = pl.Series("entries", (tp_probs > ENTRY_TP_PROB) & take_profit_above_threshold)
-        exits = pl.Series("exits", (tp_probs < EXIT_TP_PROB))
+        mlflow.log_param("entry_tp_prob", entry_tp_prob)
+        mlflow.log_param("exit_tp_prob", exit_tp_prob)
+
+        entries = pl.Series("entries", (tp_probs > entry_tp_prob) & take_profit_above_threshold)
+        exits = pl.Series("exits", (tp_probs < exit_tp_prob))
         
         # Run vectorBT backtest
         bt_metrics = run_vectorbt_backtest(df_test, entries, exits, backtest_context={
