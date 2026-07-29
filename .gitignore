@@ -1,0 +1,19 @@
+# Downloaded / generated data (keep folder structure tracked via .gitkeep)
+data/
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Environment / virtualenv
+.venv/
+venv/
+env/
+.env
