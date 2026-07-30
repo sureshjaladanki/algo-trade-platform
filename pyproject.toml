@@ -1,0 +1,19 @@
+[project]
+name = "algo-trade-platform"
+version = "0.1.0"
+description = "Tier 1 Regime Strategy Engine"
+authors = [
+    {name = "Author",email = "author@example.com"}
+]
+requires-python = ">=3.12"
+dependencies = [
+    "polars (>=1.43.1,<2.0.0)",
+    "numpy (>=2.5.1,<3.0.0)",
+    "scikit-learn (>=1.9.0,<2.0.0)",
+    "hmmlearn (>=0.3.3,<0.4.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

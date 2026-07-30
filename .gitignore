@@ -17,3 +17,7 @@ mlflow.db
 venv/
 env/
 .env
+
+# Poetry
+dist/
+*.egg-info/
