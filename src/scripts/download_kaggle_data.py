@@ -43,11 +43,10 @@ import re
 import shutil
 import sys
 import zipfile
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Callable, Iterable
 
 import yaml
-
 
 KAGGLE_STOCKS_DATASET = "debashis74017/stock-market-data-nifty-50-stocks-1-min-data"
 KAGGLE_INDICES_DATASET = "debashis74017/nifty-50-minute-data"
@@ -150,16 +149,15 @@ def load_index_symbols(config_path: Path) -> list[str]:
     regime = cfg.get("regime_symbol")
     if regime:
         symbols.add(regime)
-    for key in (cfg.get("sectoral_indices") or {}).keys():
+    for key in (cfg.get("sectoral_indices") or {}):
         symbols.add(key)
     return sorted(symbols)
 
 
 def normalize_symbol(symbol: str) -> str:
     """Strip Yahoo-style decorations (leading ``^``, trailing ``.NS``)."""
-    s = symbol[1:] if symbol.startswith("^") else symbol
-    if s.endswith(".NS"):
-        s = s[:-3]
+    s = symbol.removeprefix("^")
+    s = s.removesuffix(".NS")
     return s
 
 

@@ -1,5 +1,7 @@
 import polars as pl
+
 from .types import DailyRegime
+
 
 def classify_daily_regime(
     df: pl.DataFrame,

@@ -1,7 +1,9 @@
 import numpy as np
 import polars as pl
 from hmmlearn.hmm import GaussianHMM
+
 from .types import IntradayRegime
+
 
 class IntradayHMMRegime:
     """
@@ -62,26 +64,32 @@ class IntradayHMMRegime:
             trend_down_state: IntradayRegime.TREND_DOWN
         }
 
-    def fit(self, df: pl.DataFrame, feature_cols: list[str] = ["r_15", "rv_15", "volz_15", "vwap_dist"]):
+    def fit(self, df: pl.DataFrame, feature_cols: list[str] | None = None):
         """
         Fits the HMM on historical TOD-normalized features.
         """
+        if feature_cols is None:
+            feature_cols = ["r_15", "rv_15", "volz_15", "vwap_dist"]
         X = df.select(feature_cols).to_numpy()
-        # Drop NaNs
-        X = X[~np.isnan(X).any(axis=1)]
+        # Drop NaNs and Infs
+        X = X.astype(float)
+        X = X[np.isfinite(X).all(axis=1)]
         self.model.fit(X)
         self.is_fitted = True
         self._map_states(self.model.means_)
         
-    def predict(self, df: pl.DataFrame, feature_cols: list[str] = ["r_15", "rv_15", "volz_15", "vwap_dist"], apply_hysteresis: bool = True) -> pl.DataFrame:
+    def predict(self, df: pl.DataFrame, feature_cols: list[str] | None = None, apply_hysteresis: bool = True) -> pl.DataFrame:
         """
         Predicts the intraday regime for a given dataframe of features.
         Optionally applies hysteresis to avoid flickering between TREND_UP and TREND_DOWN.
         """
         if not self.is_fitted:
             raise ValueError("Model must be fitted before prediction.")
+        if feature_cols is None:
+            feature_cols = ["r_15", "rv_15", "volz_15", "vwap_dist"]
             
         X = df.select(feature_cols).to_numpy()
+        X = X.astype(float)
         # Handle NaNs by masking or forwarding. For simplicity, filling with 0
         X = np.nan_to_num(X)
         
@@ -122,7 +130,7 @@ class IntradayHMMRegime:
                 # Simplest hysteresis: delay the flip by 1 bar unless the next bar confirms it
                 # For online prediction, we can't look ahead. So we hold the previous state unless
                 # the current state and the previous state are the same (new state maintained for 2 bars).
-                if i >= 1 and raw_regimes[i] == raw_regimes[i-1]:
+                if i >= 1 and state == raw_regimes[i-1]:
                     current_state = state
             else:
                 current_state = state

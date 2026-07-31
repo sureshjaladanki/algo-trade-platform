@@ -1,5 +1,7 @@
 import polars as pl
-from .core import log_return, pct_distance, z_score, range_pct, vwap, atr
+
+from .core import atr, log_return, pct_distance, range_pct, vwap, z_score
+
 
 def calculate_intraday_features(df: pl.DataFrame, daily_df: pl.DataFrame) -> pl.DataFrame:
     """
@@ -38,9 +40,9 @@ def calculate_intraday_features(df: pl.DataFrame, daily_df: pl.DataFrame) -> pl.
     
     # 5. Calculate base features
     df = df.with_columns(
-        log_ret=log_return("close"),
-        range_pct=range_pct("high", "low", "close"),
-        vwap_dist_raw=pct_distance("close", "vwap")
+        log_ret=log_return("close").fill_nan(0.0),
+        range_pct=range_pct("high", "low", "close").fill_nan(0.0),
+        vwap_dist_raw=pct_distance("close", "vwap").fill_nan(0.0)
     )
     
     # 6. Compute TOD aggregations

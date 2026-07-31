@@ -1,5 +1,5 @@
 import polars as pl
-import numpy as np
+
 
 def ema(col: str, span: int) -> pl.Expr:
     """Exponential Moving Average"""
@@ -22,7 +22,7 @@ def atr(high: str = "high", low: str = "low", close: str = "close", window: int 
 def log_return(col: str = "close") -> pl.Expr:
     """Logarithmic Return"""
     c = pl.col(col)
-    return np.log(c / c.shift(1))
+    return (c / c.shift(1)).log()
 
 def pct_return(col: str = "close") -> pl.Expr:
     """Percentage Return"""

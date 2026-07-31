@@ -1,8 +1,9 @@
-import polars as pl
 from pathlib import Path
-from typing import Union
 
-def load_csv_data(filepath: Union[str, Path], datetime_col: str = "timestamp") -> pl.DataFrame:
+import polars as pl
+
+
+def load_csv_data(filepath: str | Path, datetime_col: str = "timestamp") -> pl.DataFrame:
     """
     Loads 1-minute candle data from a CSV file using Polars.
     Standardizes column names to lowercase.
@@ -43,3 +44,27 @@ def load_csv_data(filepath: Union[str, Path], datetime_col: str = "timestamp") -
         raise ValueError(f"Missing required standard columns: {missing}")
         
     return df
+
+
+def resample_daily(df: pl.DataFrame) -> pl.DataFrame:
+    if df.is_empty():
+        return df
+    return df.group_by_dynamic("date", every="1d").agg([
+        pl.col("open").first(),
+        pl.col("high").max(),
+        pl.col("low").min(),
+        pl.col("close").last(),
+        pl.col("volume").sum(),
+    ])
+
+
+def resample_15m(df: pl.DataFrame) -> pl.DataFrame:
+    if df.is_empty():
+        return df
+    return df.group_by_dynamic("date", every="15m").agg([
+        pl.col("open").first(),
+        pl.col("high").max(),
+        pl.col("low").min(),
+        pl.col("close").last(),
+        pl.col("volume").sum(),
+    ])

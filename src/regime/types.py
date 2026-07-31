@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class DailyRegime(Enum):
     SUPPORTIVE = "SUPPORTIVE"
     AMBIGUOUS = "AMBIGUOUS"

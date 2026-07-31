@@ -1,5 +1,6 @@
 import polars as pl
-from .core import ema, pct_distance, atr, gap, rolling_median, pct_return
+
+from .core import atr, ema, gap, pct_distance, pct_return, rolling_median
 
 
 def calculate_daily_market_features(vix_df: pl.DataFrame) -> pl.DataFrame:
@@ -58,7 +59,7 @@ def calculate_daily_features(df: pl.DataFrame, index_df: pl.DataFrame, vix_df: p
             dma20=pl.col("close").rolling_mean(20)
         )
         .with_columns(
-            pct_above_20dma=pct_distance("close", "dma20")
+            pct_above_20dma=pct_distance("close", "dma20") * 100
         )
         .select(
             pl.col("date"),

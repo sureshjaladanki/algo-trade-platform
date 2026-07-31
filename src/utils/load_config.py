@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import Union
 
 import yaml
 
 
-def load_config(path: Union[str, Path]) -> dict:
+def load_config(path: str | Path) -> dict:
     """
     Load a YAML configuration file and return its parsed contents as a dict.
 

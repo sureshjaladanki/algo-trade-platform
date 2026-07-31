@@ -1,13 +1,14 @@
 import argparse
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+
 import numpy as np
 import polars as pl
 import yaml
 
 from src.features.core import atr
-from src.utils.data import load_csv_data
-from src.utils.date import filter_by_period, parse_period_range
+from src.utils.date import parse_period_range
+from src.utils.symbol_data import load_symbol_data
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = REPO_ROOT / "data" / "GOLDEN"
@@ -32,10 +33,7 @@ def analyze_symbol(
     if not path.exists():
         return {}
 
-    df = load_csv_data(path, datetime_col="date")
-
-    # Filter by test period
-    df = filter_by_period(df, start_period, end_period, datetime_col="date")
+    df = load_symbol_data(path, start_period=start_period, end_period=end_period)
 
     if df.is_empty():
         return {}
