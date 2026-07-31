@@ -1,13 +1,15 @@
 from .types import DailyRegime, IntradayRegime
-from .daily import DailyRegimeClassifier
+from .daily import classify_daily_regime
 from .intraday import IntradayHMMRegime
-from .features import calculate_daily_features, calculate_intraday_features
+from src.features import calculate_daily_features, calculate_daily_market_features, calculate_daily_sectoral_features, calculate_intraday_features
 
 __all__ = [
     "DailyRegime",
     "IntradayRegime",
-    "DailyRegimeClassifier",
+    "classify_daily_regime",
     "IntradayHMMRegime",
     "calculate_daily_features",
+    "calculate_daily_market_features",
+    "calculate_daily_sectoral_features",
     "calculate_intraday_features"
 ]
