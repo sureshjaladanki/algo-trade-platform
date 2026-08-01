@@ -6,14 +6,14 @@ from hmmlearn.hmm import GaussianHMM
 
 from .types import IntradayRegime
 
-DEFAULT_FEATURE_COLS = ["r_15", "rv_15", "volz_15", "vwap_dist"]
+DEFAULT_FEATURE_COLS = ["r_15", "rv_15", "vwap_dist"]
 
 
 class IntradayHMMRegime:
     """
     Tier 1 Intraday Regime Classifier using a 4-state Gaussian HMM.
     Runs on 15m candles with TOD-normalized emissions.
-    Sequences are (symbol, date) day sessions via hmmlearn `lengths`.
+    Sequences are (date) day sessions via hmmlearn `lengths`.
     """
 
     def __init__(self, random_state: int = 42, n_iter: int = 100):
@@ -40,18 +40,17 @@ class IntradayHMMRegime:
         Assumed feature order:
         0: r_15 (Signed return)
         1: rv_15 (Range / Volatility)
-        2: volz_15 (Volume z-score)
-        3: vwap_dist (Signed VWAP distance)
+        2: vwap_dist (Signed TWAP distance; feature name kept for compatibility)
         """
         states = list(range(self.n_components))
 
-        # HIGH_VOL is characterized by highest volatility and volume
+        # HIGH_VOL is characterized by highest volatility
         rv_means = means[:, 1]
         high_vol_state = int(np.argmax(rv_means))
         states.remove(high_vol_state)
 
-        # CHOP is characterized by lowest absolute directional features and low volatility
-        abs_dir_means = np.abs(means[states, 0]) + np.abs(means[states, 3])
+        # CHOP is characterized by lowest absolute directional features
+        abs_dir_means = np.abs(means[states, 0]) + np.abs(means[states, 2])
         chop_state = states[int(np.argmin(abs_dir_means))]
         states.remove(chop_state)
 
@@ -79,20 +78,20 @@ class IntradayHMMRegime:
         drop_nonfinite: bool = True,
     ) -> tuple[pl.DataFrame, np.ndarray, np.ndarray]:
         """
-        Build emission matrix X and per-session lengths for (symbol, date) blocks.
+        Build emission matrix X and per-session lengths for day sessions.
 
-        Rows are sorted by symbol, date, datetime. Non-finite feature rows are
-        dropped (fit/score) so lengths stay consistent with X.
+        Rows are sorted by date (datetime). Non-finite feature rows are dropped
+        (fit/score) so lengths stay consistent with X.
         """
         if feature_cols is None:
             feature_cols = list(DEFAULT_FEATURE_COLS)
 
-        required = {"symbol", "date", "datetime", *feature_cols}
+        required = {"date", *feature_cols}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(f"Missing columns for HMM sequences: {sorted(missing)}")
 
-        ordered = df.sort(["symbol", "date", "datetime"])
+        ordered = df.sort("date")
         X = ordered.select(feature_cols).to_numpy().astype(float)
 
         if drop_nonfinite:
@@ -106,7 +105,7 @@ class IntradayHMMRegime:
             return ordered, np.empty((0, len(feature_cols))), np.array([], dtype=int)
 
         lengths = (
-            ordered.group_by(["symbol", "date"], maintain_order=True)
+            ordered.group_by(pl.col("date").dt.date(), maintain_order=True)
             .len()
             .get_column("len")
             .to_numpy()
@@ -170,7 +169,7 @@ class IntradayHMMRegime:
     ) -> pl.DataFrame:
         """
         Predicts the intraday regime for a given dataframe of features.
-        Decodes per (symbol, date) session via `lengths`.
+        Decodes per date session via `lengths`.
         Optionally applies hysteresis within each session.
         """
         if not self.is_fitted:

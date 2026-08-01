@@ -5,7 +5,7 @@ from .types import DailyRegime
 
 def classify_daily_regime(
     df: pl.DataFrame,
-    nifty_trend_threshold: float = 0.0,
+    market_trend_threshold: float = 0.0,
     vix_shock_threshold: float = 1.5,
     vix_delta_threshold: float = 0.2,
     gap_shock_threshold: float = 1.5,
@@ -17,20 +17,21 @@ def classify_daily_regime(
     Runs pre-open to gate lower tiers.
     
     Vectorized classification for backtesting and live trading.
-    Expects columns: nifty_trend, vol_regime_ratio, vol_regime_delta, shock, breadth_div
+    Expects columns: market_trend, vol_regime_ratio, vol_regime_delta, shock, breadth_div
     """
     return df.with_columns(
         pl.when(
             (pl.col("shock").abs() > gap_shock_threshold) |
-            (pl.col("vol_regime_ratio") > vix_shock_threshold) |
-            (pl.col("vol_regime_delta") > vix_delta_threshold)
+            ((pl.col("vol_regime_ratio") > vix_shock_threshold) & (pl.col("vol_regime_delta") > vix_delta_threshold))
         ).then(pl.lit(DailyRegime.NO_TRADE.value))
         .when(
-            (pl.col("nifty_trend") < nifty_trend_threshold) & 
-            ((pl.col("vol_regime_ratio") > vix_elevated_threshold) | (pl.col("breadth_div") < breadth_weak_threshold))
+            (pl.col("vol_regime_ratio") > vix_shock_threshold) |
+            (pl.col("vol_regime_delta") > vix_delta_threshold) |
+            ((pl.col("market_trend") < market_trend_threshold) & 
+             ((pl.col("vol_regime_ratio") > vix_elevated_threshold) | (pl.col("breadth_div") < breadth_weak_threshold)))
         ).then(pl.lit(DailyRegime.HOSTILE.value))
         .when(
-            (pl.col("nifty_trend") >= nifty_trend_threshold) & 
+            (pl.col("market_trend") >= market_trend_threshold) & 
             (pl.col("vol_regime_ratio") <= vix_elevated_threshold) & 
             (pl.col("breadth_div") >= breadth_weak_threshold)
         ).then(pl.lit(DailyRegime.SUPPORTIVE.value))

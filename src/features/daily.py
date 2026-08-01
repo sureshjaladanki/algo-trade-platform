@@ -3,7 +3,7 @@ import polars as pl
 from .core import atr, ema, gap, pct_distance, pct_return, rolling_median
 
 
-def calculate_daily_market_features(vix_df: pl.DataFrame) -> pl.DataFrame:
+def calculate_daily_vix_features(vix_df: pl.DataFrame) -> pl.DataFrame:
     """
     Calculates market-level Daily Regime features from India VIX.
 
@@ -22,51 +22,64 @@ def calculate_daily_market_features(vix_df: pl.DataFrame) -> pl.DataFrame:
     ])
 
 
-def calculate_daily_sectoral_features(index_df: pl.DataFrame) -> pl.DataFrame:
+def calculate_daily_market_features(market_df: pl.DataFrame) -> pl.DataFrame:
     """
-    Calculates sectoral Daily Regime features from the sectoral index.
+    Calculates market-level Daily Regime features from the Nifty 50 index.
 
     Inputs:
-    - index_df: EOD sectoral index data (date, open, high, low, close)
+    - market_df: EOD market index data (date, open, high, low, close)
     """
-    return index_df.sort("date").with_columns(
+    return market_df.sort("date").with_columns(
         ema20=ema("close", span=20),
         atr14=atr(window=14),
         gap_raw=gap("open", "close")
     ).with_columns(
-        nifty_trend=pct_distance("close", "ema20") * 100,
+        market_trend=pct_distance("close", "ema20") * 100,
         shock=pl.col("gap_raw") / pl.col("atr14")
     ).select([
-        "date", "nifty_trend", "shock"
+        "date", "market_trend", "shock"
     ])
 
 
-def calculate_daily_features(df: pl.DataFrame, index_df: pl.DataFrame, vix_df: pl.DataFrame) -> pl.DataFrame:
+def calculate_daily_market_breadth_features(nifty100_dfs: list[pl.DataFrame]) -> pl.DataFrame:
     """
-    Calculates Daily Regime features by composing market, sectoral, and breadth features.
+    Calculates market breadth features (e.g. % of stocks above 20 DMA).
 
     Inputs:
-    - df: EOD constituent data (date, close)
-    - index_df: EOD sectoral index data (date, open, high, low, close)
-    - vix_df: EOD India VIX data (date, close)
+    - nifty100_dfs: List of EOD stock DataFrames (date, close) for Nifty 100 constituents
     """
-    market = calculate_daily_market_features(vix_df)
-    sectoral = calculate_daily_sectoral_features(index_df)
-
-    breadth = (
-        df.sort("date")
-        .with_columns(
+    processed_dfs = []
+    for df in nifty100_dfs:
+        processed = df.sort("date").with_columns(
             dma20=pl.col("close").rolling_mean(20)
-        )
-        .with_columns(
-            pct_above_20dma=pct_distance("close", "dma20") * 100
-        )
-        .select(
-            pl.col("date"),
-            pl.col("pct_above_20dma").alias("breadth_div")
-        )
-    )
+        ).with_columns(
+            above_20dma=(pl.col("close") > pl.col("dma20")).cast(pl.Float64)
+        ).select(["date", "above_20dma"])
+        processed_dfs.append(processed)
+    
+    if not processed_dfs:
+        return pl.DataFrame({"date": [], "breadth_div": []})
+        
+    all_stocks = pl.concat(processed_dfs)
+    
+    breadth = all_stocks.group_by("date").agg(
+        breadth_div=pl.col("above_20dma").mean()
+    ).sort("date")
+    
+    return breadth
 
-    return market.join(sectoral, on="date", how="left").join(breadth, on="date", how="left").select([
-        "date", "nifty_trend", "vol_regime_ratio", "vol_regime_delta", "shock", "breadth_div"
-    ])
+
+def calculate_daily_features(vix_df: pl.DataFrame, market_df: pl.DataFrame, nifty100_dfs: list[pl.DataFrame]) -> pl.DataFrame:
+    """
+    Calculates Daily Regime features by composing VIX, Nifty 50, and market breadth features.
+
+    Inputs:
+    - vix_df: EOD India VIX data (date, close)
+    - market_df: EOD Nifty 50 index data (date, open, high, low, close)
+    - nifty100_dfs: List of EOD stock DataFrames (date, close) for Nifty 100 constituents
+    """
+    vix_features = calculate_daily_vix_features(vix_df)
+    market_features = calculate_daily_market_features(market_df)
+    market_breadth_features = calculate_daily_market_breadth_features(nifty100_dfs)
+
+    return vix_features.join(market_features, on="date", how="left").join(market_breadth_features, on="date", how="left")

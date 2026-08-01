@@ -13,85 +13,69 @@ from src.utils.symbol_data import load_symbol_data
 
 def build_regime_features(
     data_dir: Path,
-    symbols_config_path: Path,
+    config_path: Path,
     start_period: str,
     end_period: str,
-) -> pl.DataFrame:
+) -> tuple[pl.DataFrame, pl.DataFrame]:
     """
-    Reads the config, loops over all sectors and their symbols, calculates daily
-    and intraday regime features, and returns a concatenated DataFrame.
+    Reads the config, calculates market-level daily regime features,
+    and Nifty 15m intraday HMM emissions (no per-stock / sector columns).
     """
-    print(f"Loading symbols configuration from {symbols_config_path}...")
-    config = load_config(symbols_config_path)
+    print(f"Loading symbols configuration from {config_path}...")
+    config = load_config(config_path)
 
-    regime_symbol = config.get("regime_symbol", "^INDIAVIX")
-    sectoral_indices = config.get("sectoral_indices", {})
+    vix_symbol = config.get("vix_symbol", "^INDIAVIX")
+    market_symbol = config.get("market_symbol", "^NSEI")
+    nifty100_symbols = config.get("nifty100_symbols", [])
 
-    print(f"1. Loading market features from {regime_symbol}...")
-    vix_path = data_dir / f"{regime_symbol}.csv"
+    print(f"1. Loading VIX features from {vix_symbol}...")
+    vix_path = data_dir / f"{vix_symbol}.csv"
     if not vix_path.exists():
-        print(f"Error: Market data {vix_path} not found.")
+        print(f"Error: VIX data {vix_path} not found.")
         sys.exit(1)
 
     vix_df = load_symbol_data(vix_path, start_period=start_period, end_period=end_period)
-    vix_daily = resample_daily(vix_df)
-    vix_daily = vix_daily.with_columns(pl.col("date").cast(pl.Date))
+    vix_daily = resample_daily(vix_df).with_columns(pl.col("date").cast(pl.Date))
 
-    all_symbols_daily = []
-    all_symbols_intraday = []
+    print(f"2. Loading Market features from {market_symbol}...")
+    market_path = data_dir / f"{market_symbol}.csv"
+    if not market_path.exists():
+        print(f"Error: Market data {market_path} not found.")
+        sys.exit(1)
 
-    for sector_symbol, sector_info in sectoral_indices.items():
-        print(f"2. Processing sector: {sector_symbol}")
-        sector_path = data_dir / f"{sector_symbol}.csv"
-        if not sector_path.exists():
-            print(f"Warning: Sector data {sector_path} not found. Skipping.")
+    # Resample to daily and 15m
+    market_df = load_symbol_data(market_path, start_period=start_period, end_period=end_period)
+    market_daily = resample_daily(market_df).with_columns(pl.col("date").cast(pl.Date))
+    market_15m = resample_15m(market_df)
+
+
+    print(f"3. Loading {len(nifty100_symbols)} stocks for breadth features...")
+    nifty100_daily_dfs = []
+
+    for sym in nifty100_symbols:
+        sym_path = data_dir / f"{sym}.csv"
+        if not sym_path.exists():
+            print(f"Warning: Symbol data {sym_path} not found. Skipping.")
             continue
-
-        index_df = load_symbol_data(sector_path, start_period=start_period, end_period=end_period)
-        index_daily = resample_daily(index_df)
-        index_daily = index_daily.with_columns(pl.col("date").cast(pl.Date))
-
-        trade_symbols = sector_info.get("trade_symbols", [])
-
-        for sym in trade_symbols:
-            sym_path = data_dir / f"{sym}.csv"
-            if not sym_path.exists():
-                print(f"Warning: Symbol data {sym_path} not found. Skipping.")
-                continue
-                
-            sym_df = load_symbol_data(sym_path, start_period=start_period, end_period=end_period)
             
-            # Resample to daily and 15m
-            sym_daily = resample_daily(sym_df)
-            sym_daily = sym_daily.with_columns(pl.col("date").cast(pl.Date))
-            
-            sym_15m = resample_15m(sym_df)
-            
-            # 1. Calculate Daily Features
-            daily_features = calculate_daily_features(sym_daily, index_daily, vix_daily)
-            daily_features = daily_features.with_columns([
-                pl.lit(sector_symbol).alias("sector"),
-                pl.lit(sym).alias("symbol")
-            ])
-            all_symbols_daily.append(daily_features)
-            
-            # 2. Calculate Intraday Features
-            intraday_features = calculate_intraday_features(sym_15m, sym_daily)
-            intraday_features = intraday_features.with_columns([
-                pl.lit(sector_symbol).alias("sector"),
-                pl.lit(sym).alias("symbol")
-            ])
-            all_symbols_intraday.append(intraday_features)
+        stock_df = load_symbol_data(sym_path, start_period=start_period, end_period=end_period)
+        
+        # Resample to daily
+        stock_daily = resample_daily(stock_df).with_columns(pl.col("date").cast(pl.Date))
+        
+        nifty100_daily_dfs.append(stock_daily)
 
-    if not all_symbols_daily or not all_symbols_intraday:
+    if not nifty100_daily_dfs:
         print("Error: No data processed.")
         sys.exit(1)
 
-    print("3. Combining all symbol data...")
-    final_daily_df = pl.concat(all_symbols_daily, how="vertical_relaxed")
-    final_intraday_df = pl.concat(all_symbols_intraday, how="vertical_relaxed")
+    print("4. Calculating daily market-level features...")
+    final_daily_df = calculate_daily_features(vix_daily, market_daily, nifty100_daily_dfs)
 
-    # Clean up NaNs / Infs for daily
+    print("5. Calculating intraday features...")
+    final_intraday_df = calculate_intraday_features(market_15m, market_daily)
+
+    # Clean up NaNs / Infs
     final_daily_df = final_daily_df.with_columns(
         pl.when(cs.float().is_infinite()).then(None).otherwise(cs.float()).name.keep()
     )

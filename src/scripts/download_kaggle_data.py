@@ -5,13 +5,14 @@ Two modes are supported:
 * ``--mode stocks``  (default) : per-stock 1-min OHLCV from
   ``debashis74017/stock-market-data-nifty-50-stocks-1-min-data``
   (despite the slug, this dataset contains Nifty 100 stocks).
-  Symbols are pulled from ``sectoral_indices.*.trade_symbols`` in the YAML.
+  Symbols are pulled from ``nifty100_symbols`` in the YAML.
 
 * ``--mode indices`` : VIX + sectoral index 1-min OHLCV from
   ``debashis74017/nifty-50-minute-data``.
-  Symbols are the ``regime_symbol`` plus the keys of ``sectoral_indices``.
+  Symbols are the ``vix_symbol``, ``market_symbol``, plus the keys of
+  ``sectoral_indices``.
 
-The script reads ``config/trade_sectoral_symbols.yml``, downloads the
+The script reads ``config/market_sectoral_symbols.yml``, downloads the
 relevant dataset archive once into a local cache, then extracts only the
 matching CSVs into ``data/GOLDEN/<YAML_SYMBOL>.csv``.
 
@@ -54,6 +55,7 @@ KAGGLE_INDICES_DATASET = "debashis74017/nifty-50-minute-data"
 # YAML key (normalized) -> ordered Kaggle archive filename candidates.
 INDEX_ALIASES: dict[str, list[str]] = {
     "INDIAVIX": ["INDIAVIX", "INDIA VIX", "VIX"],
+    "NSEI": ["NSEI", "NIFTY 50", "NIFTY50", "NIFTY"],
     "CNXIT": ["CNXIT", "NIFTY IT", "NIFTYIT"],
     "CNXAUTO": ["CNXAUTO", "NIFTY AUTO", "NIFTYAUTO"],
     "CNXENERGY": ["CNXENERGY", "NIFTY ENERGY", "NIFTYENERGY"],
@@ -75,6 +77,10 @@ INDEX_ALIASES: dict[str, list[str]] = {
         "NIFTY PVT BANK", "NIFTY PRIVATE BANK", "NIFTY_PVT_BANK",
     ],
     "CNXPHARMA": ["CNXPHARMA", "NIFTY PHARMA", "NIFTYPHARMA", "NIFTY HEALTHCARE"],
+    "NIFTY_IND_DEFENCE": [
+        "NIFTY IND DEFENCE", "NIFTY INDIA DEFENCE", "NIFTYINDDEFENCE",
+        "NIFTY_IND_DEFENCE",
+    ],
 }
 
 BACKFILL_PROXY = "NIFTY 50"
@@ -82,7 +88,7 @@ BACKFILL_START = "2015-01-09 09:15:00"
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = REPO_ROOT / "config" / "trade_sectoral_symbols.yml"
+DEFAULT_CONFIG = REPO_ROOT / "config" / "market_sectoral_symbols.yml"
 DEFAULT_OUT = REPO_ROOT / "data" / "GOLDEN"
 DEFAULT_CACHE = REPO_ROOT / "data" / "_kaggle_cache"
 DOTENV_PATH = REPO_ROOT / ".env"
@@ -130,25 +136,21 @@ def _check_kaggle_credentials() -> None:
     )
 
 
-def load_trade_symbols(config_path: Path) -> list[str]:
-    """Return the sorted, deduplicated union of ``trade_symbols`` in the config."""
+def load_nifty100_symbols(config_path: Path) -> list[str]:
+    """Return the sorted, deduplicated ``nifty100_symbols`` list from the config."""
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    symbols: set[str] = set()
-    for entry in (cfg.get("sectoral_indices") or {}).values():
-        if not isinstance(entry, dict):
-            continue
-        for sym in entry.get("trade_symbols") or []:
-            symbols.add(sym)
+    symbols = {sym for sym in (cfg.get("nifty100_symbols") or []) if sym}
     return sorted(symbols)
 
 
 def load_index_symbols(config_path: Path) -> list[str]:
-    """Return the regime symbol plus every sectoral index key in the config."""
+    """Return VIX, market, and every sectoral index key in the config."""
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
     symbols: set[str] = set()
-    regime = cfg.get("regime_symbol")
-    if regime:
-        symbols.add(regime)
+    for key in ("vix_symbol", "regime_symbol", "market_symbol"):
+        value = cfg.get(key)
+        if value:
+            symbols.add(value)
     for key in (cfg.get("sectoral_indices") or {}):
         symbols.add(key)
     return sorted(symbols)
@@ -431,9 +433,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.mode == "stocks":
         dataset = args.dataset or KAGGLE_STOCKS_DATASET
-        raw_symbols = load_trade_symbols(args.config)
+        raw_symbols = load_nifty100_symbols(args.config)
         aliases = None
-        symbol_kind = "trade symbols"
+        symbol_kind = "nifty100 symbols"
     else:
         dataset = args.dataset or KAGGLE_INDICES_DATASET
         raw_symbols = load_index_symbols(args.config)

@@ -10,7 +10,7 @@ import polars as pl
 
 from src.pipelines.build_regime_features import build_regime_features
 from src.regime.daily import classify_daily_regime
-from src.regime.intraday import DEFAULT_FEATURE_COLS, IntradayHMMRegime
+from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegime
 from src.regime.types import DailyRegime
 from src.utils.date import filter_by_period, parse_period_range
 
@@ -24,12 +24,17 @@ def cascade_valid_intraday(
     daily_features: pl.DataFrame,
     intraday_features: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Keep intraday bars whose (date, symbol) daily regime is SUPPORTIVE or AMBIGUOUS."""
+    """Keep intraday bars whose (date) daily regime is SUPPORTIVE or AMBIGUOUS."""
     daily_classified = classify_daily_regime(daily_features)
     valid_days = daily_classified.filter(
         pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
-    ).select(["date", "symbol"])
-    return intraday_features.join(valid_days, on=["date", "symbol"], how="inner")
+    ).select(["date"])
+    # Intraday `date` is a bar timestamp; daily `date` is calendar day.
+    return (
+        intraday_features.with_columns(_session_day=pl.col("date").dt.date())
+        .join(valid_days, left_on="_session_day", right_on="date", how="inner")
+        .drop("_session_day")
+    )
 
 
 def fit_intraday_hmm(
@@ -66,10 +71,15 @@ def predict_intraday_hmm(
     """
     daily_classified = classify_daily_regime(daily_features)
 
-    result = intraday_features.join(
-        daily_classified.select(["date", "symbol", "daily_regime"]),
-        on=["date", "symbol"],
-        how="left",
+    result = (
+        intraday_features.with_columns(_session_day=pl.col("date").dt.date())
+        .join(
+            daily_classified.select(["date", "daily_regime"]),
+            left_on="_session_day",
+            right_on="date",
+            how="left",
+        )
+        .drop("_session_day")
     )
 
     valid_mask = pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
@@ -78,10 +88,8 @@ def predict_intraday_hmm(
     if valid_intraday.height > 0:
         valid_preds = hmm_model.predict(valid_intraday, apply_hysteresis=apply_hysteresis)
         result = result.join(
-            valid_preds.select(
-                ["datetime", "symbol", "intraday_regime_raw", "intraday_regime"]
-            ),
-            on=["datetime", "symbol"],
+            valid_preds.select(["date", "intraday_regime_raw", "intraday_regime"]),
+            on="date",
             how="left",
         )
     else:
@@ -156,7 +164,7 @@ def log_hmm_mlflow(
 
 def run_pipeline(
     data_dir: Path,
-    symbols_config_path: Path,
+    config_path: Path,
     train_period: str,
     test_period: str,
 ):
@@ -166,7 +174,7 @@ def run_pipeline(
         mlflow.log_param("train_period", train_period)
         mlflow.log_param("test_period", test_period)
         mlflow.log_param("data_dir", str(data_dir))
-        mlflow.log_param("symbols_config_path", str(symbols_config_path))
+        mlflow.log_param("config_path", str(config_path))
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
@@ -177,7 +185,7 @@ def run_pipeline(
         print(f"Loading data and building features from {load_start} to {load_end}...")
         daily_features, intraday_features = build_regime_features(
             data_dir=data_dir,
-            symbols_config_path=symbols_config_path,
+            config_path=config_path,
             start_period=load_start,
             end_period=load_end,
         )
@@ -192,10 +200,10 @@ def run_pipeline(
         )
 
         intraday_features_train = filter_by_period(
-            intraday_features, train_start, train_end, datetime_col="datetime"
+            intraday_features, train_start, train_end, datetime_col="date"
         )
         intraday_features_test = filter_by_period(
-            intraday_features, test_start, test_end, datetime_col="datetime"
+            intraday_features, test_start, test_end, datetime_col="date"
         )
 
         print(
@@ -297,8 +305,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config",
         type=str,
-        default="config/trade_sectoral_symbols.yml",
-        help="Path to the sectoral symbols config",
+        default="config/market_sectoral_symbols.yml",
+        help="Path to the symbols config",
     )
     parser.add_argument(
         "--train-period",
@@ -316,19 +324,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
-    symbols_config_path = Path(args.config)
+    config_path = Path(args.config)
 
     if not data_dir.exists():
         print(f"Error: Data directory {data_dir} does not exist.")
         sys.exit(1)
 
-    if not symbols_config_path.exists():
-        print(f"Error: Config file {symbols_config_path} does not exist.")
+    if not config_path.exists():
+        print(f"Error: Config file {config_path} does not exist.")
         sys.exit(1)
 
     run_pipeline(
         data_dir=data_dir,
-        symbols_config_path=symbols_config_path,
+        config_path=config_path,
         train_period=args.train_period,
         test_period=args.test_period,
     )

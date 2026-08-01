@@ -26,7 +26,7 @@ Daily owns the pre-open risk gate. Intraday HMM owns sleeve routing (long moment
 | Axis | Gemini Flash | Claude Sonnet | Consensus |
 |---|---|---|---|
 | Daily features | 8/10 | 7/10 | 3 primary + breadth overlay |
-| Intraday HMM features | 6/10 | 8/10 | TOD-normalized triad; VWAP preferred with directional TREND |
+| Intraday HMM features | 6/10 | 8/10 | TOD-normalized triad: `r_15`, `rv_15`, TWAP-`vwap_dist` (no fake volz) |
 | Daily method | RULES | HYBRID (rules-first) | **RULES** for the gate |
 | HMM states | 3 | 3 → 4 in ideal | **User lock: 4 with UP/DOWN** |
 | Overall | REVISE | ACCEPT + minor | ACCEPT with revisions |
@@ -86,10 +86,11 @@ Interpretation:
 |---|---|---|
 | `r_15` | **Signed** 15m log return / TOD baseline σ | **Required** for `TREND_UP` vs `TREND_DOWN` |
 | `rv_15` | (H−L)/Close vs same TOD bucket historical mean | Volatility intensity |
-| `volz_15` | Volume z-score vs same 15m time-of-day average | Participation |
-| `vwap_dist` | % distance to session VWAP (ATR-scaled) | **Preferred** once TREND is directional |
+| `vwap_dist` | % distance to session **TWAP** (ATR-scaled); equal-weight typical `(H+L+C)/3` | **Required** in v1 (name kept; semantics are TWAP) |
 
-Without signed `r_15` (or signed `vwap_dist`), UP vs DOWN collapses. Prefer including `vwap_dist` if label-switching appears between the two trend states.
+**Zero-volume cash Nifty (`^NSEI`) — locked 2026-08-01:** cash-index feeds ship volume ≡ 0. Judges (Gemini Flash, Claude Sonnet) **reject** faking participation with `(H−L)×Close` (collinear with `rv_15`). For v1: **drop `volz_15`**; redefine `vwap_dist` as session-cumulative TWAP distance; revisit participation only with rollover-clean **Nifty futures volume** (not constituent sum volumes at Tier 1).
+
+Without signed `r_15` (or signed `vwap_dist`), UP vs DOWN collapses.
 
 #### HMM states (locked)
 
@@ -134,7 +135,8 @@ Add min dwell / hysteresis — especially on `TREND_UP` ↔ `TREND_DOWN` — so 
 
 | Topic | Gemini Flash | Claude Sonnet | Locked choice |
 |---|---|---|---|
-| `vwap_dist` in HMM v1 | Must add | Exclude → un-defer in ideal | **Preferred** (helps UP vs DOWN) |
+| `vwap_dist` in HMM v1 | Must add | Exclude → un-defer in ideal | **Required** as TWAP-distance (zero cash volume) |
+| Zero-volume / `volz_15` | Drop volz; TWAP; futures later | Drop volz; TWAP; reject range proxy | **Drop `volz_15` in v1** |
 | Signed `r_15` | Prefer \|r\| earlier | Keep signed | **Required** — direction needs sign |
 | Daily breadth | Shorten horizon / A/D | Demote to divergence | **Confirmatory** in v1 |
 | Daily method | RULES only | HYBRID rules-first | RULES now; hybrid later |
@@ -172,8 +174,8 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 |---|---|---|---|---|
 | `r_15` | Keep | Keep | Yes (σ) | Keep |
 | `rv` / range | Keep | Keep + `range_15` | Yes | Keep; Claude adds range |
-| `volz_15` | Keep | Keep | Yes | Keep |
-| `vwap_dist` | Add (#4) | Un-defer (#4) | Scale/TOD | Both want in ideal |
+| `volz_15` | Keep if true volume | Keep if true volume | Yes | **Deferred:** cash Nifty volume ≡ 0; futures volume later |
+| `vwap_dist` | TWAP in v1 | TWAP in v1 | Scale | Locked as TWAP-distance on cash index |
 | Body vs wick | HL/CO ratio | — | Yes | Gemini candle-quality |
 | Autocorr | — | lag-1/2 of r (~1h) | No | Claude TREND/CHOP edge |
 | Intraday breadth | `adr_15` | adv/decl or NH/NL | Clip open | Both add |
@@ -205,17 +207,18 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 | 2. Daily `market_breadth_ad` | 2. Un-defer `vwap_dist` |
 | 3. Intraday `vwap_dist_tod` | 3. `expiry_flag` |
 
-**Staging:** v1 = locked minimal + confirmatory breadth + signed triad (+ `vwap_dist` preferred). Full ~10 daily / ~8 HMM emissions only after stable live/paper data.
+**Staging:** v1 = locked minimal + confirmatory breadth + 3 HMM emissions (`r_15`, `rv_15`, TWAP-`vwap_dist`). Full ~10 daily / ~8 HMM emissions (incl. real participation) only after stable live/paper data.
 
 ---
 
 ## NSE production constraints
 
-1. **TOD-normalize** all HMM vol/volume inputs — otherwise the model learns the U-shaped clock (open/close = fake `HIGH_VOL`).
+1. **TOD-normalize** all HMM vol/range inputs — otherwise the model learns the U-shaped clock (open/close = fake `HIGH_VOL`).
 2. Down-weight / low-confidence the **9:15–9:30** bar (call auction bleed); watch **14:30–15:15** (Europe open + MIS square-off).
 3. Prefer **relative VIX** (vs median + ΔVIX), not absolute levels — event crush (budget/elections) fools level thresholds.
 4. **Hysteresis** on HMM flips, especially `TREND_UP` ↔ `TREND_DOWN`.
 5. **Relabel** HMM states after each fit by emission means so UP/DOWN remain stable.
+6. **Do not fake index volume** with `(H−L)×Close` / `|r|` proxies; use TWAP for location; add futures volume only after rollover stitching.
 
 ---
 
@@ -225,7 +228,6 @@ Implement:
 
 1. Daily rules classifier → `SUPPORTIVE` \| `AMBIGUOUS` \| `HOSTILE` \| `NO_TRADE`
 2. 4-state Gaussian HMM → `TREND_UP` \| `TREND_DOWN` \| `CHOP` \| `HIGH_VOL`
-3. Nifty 15m emissions: TOD-normalized signed `r_15`, `rv_15`, `volz_15` (+ `vwap_dist` if UP/DOWN separation is weak)
+3. Nifty 15m emissions: TOD-normalized signed `r_15`, `rv_15`, and ATR-scaled TWAP-`vwap_dist` (no `volz_15` until futures volume)
 
 Tier 2 / 3 remain out of scope.
-`)
