@@ -11,6 +11,7 @@ import polars as pl
 from src.pipelines.build_regime_features import build_regime_features
 from src.regime.daily import classify_daily_regime
 from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegime
+from src.regime.session import exclude_open_auction_bleed, with_session_flags
 from src.regime.types import DailyRegime
 from src.utils.date import filter_by_period, parse_period_range
 
@@ -98,7 +99,8 @@ def predict_intraday_hmm(
             pl.lit(None).alias("intraday_regime"),
         )
 
-    return result
+    # 09:15 bleed = low confidence; 14:30–15:15 = session watch (all daily regimes).
+    return with_session_flags(result)
 
 
 def log_hmm_mlflow(
@@ -147,14 +149,17 @@ def log_hmm_mlflow(
         metrics["test_loglik_per_sample"] = test_ll / n_test
 
     # Trend flip rate on raw decoded test states (pre-hysteresis), session-aware.
+    # Match fit/predict: exclude 09:15 call-auction bleed bars.
     if test_valid.height > 0:
+        decode_valid = exclude_open_auction_bleed(test_valid)
         ordered, _, lengths = IntradayHMMRegime.prepare_sequences(
-            test_valid, hmm_model.feature_cols, drop_nonfinite=False
+            decode_valid, hmm_model.feature_cols, drop_nonfinite=False
         )
         if ordered.height > 0:
             preds = hmm_model.predict(ordered, apply_hysteresis=False)
+            decoded = preds.filter(pl.col("intraday_regime_raw").is_not_null())
             metrics["test_trend_flip_rate"] = IntradayHMMRegime.trend_flip_rate(
-                preds["intraday_regime_raw"].to_list(), lengths
+                decoded["intraday_regime_raw"].to_list(), lengths
             )
 
     for key, value in metrics.items():

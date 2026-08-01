@@ -4,6 +4,7 @@ import numpy as np
 import polars as pl
 from hmmlearn.hmm import GaussianHMM
 
+from .session import exclude_open_auction_bleed, with_session_flags
 from .types import IntradayRegime
 
 DEFAULT_FEATURE_COLS = ["r_15", "rv_15", "vwap_dist"]
@@ -132,12 +133,15 @@ class IntradayHMMRegime:
     def fit(self, df: pl.DataFrame, feature_cols: list[str] | None = None):
         """
         Fits the HMM on historical TOD-normalized features using day-session lengths.
+
+        Excludes the 09:15–09:30 call-auction bleed bar (NSE production constraint).
         """
         if feature_cols is None:
             feature_cols = list(DEFAULT_FEATURE_COLS)
         self.feature_cols = list(feature_cols)
 
-        _, X, lengths = self.prepare_sequences(df, feature_cols, drop_nonfinite=True)
+        train_df = exclude_open_auction_bleed(df)
+        _, X, lengths = self.prepare_sequences(train_df, feature_cols, drop_nonfinite=True)
         if X.shape[0] == 0:
             raise ValueError("No finite intraday rows available to fit HMM.")
 
@@ -149,6 +153,8 @@ class IntradayHMMRegime:
         """
         Total log-likelihood under the fitted model for cascade-valid sessions.
 
+        Excludes the 09:15–09:30 call-auction bleed bar (same mask as fit).
+
         Returns (total_loglik, n_samples).
         """
         if not self.is_fitted:
@@ -156,7 +162,8 @@ class IntradayHMMRegime:
         if feature_cols is None:
             feature_cols = self.feature_cols
 
-        _, X, lengths = self.prepare_sequences(df, feature_cols, drop_nonfinite=True)
+        score_df = exclude_open_auction_bleed(df)
+        _, X, lengths = self.prepare_sequences(score_df, feature_cols, drop_nonfinite=True)
         if X.shape[0] == 0:
             return float("nan"), 0
         return float(self.model.score(X, lengths=lengths)), int(X.shape[0])
@@ -169,7 +176,9 @@ class IntradayHMMRegime:
     ) -> pl.DataFrame:
         """
         Predicts the intraday regime for a given dataframe of features.
-        Decodes per date session via `lengths`.
+        Decodes per date session via `lengths` after dropping the open-auction bleed bar.
+        09:15 bars are returned with null regimes and `intraday_low_confidence=True`.
+        Afternoon `session_watch` flags 14:30–15:15 bars (Europe open + MIS square-off).
         Optionally applies hysteresis within each session.
         """
         if not self.is_fitted:
@@ -177,12 +186,15 @@ class IntradayHMMRegime:
         if feature_cols is None:
             feature_cols = self.feature_cols
 
+        annotated = with_session_flags(df)
+        decode_df = exclude_open_auction_bleed(annotated)
+
         # Keep row alignment with caller by filling non-finite; still decode per session.
         ordered, X, lengths = self.prepare_sequences(
-            df, feature_cols, drop_nonfinite=False
+            decode_df, feature_cols, drop_nonfinite=False
         )
         if ordered.height == 0:
-            return df.with_columns(
+            return annotated.with_columns(
                 pl.lit(None).alias("intraday_regime_raw"),
                 pl.lit(None).alias("intraday_regime"),
             )
@@ -198,7 +210,12 @@ class IntradayHMMRegime:
         else:
             ordered = ordered.with_columns(pl.col("intraday_regime_raw").alias("intraday_regime"))
 
-        return ordered
+        # Left-join keeps 09:15 bleed bars with null regimes (low-confidence / no sleeve).
+        return annotated.join(
+            ordered.select(["date", "intraday_regime_raw", "intraday_regime"]),
+            on="date",
+            how="left",
+        )
 
     def _apply_hysteresis_by_lengths(
         self,

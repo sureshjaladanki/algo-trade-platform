@@ -39,17 +39,19 @@ Daily owns the pre-open risk gate. Intraday HMM owns sleeve routing (long moment
 
 #### Primary features (3)
 
+Pre-open aligned for session date **T** (available by ~9:08–9:15; no same-day close leakage):
+
 | Feature | Definition |
 |---|---|
-| `nifty_trend` | Continuous % distance of Nifty close to EMA20 |
-| `vol_regime` | India VIX vs 60d median **+ 1d ΔVIX** (Nifty ATR%/Close fallback if VIX unavailable) |
-| `shock` | Overnight gap / ATR14 (gap magnitude vs normal range) |
+| `nifty_trend` (`market_trend`) | % distance of **prior** Nifty close (T−1) to EMA20 as of T−1 |
+| `vol_regime` | India VIX vs 60d median **+ 1d ΔVIX**, both as of **T−1** (Nifty ATR%/Close fallback if VIX unavailable) |
+| `shock` | Overnight gap `(open_T − close_{T−1}) / prev_ATR14` |
 
 #### Confirmatory: Daily breadth
 
 **`breadth_div`** — not a co-equal primary axis in v1.
 
-Use one of:
+Use one of (as of **T−1** for the pre-open gate on T):
 
 - **% of Nifty 100 stocks above their 20DMA** (or 5DMA for a faster signal), or
 - **Nifty 100 Advance/Decline ratio**
@@ -67,7 +69,7 @@ In the ideal set, both judges would promote breadth to a primary Daily feature.
 | `SUPPORTIVE` | Trend supportive, vol calm, no shock; breadth not contradicting | Allow Tier 2/3; direction left to intraday HMM |
 | `AMBIGUOUS` | Mixed signals (e.g. trend ok but breadth soft, or vol mildly elevated) | Trade allowed but cautious — HMM picks sleeve |
 | `HOSTILE` | Weak trend / elevated vol / breadth collapse without full crisis | Defensive: reduced size or selective sleeves only |
-| `NO_TRADE` | Hard veto — large gap shock, VIX spike + collapse, extreme risk | Flat — block lower tiers |
+| `NO_TRADE` | Hard veto — large gap shock; VIX spike (high ratio + large +ΔVIX); VIX collapse / event crush (elevated ratio + large −ΔVIX) | Flat — block lower tiers |
 
 Interpretation:
 
@@ -214,7 +216,7 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 ## NSE production constraints
 
 1. **TOD-normalize** all HMM vol/range inputs — otherwise the model learns the U-shaped clock (open/close = fake `HIGH_VOL`).
-2. Down-weight / low-confidence the **9:15–9:30** bar (call auction bleed); watch **14:30–15:15** (Europe open + MIS square-off).
+2. Down-weight / low-confidence the **9:15–9:30** bar (call auction bleed): exclude from HMM fit/score/decode; null regime + `intraday_low_confidence`. Watch **14:30–15:15** (Europe open + MIS square-off) via `session_watch` flag.
 3. Prefer **relative VIX** (vs median + ΔVIX), not absolute levels — event crush (budget/elections) fools level thresholds.
 4. **Hysteresis** on HMM flips, especially `TREND_UP` ↔ `TREND_DOWN`.
 5. **Relabel** HMM states after each fit by emission means so UP/DOWN remain stable.
