@@ -16,8 +16,8 @@ from src.labels.horizon import calculate_horizon_labels
 from src.labels.triple_barrier import calculate_triple_barrier_labels
 from src.pipelines.horizon_pipeline import (
     prepare_horizon_data,
-    predict_horizon,
-    train_horizon_models,
+    predict_horizon_gbm,
+    fit_horizon_gbm,
 )
 
 BASE = dt.datetime(2024, 1, 1, 9, 15)
@@ -243,12 +243,12 @@ def main() -> None:
     ).item()
     print("purged WF ok:", len(splits), "splits")
 
-    res = train_horizon_models(
+    res = fit_horizon_gbm(
         df, cv_kwargs={"train_days": 40, "val_days": 5, "test_days": 10, "n_splits": 2}
     )
     long_model = res.get("long_models", [None])[-1]
     short_model = res.get("short_models", [None])[-1]
-    scored = predict_horizon(df, long_model, short_model)
+    scored = predict_horizon_gbm(df, long_model, short_model)
     assert scored.filter(
         (pl.col("horizon_direction") == "short")
         & (pl.col("time_only") > dt.time(13, 45))

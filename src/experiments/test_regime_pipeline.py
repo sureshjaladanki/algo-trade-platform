@@ -3,6 +3,7 @@ from pathlib import Path
 
 from src.pipelines.build_regime_features import build_regime_features
 from src.pipelines.regime_pipeline import fit_intraday_hmm, predict_intraday_hmm
+from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +68,8 @@ def main():
 
     print("Predicting Regimes on test data...")
     results = predict_intraday_hmm(daily_test, intraday_test, hmm_model)
+    # Intraday hard rules (not inside the HMM).
+    results = override_intraday_regime(results)
 
     print("\nDaily Regime Counts:")
     daily_counts = results.group_by("daily_regime").len().sort("len", descending=True)

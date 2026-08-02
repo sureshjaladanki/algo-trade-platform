@@ -4,7 +4,7 @@ import datetime as dt
 
 import polars as pl
 
-from src.regime.session import NSE_OPEN_BLEED_BAR
+from src.regime.intraday import NSE_OPEN_BLEED_BAR
 
 # Bar timestamps are bar *starts* (group_by_dynamic convention).
 # Long: last entry 14:00 → exit at 15:00 for H=4.

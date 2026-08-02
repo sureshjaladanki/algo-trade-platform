@@ -4,7 +4,6 @@ import numpy as np
 import polars as pl
 from hmmlearn.hmm import GaussianHMM
 
-from .session import exclude_open_auction_bleed, with_session_flags
 from .types import IntradayRegime
 
 DEFAULT_FEATURE_COLS = ["r_15", "rv_15", "vwap_dist"]
@@ -21,7 +20,6 @@ class IntradayHMMRegime:
         self.n_components = 4
         self.random_state = random_state
         self.n_iter = n_iter
-        self.feature_cols = list(DEFAULT_FEATURE_COLS)
         self.model = GaussianHMM(
             n_components=self.n_components,
             covariance_type="diag",
@@ -74,7 +72,6 @@ class IntradayHMMRegime:
     @staticmethod
     def prepare_sequences(
         df: pl.DataFrame,
-        feature_cols: list[str] | None = None,
         *,
         drop_nonfinite: bool = True,
     ) -> tuple[pl.DataFrame, np.ndarray, np.ndarray]:
@@ -84,9 +81,7 @@ class IntradayHMMRegime:
         Rows are sorted by date (datetime). Non-finite feature rows are dropped
         (fit/score) so lengths stay consistent with X.
         """
-        if feature_cols is None:
-            feature_cols = list(DEFAULT_FEATURE_COLS)
-
+        feature_cols = DEFAULT_FEATURE_COLS
         required = {"date", *feature_cols}
         missing = required - set(df.columns)
         if missing:
@@ -130,18 +125,13 @@ class IntradayHMMRegime:
         n, d = n_components, n_features
         return n * n - 1 + 2 * n * d
 
-    def fit(self, df: pl.DataFrame, feature_cols: list[str] | None = None):
+    def fit(self, df: pl.DataFrame):
         """
         Fits the HMM on historical TOD-normalized features using day-session lengths.
 
-        Excludes the 09:15–09:30 call-auction bleed bar (NSE production constraint).
+        Caller is responsible for cascade gates (daily tradeable days, no open-auction bleed).
         """
-        if feature_cols is None:
-            feature_cols = list(DEFAULT_FEATURE_COLS)
-        self.feature_cols = list(feature_cols)
-
-        train_df = exclude_open_auction_bleed(df)
-        _, X, lengths = self.prepare_sequences(train_df, feature_cols, drop_nonfinite=True)
+        _, X, lengths = self.prepare_sequences(df, drop_nonfinite=True)
         if X.shape[0] == 0:
             raise ValueError("No finite intraday rows available to fit HMM.")
 
@@ -149,21 +139,18 @@ class IntradayHMMRegime:
         self.is_fitted = True
         self._map_states(self.model.means_)
 
-    def score(self, df: pl.DataFrame, feature_cols: list[str] | None = None) -> tuple[float, int]:
+    def score(self, df: pl.DataFrame) -> tuple[float, int]:
         """
-        Total log-likelihood under the fitted model for cascade-valid sessions.
+        Total log-likelihood under the fitted model.
 
-        Excludes the 09:15–09:30 call-auction bleed bar (same mask as fit).
+        Caller should pass the same cascade-gated rows used for fit/predict.
 
         Returns (total_loglik, n_samples).
         """
         if not self.is_fitted:
             raise ValueError("Model must be fitted before score.")
-        if feature_cols is None:
-            feature_cols = self.feature_cols
 
-        score_df = exclude_open_auction_bleed(df)
-        _, X, lengths = self.prepare_sequences(score_df, feature_cols, drop_nonfinite=True)
+        _, X, lengths = self.prepare_sequences(df, drop_nonfinite=True)
         if X.shape[0] == 0:
             return float("nan"), 0
         return float(self.model.score(X, lengths=lengths)), int(X.shape[0])
@@ -171,30 +158,23 @@ class IntradayHMMRegime:
     def predict(
         self,
         df: pl.DataFrame,
-        feature_cols: list[str] | None = None,
         apply_hysteresis: bool = True,
     ) -> pl.DataFrame:
         """
-        Predicts the intraday regime for a given dataframe of features.
-        Decodes per date session via `lengths` after dropping the open-auction bleed bar.
-        09:15 bars are returned with null regimes and `intraday_low_confidence=True`.
-        Afternoon `session_watch` flags 14:30–15:15 bars (Europe open + MIS square-off).
+        Predicts the intraday regime for cascade-gated feature rows.
+        Decodes per date session via `lengths`.
         Optionally applies hysteresis within each session.
+
+        Hard rules (daily HOSTILE/NO_TRADE, open-auction NO_TRADE) are applied by the
+        pipeline gate — this method only runs the HMM on the rows it is given.
         """
         if not self.is_fitted:
             raise ValueError("Model must be fitted before prediction.")
-        if feature_cols is None:
-            feature_cols = self.feature_cols
-
-        annotated = with_session_flags(df)
-        decode_df = exclude_open_auction_bleed(annotated)
 
         # Keep row alignment with caller by filling non-finite; still decode per session.
-        ordered, X, lengths = self.prepare_sequences(
-            decode_df, feature_cols, drop_nonfinite=False
-        )
+        ordered, X, lengths = self.prepare_sequences(df, drop_nonfinite=False)
         if ordered.height == 0:
-            return annotated.with_columns(
+            return df.with_columns(
                 pl.lit(None).alias("intraday_regime_raw"),
                 pl.lit(None).alias("intraday_regime"),
             )
@@ -210,8 +190,7 @@ class IntradayHMMRegime:
         else:
             ordered = ordered.with_columns(pl.col("intraday_regime_raw").alias("intraday_regime"))
 
-        # Left-join keeps 09:15 bleed bars with null regimes (low-confidence / no sleeve).
-        return annotated.join(
+        return df.join(
             ordered.select(["date", "intraday_regime_raw", "intraday_regime"]),
             on="date",
             how="left",
@@ -308,7 +287,7 @@ class IntradayHMMRegime:
         for state_idx, regime in self.state_map.items():
             label = regime.value
             out[f"trans_self_{label}"] = float(m.transmat_[state_idx, state_idx])
-            for j, feat in enumerate(self.feature_cols):
+            for j, feat in enumerate(DEFAULT_FEATURE_COLS):
                 out[f"emit_mean_{label}_{feat}"] = float(m.means_[state_idx, j])
 
         return out

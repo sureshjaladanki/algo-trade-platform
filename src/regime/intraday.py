@@ -4,6 +4,8 @@ import datetime as dt
 
 import polars as pl
 
+from .types import IntradayRegime
+
 # Bar timestamps from group_by_dynamic are bar *starts*.
 # 09:15 bar = 09:15–09:30 call-auction bleed.
 NSE_OPEN_BLEED_BAR = dt.time(9, 15)
@@ -30,7 +32,22 @@ def with_session_flags(df: pl.DataFrame, datetime_col: str = "date") -> pl.DataF
         intraday_low_confidence=open_auction_bleed_expr(datetime_col),
     )
 
+# Hard rules to override intraday regime.
+def override_intraday_regime(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Pipeline hard rule: label open-auction bleed bars as intraday NO_TRADE.
 
-def exclude_open_auction_bleed(df: pl.DataFrame, datetime_col: str = "date") -> pl.DataFrame:
-    """Drop 09:15–09:30 bars (call auction bleed) from HMM fit/score/decode."""
-    return df.filter(~open_auction_bleed_expr(datetime_col))
+    Applied after HMM predict on gated rows (model never sees these bars).
+    Requires `intraday_regime` / `intraday_regime_raw` and a datetime `date` column.
+    """
+    no_trade = IntradayRegime.NO_TRADE.value
+    return df.with_columns(
+        pl.when(open_auction_bleed_expr('date'))
+        .then(pl.lit(no_trade))
+        .otherwise(pl.col("intraday_regime_raw"))
+        .alias("intraday_regime_raw"),
+        pl.when(open_auction_bleed_expr('date'))
+        .then(pl.lit(no_trade))
+        .otherwise(pl.col("intraday_regime"))
+        .alias("intraday_regime"),
+    )

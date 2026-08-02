@@ -11,7 +11,7 @@ import polars as pl
 from src.pipelines.build_regime_features import build_regime_features
 from src.regime.daily import classify_daily_regime
 from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegime
-from src.regime.session import exclude_open_auction_bleed, with_session_flags
+from src.regime.intraday import open_auction_bleed_expr, override_intraday_regime
 from src.regime.types import DailyRegime
 from src.utils.date import filter_by_period, parse_period_range
 
@@ -25,14 +25,22 @@ def cascade_valid_intraday(
     daily_features: pl.DataFrame,
     intraday_features: pl.DataFrame,
 ) -> pl.DataFrame:
-    """Keep intraday bars whose (date) daily regime is SUPPORTIVE or AMBIGUOUS."""
+    """
+    Keep intraday bars eligible for HMM fit/score/decode.
+
+    Gates:
+    - daily regime is SUPPORTIVE or AMBIGUOUS (skip HOSTILE / NO_TRADE days)
+    - not open-auction bleed (skip 09:15 → intraday NO_TRADE)
+    """
     daily_classified = classify_daily_regime(daily_features)
     valid_days = daily_classified.filter(
         pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
     ).select(["date"])
+    valid_intraday = intraday_features.filter(~open_auction_bleed_expr('date'))
+
     # Intraday `date` is a bar timestamp; daily `date` is calendar day.
     return (
-        intraday_features.with_columns(_session_day=pl.col("date").dt.date())
+        valid_intraday.with_columns(_session_day=pl.col("date").dt.date())
         .join(valid_days, left_on="_session_day", right_on="date", how="inner")
         .drop("_session_day")
     )
@@ -45,7 +53,7 @@ def fit_intraday_hmm(
     n_iter: int = 100,
 ) -> IntradayHMMRegime:
     """
-    Fits the intraday HMM model only on data that passes the daily regime filter.
+    Fits the intraday HMM only on cascade-gated rows (tradeable daily + non-bleed).
     Returns the fitted IntradayHMMRegime model, which can be logged to MLflow.
     """
     valid_intraday = cascade_valid_intraday(daily_features, intraday_features)
@@ -67,8 +75,10 @@ def predict_intraday_hmm(
 ) -> pl.DataFrame:
     """
     Predicts both daily and intraday regimes.
-    Applies cascade gates: if daily is HOSTILE or NO_TRADE, intraday is nullified.
-    Optimized to only run HMM prediction on SUPPORTIVE or AMBIGUOUS days.
+
+    Cascade gates (HMM never sees these rows):
+    - daily HOSTILE / NO_TRADE → intraday nullified
+    - open_auction_bleed → skipped (null); callers apply override_intraday_regime
     """
     daily_classified = classify_daily_regime(daily_features)
 
@@ -83,7 +93,8 @@ def predict_intraday_hmm(
         .drop("_session_day")
     )
 
-    valid_mask = pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
+    # Same gate as fit: tradeable daily days and non-bleed bars only.
+    valid_mask = pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES) & ~open_auction_bleed_expr('date')
     valid_intraday = result.filter(valid_mask)
 
     if valid_intraday.height > 0:
@@ -99,8 +110,7 @@ def predict_intraday_hmm(
             pl.lit(None).alias("intraday_regime"),
         )
 
-    # 09:15 bleed = low confidence; 14:30–15:15 = session watch (all daily regimes).
-    return with_session_flags(result)
+    return result
 
 
 def log_hmm_mlflow(
@@ -124,7 +134,7 @@ def log_hmm_mlflow(
             "hmm_n_iter_config": hmm_model.n_iter,
             "hmm_random_state": hmm_model.random_state,
             "hmm_init_params": m.init_params,
-            "feature_cols": ",".join(hmm_model.feature_cols or DEFAULT_FEATURE_COLS),
+            "feature_cols": ",".join(DEFAULT_FEATURE_COLS),
             "apply_hysteresis": apply_hysteresis,
         }
     )
@@ -149,11 +159,10 @@ def log_hmm_mlflow(
         metrics["test_loglik_per_sample"] = test_ll / n_test
 
     # Trend flip rate on raw decoded test states (pre-hysteresis), session-aware.
-    # Match fit/predict: exclude 09:15 call-auction bleed bars.
+    # test_valid is already cascade-gated (no open-auction bleed / non-tradeable days).
     if test_valid.height > 0:
-        decode_valid = exclude_open_auction_bleed(test_valid)
         ordered, _, lengths = IntradayHMMRegime.prepare_sequences(
-            decode_valid, hmm_model.feature_cols, drop_nonfinite=False
+            test_valid, drop_nonfinite=False
         )
         if ordered.height > 0:
             preds = hmm_model.predict(ordered, apply_hysteresis=False)
@@ -260,6 +269,9 @@ def run_pipeline(
             apply_hysteresis=apply_hysteresis,
         )
 
+        # Open-auction hard rule applied here (not inside the HMM), like daily filters.
+        results = override_intraday_regime(results)
+
         print("\nPipeline finished. Test Set Stats:")
         print("Daily Regime Counts:")
         daily_counts = results.group_by("daily_regime").len().sort("len", descending=True)
@@ -284,15 +296,6 @@ def run_pipeline(
             ["daily_regime", "len"], descending=[False, True]
         )
         print(cross_tab.to_dict(as_series=False))
-
-        print("\nSector-wise Intraday Regimes (non-null):")
-        sector_tab = (
-            results.filter(pl.col("intraday_regime").is_not_null())
-            .group_by(["sector", "intraday_regime"])
-            .len()
-            .sort(["sector", "len"], descending=[False, True])
-        )
-        print(sector_tab.to_dict(as_series=False))
 
         print("\nRun `mlflow ui` in your terminal to view the experiment tracking.")
 

@@ -12,3 +12,4 @@ class IntradayRegime(Enum):
     TREND_DOWN = "TREND_DOWN"
     CHOP = "CHOP"
     HIGH_VOL = "HIGH_VOL"
+    NO_TRADE = "NO_TRADE"
