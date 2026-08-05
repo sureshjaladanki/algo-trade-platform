@@ -21,13 +21,13 @@ def main():
     parser.add_argument(
         "--train-period",
         type=str,
-        default="2015-2016",
+        default="2015-2017",
         help="Train period: yyyy-yyyy (e.g. 2015-2018) or mm/yyyy-mm/yyyy",
     )
     parser.add_argument(
         "--test-period",
         type=str,
-        default="2017-2017",
+        default="2018-2018",
         help="Test period: yyyy-yyyy (e.g. 2017-2018) or mm/yyyy-mm/yyyy",
     )
     args = parser.parse_args()

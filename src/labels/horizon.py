@@ -53,10 +53,12 @@ def calculate_horizon_labels(
         fwd_excess_ret=pl.col("fwd_stock_ret") - pl.col("fwd_nifty_ret"),
     )
 
+    # is_finite rejects null, NaN, and Inf — Polars null ≠ NaN, so is_not_null
+    # alone would let IEEE NaNs through to LightGBM (which then rejects y).
     same_session_exit = (
         (pl.col("exit_date") == pl.col("entry_date"))
         & (pl.col("exit_time") <= mis_flat_by)
-        & pl.col("fwd_excess_ret").is_not_null()
+        & pl.col("fwd_excess_ret").is_finite()
     )
 
     df = df.with_columns(

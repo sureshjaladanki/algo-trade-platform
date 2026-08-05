@@ -107,11 +107,12 @@ class HorizonModel:
         self.direction = direction
         self.params = LONG_PARAMS.copy() if direction == "long" else SHORT_PARAMS.copy()
         self.early_stopping_rounds = 50 if direction == "long" else 40
-        self.model = None
-        self.calibrator = None
+        self.model = lgb.LGBMRegressor(**self.params)
+        self.calibrator = IsotonicRegression(out_of_bounds="clip")
+        self.is_fitted = False
         self.features: List[str] = []
 
-    def train(
+    def fit(
         self,
         X_train: pl.DataFrame,
         y_train: pl.Series,
@@ -127,33 +128,29 @@ class HorizonModel:
         X_val_np = X_val.select(features).to_numpy()
         y_val_np = y_val.to_numpy()
 
-        train_data = lgb.Dataset(X_train_np, label=y_train_np, weight=train_weight)
-        val_data = lgb.Dataset(X_val_np, label=y_val_np, reference=train_data)
-
-        params = {k: v for k, v in self.params.items() if k != "n_estimators"}
-        n_estimators = self.params["n_estimators"]
-        callbacks = [
-            lgb.early_stopping(stopping_rounds=self.early_stopping_rounds, verbose=False)
-        ]
-
-        self.model = lgb.train(
-            params,
-            train_data,
-            num_boost_round=n_estimators,
-            valid_sets=[val_data],
-            callbacks=callbacks,
+        self.model.fit(
+            X_train_np,
+            y_train_np,
+            sample_weight=train_weight,
+            eval_X=X_val_np,
+            eval_y=y_val_np,
+            callbacks=[
+                lgb.early_stopping(
+                    stopping_rounds=self.early_stopping_rounds, verbose=False
+                )
+            ],
         )
 
         val_preds = self.model.predict(X_val_np)
-        self.calibrator = IsotonicRegression(out_of_bounds="clip")
         self.calibrator.fit(val_preds, y_val_np)
+        self.is_fitted = True
 
         ic, _ = spearmanr(val_preds, y_val_np)
         return float(ic) if ic == ic else 0.0
 
     def predict(self, X: pl.DataFrame) -> np.ndarray:
-        if self.model is None or self.calibrator is None:
-            raise ValueError("Model not trained yet.")
+        if not self.is_fitted:
+            raise ValueError("Model must be fitted before prediction.")
         X_np = X.select(self.features).to_numpy()
         raw_preds = self.model.predict(X_np)
         return self.calibrator.predict(raw_preds)
@@ -205,15 +202,24 @@ def get_purged_cv_splits(
     train_days: int = DEFAULT_TRAIN_DAYS,
     val_days: int = DEFAULT_VAL_DAYS,
     test_days: int = DEFAULT_TEST_DAYS,
+    calendar_dates: list | None = None,
 ) -> List[Tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]]:
     """
     Purged walk-forward: train → embargo (≥1 day + horizon) → val → embargo → test.
+
+    Window lengths are counted on `calendar_dates` (market sessions), not on the
+    possibly sparse sleeve dates inside `df`. Pass the full train period's
+    `date_only` values so DEFAULT_TRAIN_DAYS ≈ 21 calendar trading months even
+    when the sleeve only fires on TREND_UP / TREND_DOWN days.
 
     Embargo ≥ horizon (4 bars) plus ≥ 1 trading day at every train/val and val/test
     boundary. Same-day labels make a full trading-day embargo sufficient; we also
     drop the last `embargo_bars` from the end of each train/val block.
     """
-    dates = df.select("date_only").unique().sort("date_only").to_series().to_list()
+    if calendar_dates is not None:
+        dates = sorted(set(calendar_dates))
+    else:
+        dates = df.select("date_only").unique().sort("date_only").to_series().to_list()
     block = train_days + embargo_days + val_days + embargo_days + test_days
     if len(dates) < block:
         return []

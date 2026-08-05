@@ -16,6 +16,10 @@ import polars as pl
 from scipy.stats import spearmanr
 
 from src.horizon.horizon_model import (
+    DEFAULT_EMBARGO_DAYS,
+    DEFAULT_TEST_DAYS,
+    DEFAULT_TRAIN_DAYS,
+    DEFAULT_VAL_DAYS,
     LONG_FEATURES,
     SHORT_FEATURES,
     HorizonModel,
@@ -107,8 +111,11 @@ def fit_horizon_gbm(
     the caller to log (e.g. via log_horizon_mlflow); fit itself does not touch MLflow.
     """
     cfg = _sleeve_config(direction)
-    sleeve_df = df.filter(_fit_sleeve_mask(cfg)).drop_nulls(
-        subset=cfg.features + ["fwd_excess_ret"]
+    # drop_nulls alone is not enough: float NaNs survive and blow up LGBM y-checks.
+    sleeve_df = (
+        df.filter(_fit_sleeve_mask(cfg))
+        .drop_nulls(subset=cfg.features + ["fwd_excess_ret"])
+        .filter(pl.col("fwd_excess_ret").is_finite())
     )
 
     if sleeve_df.height == 0:
@@ -122,39 +129,74 @@ def fit_horizon_gbm(
         f"(median {diagnostics['median_episode_bars']:.0f} bars/episode)"
     )
 
+    # Walk-forward on full-period trading days so train_days≈21 calendar months,
+    # not sparse sleeve-only sessions (TREND_UP/DOWN fire on a subset of days).
+    calendar_dates = (
+        df.select("date_only").unique().sort("date_only").to_series().to_list()
+    )
+    cv = dict(cv_kwargs or {})
+    train_days = cv.get("train_days", DEFAULT_TRAIN_DAYS)
+    val_days = cv.get("val_days", DEFAULT_VAL_DAYS)
+    test_days = cv.get("test_days", DEFAULT_TEST_DAYS)
+    embargo_days = cv.get("embargo_days", DEFAULT_EMBARGO_DAYS)
+    block = train_days + embargo_days + val_days + embargo_days + test_days
+    if len(calendar_dates) < block:
+        print(
+            f"Cannot build purged CV for {direction}: {len(calendar_dates)} calendar "
+            f"sessions < block {block} "
+            f"(train={train_days}, val={val_days}, test={test_days}, "
+            f"embargo={embargo_days}×2). Extend train_period or pass smaller cv_kwargs."
+        )
+        return None, {"diagnostics": diagnostics, "n_splits": 0}
+
     val_ics: list[float] = []
     test_ics: list[float] = []
     models: list[HorizonModel] = []
 
-    for train_df, val_df, test_df in get_purged_cv_splits(sleeve_df, **(cv_kwargs or {})):
-        if min(train_df.height, val_df.height, test_df.height) == 0:
+    for fold_train, fold_val, fold_test in get_purged_cv_splits(
+        sleeve_df, calendar_dates=calendar_dates, **cv
+    ):
+        if min(fold_train.height, fold_val.height, fold_test.height) == 0:
             continue
         model = HorizonModel(direction=direction)
-        val_ic = model.train(
-            X_train=train_df,
-            y_train=train_df["fwd_excess_ret"],
-            X_val=val_df,
-            y_val=val_df["fwd_excess_ret"],
+        val_ic = model.fit(
+            X_train=fold_train,
+            y_train=fold_train["fwd_excess_ret"],
+            X_val=fold_val,
+            y_val=fold_val["fwd_excess_ret"],
             features=cfg.features,
             train_weight=(
-                episode_balanced_weights(train_df) if cfg.episode_balanced else None
+                episode_balanced_weights(fold_train) if cfg.episode_balanced else None
             ),
         )
-        test_ic = model.spearman_ic(test_df, test_df["fwd_excess_ret"])
+        test_ic = model.spearman_ic(fold_test, fold_test["fwd_excess_ret"])
         val_ics.append(val_ic)
         test_ics.append(test_ic)
         models.append(model)
 
-    mean_val = sum(val_ics) / len(val_ics) if val_ics else 0.0
-    mean_test = sum(test_ics) / len(test_ics) if test_ics else 0.0
-    print(f"{direction.capitalize()} Mean Val IC: {mean_val:.4f} | Test IC: {mean_test:.4f}")
+    if not models:
+        print(
+            f"No non-empty purged CV folds for {direction} "
+            f"(calendar sessions={len(calendar_dates)}, sleeve sessions="
+            f"{diagnostics['sessions']})."
+        )
+        return None, {"diagnostics": diagnostics, "n_splits": 0}
+
+    mean_val = sum(val_ics) / len(val_ics)
+    mean_test = sum(test_ics) / len(test_ics)
+    print(
+        f"{direction.capitalize()} Mean Val IC: {mean_val:.4f} | "
+        f"Test IC: {mean_test:.4f} ({len(models)} folds)"
+    )
 
     fit_stats = {
         "mean_ic": mean_val,
         "mean_test_ic": mean_test,
         "diagnostics": diagnostics,
+        "n_splits": len(models),
+        "calendar_sessions": len(calendar_dates),
     }
-    return (models[-1] if models else None), fit_stats
+    return models[-1], fit_stats
 
 
 def log_horizon_mlflow(direction: str, fit_stats: Dict[str, Any]) -> None:
@@ -284,19 +326,19 @@ def run_pipeline(
         print("7. Fitting Horizon models on cascade-valid train sleeves...")
         
         directions = ["long", "short"] if direction == "both" else [direction]
-        models = {}
+        models: dict[str, HorizonModel] = {}
         scored_dfs = []
 
         for direction in directions:
             print(f"\n   Fitting Horizon {direction.capitalize()} model...")
             model, fit_stats = fit_horizon_gbm(train_df, direction=direction)
-            models[f"{direction}_model"] = model
             log_horizon_mlflow(direction, fit_stats)
 
             if model is None:
                 print(f"   Warning: No Horizon {direction.capitalize()} model trained.")
                 continue
 
+            models[direction] = model
             print(f"8. Predicting Horizon {direction.capitalize()} scores on cascade-valid test bars...")
             scored = predict_horizon_gbm(test_df, model)
             print(f"   Scored {direction} rows: {scored.height}")
@@ -318,11 +360,14 @@ def run_pipeline(
             name = row["horizon_direction"] or "null"
             mlflow.log_metric(f"test_count_{name}", row["len"])
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as tmp:
-            pickle.dump(models, tmp)
-            tmp_path = tmp.name
-        mlflow.log_artifact(tmp_path, "model")
-        Path(tmp_path).unlink()
+        # One artifact per sleeve so MLflow UI shows long and short separately.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for sleeve, model in models.items():
+                path = Path(tmpdir) / f"{sleeve}_model.pkl"
+                with open(path, "wb") as f:
+                    pickle.dump(model, f)
+                mlflow.log_artifact(str(path), f"model/{sleeve}")
+
 
         print("\nRun `mlflow ui` in your terminal to view the experiment tracking.")
 
