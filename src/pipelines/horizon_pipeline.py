@@ -287,19 +287,19 @@ def run_pipeline(
         models = {}
         scored_dfs = []
 
-        for d in directions:
-            print(f"\n   Fitting Horizon {d.capitalize()} model...")
-            model, fit_stats = fit_horizon_gbm(train_df, direction=d)
-            models[f"{d}_model"] = model
-            log_horizon_mlflow(d, fit_stats)
+        for direction in directions:
+            print(f"\n   Fitting Horizon {direction.capitalize()} model...")
+            model, fit_stats = fit_horizon_gbm(train_df, direction=direction)
+            models[f"{direction}_model"] = model
+            log_horizon_mlflow(direction, fit_stats)
 
             if model is None:
-                print(f"   Warning: No Horizon {d.capitalize()} model trained.")
+                print(f"   Warning: No Horizon {direction.capitalize()} model trained.")
                 continue
 
-            print(f"8. Predicting Horizon {d.capitalize()} scores on cascade-valid test bars...")
+            print(f"8. Predicting Horizon {direction.capitalize()} scores on cascade-valid test bars...")
             scored = predict_horizon_gbm(test_df, model)
-            print(f"   Scored {d} rows: {scored.height}")
+            print(f"   Scored {direction} rows: {scored.height}")
             scored_dfs.append(scored)
 
         if not scored_dfs:
