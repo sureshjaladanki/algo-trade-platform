@@ -4,8 +4,8 @@ from pathlib import Path
 import polars as pl
 import polars.selectors as cs
 
-from src.features.daily import calculate_daily_features
-from src.features.intraday import calculate_intraday_features
+from src.features.daily_regime import calculate_daily_features
+from src.features.intraday_regime import calculate_intraday_features
 from src.utils.data import resample_15m, resample_daily
 from src.utils.load_config import load_config
 from src.utils.symbol_data import load_symbol_data

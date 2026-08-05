@@ -29,12 +29,12 @@ def calculate_horizon_labels(
     - Long entries only through long_last_entry (~14:00).
     - Short entries only through short_last_entry (~13:45).
     """
-    stock_df = stock_df.sort(["symbol", "datetime"])
-    nifty_df = nifty_df.sort("datetime")
+    stock_df = stock_df.sort(["symbol", "date"])
+    nifty_df = nifty_df.sort("date")
 
     df = stock_df.join(
-        nifty_df.select(["datetime", pl.col("close").alias("nifty_close")]),
-        on="datetime",
+        nifty_df.select(["date", pl.col("close").alias("nifty_close")]),
+        on="date",
         how="left",
     )
 
@@ -45,10 +45,10 @@ def calculate_horizon_labels(
         fwd_nifty_ret=(
             pl.col("nifty_close").shift(-horizon_bars) / pl.col("nifty_close") - 1
         ).over("symbol"),
-        exit_time=pl.col("datetime").shift(-horizon_bars).dt.time().over("symbol"),
-        exit_date=pl.col("datetime").shift(-horizon_bars).dt.date().over("symbol"),
-        entry_date=pl.col("datetime").dt.date(),
-        entry_time=pl.col("datetime").dt.time(),
+        exit_time=pl.col("date").shift(-horizon_bars).dt.time().over("symbol"),
+        exit_date=pl.col("date").shift(-horizon_bars).dt.date().over("symbol"),
+        entry_date=pl.col("date").dt.date(),
+        entry_time=pl.col("date").dt.time(),
     ).with_columns(
         fwd_excess_ret=pl.col("fwd_stock_ret") - pl.col("fwd_nifty_ret"),
     )
@@ -72,7 +72,7 @@ def calculate_horizon_labels(
     return df.select(
         [
             "symbol",
-            "datetime",
+            "date",
             "fwd_excess_ret",
             "valid_label",
             "valid_label_long",

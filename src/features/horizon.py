@@ -7,31 +7,29 @@ import polars as pl
 def calculate_horizon_features(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
-    sector_df: pl.DataFrame | None,
+    sector_df: pl.DataFrame,
     daily_stock_df: pl.DataFrame,
     daily_nifty_df: pl.DataFrame,
-    daily_regime_features: pl.DataFrame | None = None,
+    daily_regime_df: pl.DataFrame,
     tod_lookback_days: int = 60,
 ) -> pl.DataFrame:
     """
     Calculates Tier 2 Long and Short features.
 
     Inputs:
-    - stock_df: 15m stock OHLCV (datetime, open, high, low, close, volume, symbol[, sector])
-    - nifty_df: 15m Nifty with at least datetime, close; preferably r_15 and vwap_dist
+    - stock_df: 15m stock OHLCV (date, open, high, low, close, volume, symbol, sector)
+    - nifty_df: 15m Nifty with at least date, close; preferably r_15 and vwap_dist
       (Tier 1 emissions) for relative strength / index_vwap_dist pass-through
-    - sector_df: 15m sector closes (datetime, sector, close) or None
+    - sector_df: 15m sector closes (date, sector, close)
     - daily_stock_df / daily_nifty_df: EOD bars
-    - daily_regime_features: optional Tier 1 daily features with date + vol_regime_ratio
-      (exposed as vix_regime_ratio)
+    - daily_regime_df: Tier 1 daily features with date + vol_regime_ratio
 
     Daily EOD features are lagged one session before joining to intraday (no same-day leak).
     TOD norms are causal: per (symbol, clock bucket), rolling over prior sessions only.
     """
-    stock_df = stock_df.sort(["symbol", "datetime"])
-    nifty_df = nifty_df.sort("datetime")
-    if sector_df is not None:
-        sector_df = sector_df.sort(["sector", "datetime"])
+    stock_df = stock_df.sort(["symbol", "date"])
+    nifty_df = nifty_df.sort("date")
+    sector_df = sector_df.sort(["sector", "date"])
     daily_stock_df = daily_stock_df.sort(["symbol", "date"])
     daily_nifty_df = daily_nifty_df.sort("date")
 
@@ -88,8 +86,8 @@ def calculate_horizon_features(
 
     # --- Intraday base ---
     stock_df = stock_df.with_columns(
-        date_only=pl.col("datetime").dt.date(),
-        time_only=pl.col("datetime").dt.time(),
+        date_only=pl.col("date").dt.date(),
+        time_only=pl.col("date").dt.time(),
     ).with_columns(
         log_ret=(
             pl.col("close") / pl.col("close").shift(1).over("symbol")
@@ -129,7 +127,7 @@ def calculate_horizon_features(
         .shift(1)
         .rolling_std(window_size=tod_lookback_days, min_periods=min_periods)
         .over(["symbol", "time_only"]),
-    ).sort(["symbol", "datetime"]).with_columns(
+    ).sort(["symbol", "date"]).with_columns(
         stock_r_15=pl.col("log_ret") / pl.col("r_15_std"),
         stock_rv_15=pl.col("range_pct") / pl.col("rv_15_mean"),
         stock_volz_15=(pl.col("volume") - pl.col("vol_mean")) / pl.col("vol_std"),
@@ -161,21 +159,21 @@ def calculate_horizon_features(
     )
 
     # Nifty relative + index_vwap_dist pass-through.
-    nifty_cols = ["datetime", pl.col("close").alias("nifty_close")]
+    nifty_cols = ["date", pl.col("close").alias("nifty_close")]
     if "r_15" in nifty_df.columns:
         nifty_cols.append(pl.col("r_15").alias("nifty_r_15"))
     if "vwap_dist" in nifty_df.columns:
         nifty_cols.append(pl.col("vwap_dist").alias("index_vwap_dist"))
 
-    stock_df = stock_df.join(nifty_df.select(nifty_cols), on="datetime", how="left")
+    stock_df = stock_df.join(nifty_df.select(nifty_cols), on="date", how="left")
 
     if "nifty_r_15" not in stock_df.columns:
         # Fallback: TOD-normalize nifty log ret with causal index-level TOD.
         nifty_tmp = (
-            nifty_df.sort("datetime")
+            nifty_df.sort("date")
             .with_columns(
-                date_only=pl.col("datetime").dt.date(),
-                time_only=pl.col("datetime").dt.time(),
+                date_only=pl.col("date").dt.date(),
+                time_only=pl.col("date").dt.time(),
                 log_ret=(pl.col("close") / pl.col("close").shift(1)).log(),
             )
             .sort(["time_only", "date_only"])
@@ -186,9 +184,9 @@ def calculate_horizon_features(
                 .over("time_only"),
             )
             .with_columns(nifty_r_15=pl.col("log_ret") / pl.col("nifty_r_15_std"))
-            .select(["datetime", "nifty_r_15"])
+            .select(["date", "nifty_r_15"])
         )
-        stock_df = stock_df.join(nifty_tmp, on="datetime", how="left")
+        stock_df = stock_df.join(nifty_tmp, on="date", how="left")
 
     if "index_vwap_dist" not in stock_df.columns:
         stock_df = stock_df.with_columns(index_vwap_dist=pl.lit(None, dtype=pl.Float64))
@@ -207,27 +205,21 @@ def calculate_horizon_features(
     )
 
     # Sector RS / weakness (60m).
-    if sector_df is not None and "sector" in stock_df.columns:
-        stock_df = stock_df.join(
-            sector_df.select(
-                ["datetime", "sector", pl.col("close").alias("sector_close")]
-            ),
-            on=["datetime", "sector"],
-            how="left",
-        ).with_columns(
-            sector_ret_60=(
-                pl.col("sector_close") / pl.col("sector_close").shift(4).over(session)
-                - 1
-            ),
-        ).with_columns(
-            sector_rel_strength=pl.col("stock_ret_60") - pl.col("sector_ret_60"),
-            sector_rel_weakness=pl.col("sector_ret_60") - pl.col("stock_ret_60"),
-        )
-    else:
-        stock_df = stock_df.with_columns(
-            sector_rel_strength=pl.lit(None, dtype=pl.Float64),
-            sector_rel_weakness=pl.lit(None, dtype=pl.Float64),
-        )
+    stock_df = stock_df.join(
+        sector_df.select(
+            ["date", "sector", pl.col("close").alias("sector_close")]
+        ),
+        on=["date", "sector"],
+        how="left",
+    ).with_columns(
+        sector_ret_60=(
+            pl.col("sector_close") / pl.col("sector_close").shift(4).over(session)
+            - 1
+        ),
+    ).with_columns(
+        sector_rel_strength=pl.col("stock_ret_60") - pl.col("sector_ret_60"),
+        sector_rel_weakness=pl.col("sector_ret_60") - pl.col("stock_ret_60"),
+    )
 
     stock_df = stock_df.with_columns(
         dist_to_prev_day_high=(pl.col("close") - pl.col("prev_high"))
@@ -287,30 +279,14 @@ def calculate_horizon_features(
         downside_acceleration=pl.col("down_range") / pl.col("total_range"),
     )
 
-    # Tier 1 daily vol pass-through → vix_regime_ratio.
-    if daily_regime_features is not None and "vol_regime_ratio" in daily_regime_features.columns:
-        vix = daily_regime_features.select(
-            [
-                "date",
-                pl.col("vol_regime_ratio").alias("vix_regime_ratio"),
-            ]
-        )
-        stock_df = stock_df.join(
-            vix, left_on="date_only", right_on="date", how="left"
-        )
-    elif (
-        daily_regime_features is not None
-        and "vix_regime_ratio" in daily_regime_features.columns
-    ):
-        stock_df = stock_df.join(
-            daily_regime_features.select(["date", "vix_regime_ratio"]),
-            left_on="date_only",
-            right_on="date",
-            how="left",
-        )
-    else:
-        stock_df = stock_df.with_columns(
-            vix_regime_ratio=pl.lit(None, dtype=pl.Float64)
-        )
+    # Tier 1 daily vol pass-through (same column name as Regime).
+    if "vol_regime_ratio" not in daily_regime_df.columns:
+        raise ValueError("daily_regime_df must include vol_regime_ratio")
+    stock_df = stock_df.join(
+        daily_regime_df.select(["date", "vol_regime_ratio"]),
+        left_on="date_only",
+        right_on="date",
+        how="left",
+    )
 
     return stock_df

@@ -14,7 +14,7 @@ from src.regime.intraday_model import IntradayHMMRegime
 REGIME_EXPERIMENT = "Regime_Pipeline"
 
 
-def load_hmm_from_regime_experiment(
+def load_hmm_model(
     *,
     train_period: str | None = None,
     run_id: str | None = None,

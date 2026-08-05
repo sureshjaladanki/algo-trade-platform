@@ -26,7 +26,7 @@ LONG_FEATURES = [
     "bars_since_regime_flip",
     "tod_sin",
     "tod_cos",
-    "vix_regime_ratio",
+    "vol_regime_ratio",
     "index_vwap_dist",
 ]
 
@@ -50,7 +50,7 @@ SHORT_FEATURES = [
     "pct_from_52w_high",
     "bounce_risk_zscore",
     "downside_acceleration",
-    "vix_regime_ratio",
+    "vol_regime_ratio",
     "index_vwap_dist",
 ]
 
@@ -173,7 +173,7 @@ def episode_balanced_weights(df: pl.DataFrame) -> np.ndarray:
     fixes imbalance at the episode level instead of duplicating rows.
     """
     keys = ["date_only", "regime_episode_id"]
-    counts = pl.col("datetime").len().over(keys)
+    counts = pl.col("date").len().over(keys)
     weights = (
         df.select((1.0 / counts).alias("w"))
         .with_columns(w=pl.col("w") / pl.col("w").mean())
@@ -258,10 +258,10 @@ def _purge_tail_bars(df: pl.DataFrame, embargo_bars: int) -> pl.DataFrame:
     if df.height == 0 or embargo_bars <= 0:
         return df
     last_date = df.select(pl.col("date_only").max()).item()
-    last_day = df.filter(pl.col("date_only") == last_date).sort("datetime")
+    last_day = df.filter(pl.col("date_only") == last_date).sort("date")
     if last_day.height <= embargo_bars:
         return df.filter(pl.col("date_only") < last_date)
-    keep_times = last_day["datetime"][:-embargo_bars]
+    keep_times = last_day["date"][:-embargo_bars]
     return df.filter(
-        (pl.col("date_only") < last_date) | pl.col("datetime").is_in(keep_times)
+        (pl.col("date_only") < last_date) | pl.col("date").is_in(keep_times)
     )

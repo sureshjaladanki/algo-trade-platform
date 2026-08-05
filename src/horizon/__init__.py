@@ -6,7 +6,6 @@ from .horizon_model import (
     HorizonModel,
     get_purged_cv_splits,
 )
-from .features_regime import add_bars_since_regime_flip
 from .session import (
     LONG_LAST_ENTRY,
     MIS_FLAT_BY,
@@ -23,7 +22,6 @@ __all__ = [
     "SHORT_PARAMS",
     "HorizonModel",
     "get_purged_cv_splits",
-    "add_bars_since_regime_flip",
     "LONG_LAST_ENTRY",
     "MIS_FLAT_BY",
     "SHORT_LAST_ENTRY",

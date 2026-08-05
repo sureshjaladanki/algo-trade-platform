@@ -45,8 +45,8 @@ def calculate_triple_barrier_labels(
     window (Nifty leg uses the exit bar close — finest resolution available at 15m).
     Entries whose vol-based TP cannot clear the cost floor are marked ineligible.
     """
-    stock_df = stock_df.sort(["symbol", "datetime"])
-    nifty_df = nifty_df.sort("datetime")
+    stock_df = stock_df.sort(["symbol", "date"])
+    nifty_df = nifty_df.sort("date")
     daily_stock_df = daily_stock_df.sort(["symbol", "date"])
 
     daily = daily_stock_df.with_columns(
@@ -67,8 +67,8 @@ def calculate_triple_barrier_labels(
 
     df = (
         stock_df.with_columns(
-            date_only=pl.col("datetime").dt.date(),
-            entry_time=pl.col("datetime").dt.time(),
+            date_only=pl.col("date").dt.date(),
+            entry_time=pl.col("date").dt.time(),
         )
         .join(
             daily.select(["symbol", "date", "prev_atr14"]),
@@ -77,8 +77,8 @@ def calculate_triple_barrier_labels(
             how="left",
         )
         .join(
-            nifty_df.select(["datetime", pl.col("close").alias("nifty_close")]),
-            on="datetime",
+            nifty_df.select(["date", pl.col("close").alias("nifty_close")]),
+            on="date",
             how="left",
         )
     )
@@ -106,8 +106,8 @@ def calculate_triple_barrier_labels(
                 f"_lo_{h}": pl.col("low").shift(-h).over("symbol"),
                 f"_c_{h}": pl.col("close").shift(-h).over("symbol"),
                 f"_nc_{h}": pl.col("nifty_close").shift(-h).over("symbol"),
-                f"_t_{h}": pl.col("datetime").shift(-h).dt.time().over("symbol"),
-                f"_d_{h}": pl.col("datetime").shift(-h).dt.date().over("symbol"),
+                f"_t_{h}": pl.col("date").shift(-h).dt.time().over("symbol"),
+                f"_d_{h}": pl.col("date").shift(-h).dt.date().over("symbol"),
             }
         )
 
@@ -264,7 +264,7 @@ def calculate_triple_barrier_labels(
     return df.select(
         [
             "symbol",
-            "datetime",
+            "date",
             "tb_label_long",
             "tb_label_short",
             "tb_excess_ret_long",

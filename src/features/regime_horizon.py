@@ -3,7 +3,7 @@
 import polars as pl
 
 
-def add_bars_since_regime_flip(
+def calculate_regime_horizon_features(
     df: pl.DataFrame,
     regime_col: str = "intraday_regime",
     symbol_col: str = "symbol",
@@ -16,7 +16,7 @@ def add_bars_since_regime_flip(
     Also emits `regime_episode_id`, the within-session episode counter used for
     episode-level sample weighting (and later LambdaRank grouping).
     """
-    ordered = df.sort([symbol_col, date_col, "datetime"])
+    ordered = df.sort([symbol_col, date_col, "date"])
     return ordered.with_columns(
         _regime_change=(
             pl.col(regime_col) != pl.col(regime_col).shift(1).over([symbol_col, date_col])
@@ -28,7 +28,7 @@ def add_bars_since_regime_flip(
         .cast(pl.Int32),
     ).with_columns(
         bars_since_regime_flip=(
-            pl.col("datetime")
+            pl.col("date")
             .cum_count()
             .over([symbol_col, date_col, "regime_episode_id"])
             - 1

@@ -93,7 +93,7 @@ Stock-level + relative-to-index + regime-context. All lookahead-safe; no raw pri
 | `bars_since_regime_flip` | Bars since post-hysteresis entry to `TREND_UP` | Momentum age / chase risk |
 | `tod_sin` / `tod_cos` | Cyclic encoding of minutes from open | TOD effects without hard-coding clock |
 
-**Regime context (pass-through, not categorical state):** `vix_regime_ratio` (Tier 1 daily), `index_vwap_dist` (Tier 1 HMM emission). Do **not** feed `intraday_regime` as a one-hot — it is constant inside each model's training slice.
+**Regime context (pass-through, not categorical state):** `vol_regime_ratio` (Tier 1 daily), `index_vwap_dist` (Tier 1 HMM emission). Do **not** feed `intraday_regime` as a one-hot — it is constant inside each model's training slice.
 
 ---
 
