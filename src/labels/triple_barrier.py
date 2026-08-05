@@ -261,10 +261,16 @@ def calculate_triple_barrier_labels(
         .otherwise(None),
     )
 
+    # Geometry (atr_pct / widths) is frozen at the 15m decision bar for Tier 3.
     return df.select(
         [
             "symbol",
             "date",
+            "atr_pct",
+            "long_tp_w",
+            "long_sl_w",
+            "short_tp_w",
+            "short_sl_w",
             "tb_label_long",
             "tb_label_short",
             "tb_excess_ret_long",
