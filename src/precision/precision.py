@@ -10,22 +10,12 @@ import polars as pl
 from src.labels.triple_barrier import TP_PENETRATION
 from src.precision.session import (
     AFTERNOON_COVER_START,
-    DECISION_BAR_MINUTES,
-    HORIZON_MINUTES,
     MIS_FLAT_BY,
     TOP_K,
     WAIT_MINUTES,
-    long_entry_ok_expr,
-    short_entry_ok_expr,
 )
-from src.regime.types import DailyRegime, IntradayRegime
 
 ExitReason = Literal["TP", "SL", "TIMEOUT", "REGIME_FLIP", "MIS_FLATTEN", "SKIP"]
-
-TRADEABLE_DAILY_REGIMES = [
-    DailyRegime.SUPPORTIVE.value,
-    DailyRegime.AMBIGUOUS.value,
-]
 
 # Feature names kept for documentation / future meta-filter (rules v1 uses them inline).
 LONG_FEATURES = [
@@ -95,85 +85,7 @@ def size_mult_from_rank(rank: int | None, *, afternoon_cover_risk: bool = False)
     return mult
 
 
-def build_decision_registry(
-    horizon_scored: pl.DataFrame,
-    top_k: int = TOP_K,
-) -> pl.DataFrame:
-    """
-    Narrow Horizon scores to the Precision universe (top-K / bottom-K + TB gates).
-
-    Expects columns from `predict_horizon_gbm` joined with TB geometry.
-    """
-    required = {
-        "symbol",
-        "date",
-        "horizon_rank",
-        "horizon_score",
-        "horizon_direction",
-        "daily_regime",
-        "intraday_regime",
-        "close",
-        "atr_pct",
-        "long_tp_w",
-        "long_sl_w",
-        "short_tp_w",
-        "short_sl_w",
-        "tb_eligible_long",
-        "tb_eligible_short",
-    }
-    missing = required - set(horizon_scored.columns)
-    if missing:
-        raise ValueError(f"horizon_scored missing columns: {sorted(missing)}")
-
-    df = horizon_scored.with_columns(
-        date_only=pl.col("date").dt.date(),
-        time_only=pl.col("date").dt.time(),
-        decision_bar=pl.col("date"),
-        decision_close=pl.col("close"),
-    )
-
-    long_mask = (
-        pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
-        & (pl.col("intraday_regime") == IntradayRegime.TREND_UP.value)
-        & (pl.col("horizon_direction") == "long")
-        & pl.col("tb_eligible_long")
-        & long_entry_ok_expr("time_only")
-        & (pl.col("horizon_rank") <= top_k)
-    )
-    short_mask = (
-        pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
-        & (pl.col("intraday_regime") == IntradayRegime.TREND_DOWN.value)
-        & (pl.col("horizon_direction") == "short")
-        & pl.col("tb_eligible_short")
-        & short_entry_ok_expr("time_only")
-        & (pl.col("horizon_rank") <= top_k)
-    )
-
-    # HIGH_VOL / HOSTILE: no new Precision entries (cascade contract).
-    blocked = pl.col("intraday_regime").is_in(
-        [IntradayRegime.HIGH_VOL.value, IntradayRegime.NO_TRADE.value]
-    ) | (pl.col("daily_regime") == DailyRegime.NO_TRADE.value)
-
-    # MIS flatten is calendar-day 15:00 (bar-start clock), not decision+60 alone.
-    mis_deadline = (
-        pl.col("decision_bar").dt.truncate("1d")
-        + dt.timedelta(
-            hours=MIS_FLAT_BY.hour,
-            minutes=MIS_FLAT_BY.minute,
-        )
-    )
-    registry = df.filter((long_mask | short_mask) & ~blocked).with_columns(
-        vertical_deadline=pl.min_horizontal(
-            pl.col("decision_bar") + dt.timedelta(minutes=HORIZON_MINUTES),
-            mis_deadline,
-        ),
-        wait_start=pl.col("decision_bar")
-        + dt.timedelta(minutes=DECISION_BAR_MINUTES),
-    )
-    return registry.sort(["decision_bar", "horizon_direction", "horizon_rank"])
-
-
-def run_precision_rules(
+def classify_precision(
     registry: pl.DataFrame,
     stock_1m: pl.DataFrame,
     *,
@@ -200,131 +112,138 @@ def run_precision_rules(
     short_sl_blocked: set[tuple[str, dt.date]] = set()
 
     for ep in registry.iter_rows(named=True):
-        symbol = ep["symbol"]
-        direction = ep["horizon_direction"]
-        session_day = ep["date_only"]
-        wait_start = ep["wait_start"]
-        vertical_deadline = ep["vertical_deadline"]
-        decision_close = float(ep["decision_close"])
-        atr_pct = float(ep["atr_pct"]) if ep["atr_pct"] is not None else None
-        rank = int(ep["horizon_rank"]) if ep["horizon_rank"] is not None else None
-        score = ep["horizon_score"]
-
-        if direction == "long":
-            tp_w = float(ep["long_tp_w"])
-            sl_w = float(ep["long_sl_w"])
-            spread_ceiling = SPREAD_CEILING_LONG_BPS
-        else:
-            tp_w = float(ep["short_tp_w"])
-            sl_w = float(ep["short_sl_w"])
-            spread_ceiling = SPREAD_CEILING_SHORT_BPS
-
-        base = {
-            "symbol": symbol,
-            "decision_bar": ep["decision_bar"],
-            "horizon_direction": direction,
-            "horizon_rank": rank,
-            "horizon_score": score,
-            "daily_regime": ep["daily_regime"],
-            "intraday_regime": ep["intraday_regime"],
-            "atr_pct": atr_pct,
-            "tp_w": tp_w,
-            "sl_w": sl_w,
-            "vertical_deadline": vertical_deadline,
-            "tb_label_long": ep.get("tb_label_long"),
-            "tb_label_short": ep.get("tb_label_short"),
-            "meta_label_pass": None,
-        }
-
-        if direction == "short" and (symbol, session_day) in short_sl_blocked:
-            rows.append(_skip_row(base, "SKIP"))
-            continue
-
-        bars = by_symbol.get(symbol)
-        if bars is None or atr_pct is None or atr_pct <= 0:
-            rows.append(_skip_row(base, "SKIP"))
-            continue
-
-        wait_end = wait_start + dt.timedelta(minutes=wait_minutes - 1)
-        wait_bars = bars.filter(
-            (pl.col("date") >= wait_start) & (pl.col("date") <= wait_end)
-        ).sort("date")
-
-        if wait_bars.height == 0:
-            rows.append(_skip_row(base, "SKIP"))
-            continue
-
-        # Compression = (ATR_1m% / TB atr_pct). Skip gap / halt-distorted bars.
-        wait_bars = wait_bars.with_columns(
-            m1_range_compression=(pl.col("atr_1m_5") / pl.col("close"))
-            / pl.lit(atr_pct),
-        )
-
-        fill = _find_entry(
-            wait_bars,
-            direction=direction,
-            decision_close=decision_close,
-            tp_w=tp_w,
-            sl_w=sl_w,
-            spread_ceiling=spread_ceiling,
-            vertical_deadline=vertical_deadline,
-        )
-        if fill is None:
-            rows.append(_skip_row(base, "SKIP"))
-            continue
-
-        afternoon_risk = bool(fill.get("afternoon_cover_risk", False))
-        size_mult = size_mult_from_rank(rank, afternoon_cover_risk=afternoon_risk)
-        if size_mult <= 0:
-            rows.append(_skip_row(base, "SKIP"))
-            continue
-
-        entry_bar = fill["entry_bar_1m"]
-        entry_px = float(fill["entry_px"])
-        if direction == "long":
-            tp_px = entry_px * (1.0 + tp_w)
-            sl_px = entry_px * (1.0 - sl_w)
-        else:
-            tp_px = entry_px * (1.0 - tp_w)
-            sl_px = entry_px * (1.0 + sl_w)
-
-        hold_bars = bars.filter(
-            (pl.col("date") > entry_bar) & (pl.col("date") <= vertical_deadline)
-        ).sort("date")
-
-        exit_info = _resolve_exit(
-            hold_bars,
-            direction=direction,
-            entry_px=entry_px,
-            tp_px=tp_px,
-            sl_px=sl_px,
-            vertical_deadline=vertical_deadline,
-        )
-
-        if direction == "short" and exit_info["exit_reason"] == "SL":
-            short_sl_blocked.add((symbol, session_day))
-
         rows.append(
-            {
-                **base,
-                "precision_fire": True,
-                "entry_bar_1m": entry_bar,
-                "entry_px": entry_px,
-                "tp_px": tp_px,
-                "sl_px": sl_px,
-                "size_mult": size_mult,
-                "entry_reason": fill["entry_reason"],
-                "afternoon_cover_risk": afternoon_risk,
-                "exit_bar_1m": exit_info["exit_bar_1m"],
-                "exit_px": exit_info["exit_px"],
-                "exit_reason": exit_info["exit_reason"],
-                "gross_ret": exit_info["gross_ret"],
-            }
+            _process_episode(
+                ep, by_symbol, short_sl_blocked, wait_minutes
+            )
         )
 
     if not rows:
         return _empty_trades()
     return pl.DataFrame(rows)
+
+
+def _process_episode(
+    ep: dict,
+    by_symbol: dict[str, pl.DataFrame],
+    short_sl_blocked: set[tuple[str, dt.date]],
+    wait_minutes: int,
+) -> dict:
+    """Process a single decision episode through the precision timing rules."""
+    symbol = ep["symbol"]
+    direction = ep["horizon_direction"]
+    session_day = ep["date_only"]
+    wait_start = ep["wait_start"]
+    vertical_deadline = ep["vertical_deadline"]
+    decision_close = float(ep["decision_close"])
+    atr_pct = float(ep["atr_pct"]) if ep["atr_pct"] is not None else None
+    rank = int(ep["horizon_rank"]) if ep["horizon_rank"] is not None else None
+    score = ep["horizon_score"]
+
+    if direction == "long":
+        tp_w = float(ep["long_tp_w"])
+        sl_w = float(ep["long_sl_w"])
+        spread_ceiling = SPREAD_CEILING_LONG_BPS
+    else:
+        tp_w = float(ep["short_tp_w"])
+        sl_w = float(ep["short_sl_w"])
+        spread_ceiling = SPREAD_CEILING_SHORT_BPS
+
+    base = {
+        "symbol": symbol,
+        "decision_bar": ep["decision_bar"],
+        "horizon_direction": direction,
+        "horizon_rank": rank,
+        "horizon_score": score,
+        "daily_regime": ep["daily_regime"],
+        "intraday_regime": ep["intraday_regime"],
+        "atr_pct": atr_pct,
+        "tp_w": tp_w,
+        "sl_w": sl_w,
+        "vertical_deadline": vertical_deadline,
+        "tb_label_long": ep.get("tb_label_long"),
+        "tb_label_short": ep.get("tb_label_short"),
+        "meta_label_pass": None,
+    }
+
+    if direction == "short" and (symbol, session_day) in short_sl_blocked:
+        return _skip_row(base, "SKIP")
+
+    bars = by_symbol.get(symbol)
+    if bars is None or atr_pct is None or atr_pct <= 0:
+        return _skip_row(base, "SKIP")
+
+    wait_end = wait_start + dt.timedelta(minutes=wait_minutes - 1)
+    wait_bars = bars.filter(
+        (pl.col("date") >= wait_start) & (pl.col("date") <= wait_end)
+    ).sort("date")
+
+    if wait_bars.height == 0:
+        return _skip_row(base, "SKIP")
+
+    # Compression = (ATR_1m% / TB atr_pct). Skip gap / halt-distorted bars.
+    wait_bars = wait_bars.with_columns(
+        m1_range_compression=(pl.col("atr_1m_5") / pl.col("close"))
+        / pl.lit(atr_pct),
+    )
+
+    fill = _find_entry(
+        wait_bars,
+        direction=direction,
+        decision_close=decision_close,
+        tp_w=tp_w,
+        sl_w=sl_w,
+        spread_ceiling=spread_ceiling,
+        vertical_deadline=vertical_deadline,
+    )
+    if fill is None:
+        return _skip_row(base, "SKIP")
+
+    afternoon_risk = bool(fill.get("afternoon_cover_risk", False))
+    size_mult = size_mult_from_rank(rank, afternoon_cover_risk=afternoon_risk)
+    if size_mult <= 0:
+        return _skip_row(base, "SKIP")
+
+    entry_bar = fill["entry_bar_1m"]
+    entry_px = float(fill["entry_px"])
+    if direction == "long":
+        tp_px = entry_px * (1.0 + tp_w)
+        sl_px = entry_px * (1.0 - sl_w)
+    else:
+        tp_px = entry_px * (1.0 - tp_w)
+        sl_px = entry_px * (1.0 + sl_w)
+
+    hold_bars = bars.filter(
+        (pl.col("date") > entry_bar) & (pl.col("date") <= vertical_deadline)
+    ).sort("date")
+
+    exit_info = _resolve_exit(
+        hold_bars,
+        direction=direction,
+        entry_px=entry_px,
+        tp_px=tp_px,
+        sl_px=sl_px,
+        vertical_deadline=vertical_deadline,
+    )
+
+    if direction == "short" and exit_info["exit_reason"] == "SL":
+        short_sl_blocked.add((symbol, session_day))
+
+    return {
+        **base,
+        "precision_fire": True,
+        "entry_bar_1m": entry_bar,
+        "entry_px": entry_px,
+        "tp_px": tp_px,
+        "sl_px": sl_px,
+        "size_mult": size_mult,
+        "entry_reason": fill["entry_reason"],
+        "afternoon_cover_risk": afternoon_risk,
+        "exit_bar_1m": exit_info["exit_bar_1m"],
+        "exit_px": exit_info["exit_px"],
+        "exit_reason": exit_info["exit_reason"],
+        "gross_ret": exit_info["gross_ret"],
+    }
 
 
 def _find_entry(
@@ -335,7 +254,7 @@ def _find_entry(
     tp_w: float,
     sl_w: float,
     spread_ceiling: float,
-    vertical_deadline,
+    vertical_deadline: dt.datetime,
 ) -> dict | None:
     """Bounded wait: setup → fill, else fallback on last wait bar."""
     n = wait_bars.height
@@ -377,7 +296,7 @@ def _entry_hard_gates(
     tp_w: float,
     sl_w: float,
     spread_ceiling: float,
-    vertical_deadline,
+    vertical_deadline: dt.datetime,
 ) -> dict:
     last = float(bar["close"])
     spread = bar.get("spread_proxy_bps")
@@ -440,7 +359,7 @@ def _resolve_exit(
     entry_px: float,
     tp_px: float,
     sl_px: float,
-    vertical_deadline,
+    vertical_deadline: dt.datetime,
 ) -> dict:
     """Walk 1m bars until TP / SL / MIS / timeout. No trail in v1."""
     for bar in hold_bars.iter_rows(named=True):
@@ -483,7 +402,7 @@ def _resolve_exit(
     }
 
 
-def _exit_at(ts, exit_px: float, entry_px: float, direction: str, reason: str) -> dict:
+def _exit_at(ts: dt.datetime, exit_px: float, entry_px: float, direction: str, reason: str) -> dict:
     if direction == "long":
         gross = exit_px / entry_px - 1.0
     else:

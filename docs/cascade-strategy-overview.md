@@ -98,7 +98,7 @@ On top of Horizon’s rank target, path labels fix **where** a trade should win,
 | Barrier | Lock |
 |---|---|
 | Vertical (time) | Hard **60m** (`H = 4`); MIS-safe entry cutoffs |
-| Horizontal TP/SL | ATR-scaled + cost floors (Long TP ≥ **90 bps**) |
+| Horizontal TP/SL | TOD `rv_15_mean`-scaled + cost floors (Long TP ≥ **90 bps**) |
 | Eligibility | Skip if vol-based TP cannot clear the cost floor |
 | Labels | Path excess vs Nifty **minus 0.30%**; dead zone ±30 bps |
 

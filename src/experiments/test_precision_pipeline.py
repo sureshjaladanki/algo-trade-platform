@@ -18,8 +18,8 @@ from src.pipelines.build_regime_features import (
     load_regime_data,
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
-from src.pipelines.precision_pipeline import run_precision_on_scored
 from src.pipelines.regime_pipeline import predict_intraday_hmm
+from src.precision.precision import classify_precision, summarize_precision_trades
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
@@ -74,6 +74,8 @@ def main():
     config_path = REPO_ROOT / args.config
     train_start, train_end = parse_period_range(args.train_period)
     test_start, test_end = parse_period_range(args.test_period)
+    # Train window is warm-up only (rolling features / HMM hysteresis); Tier 3
+    # does not train — score / trade the test window after filtering.
     load_start = min(train_start, test_start)
     load_end = max(train_end, test_end)
 
@@ -104,9 +106,23 @@ def main():
         apply_hysteresis=True,
     )
     regime_preds = override_intraday_regime(regime_preds)
-    regime_df = regime_preds.select(["date", "daily_regime", "intraday_regime"])
 
-    print("4. Loading Horizon universe...")
+    print(f"4. Filtering Regime test window ({args.test_period})...")
+    daily_regime = filter_by_period(
+        daily_regime, test_start, test_end, datetime_col="date"
+    )
+    intraday_regime = filter_by_period(
+        intraday_regime, test_start, test_end, datetime_col="date"
+    )
+    regime_df = filter_by_period(
+        regime_preds.select(["date", "daily_regime", "intraday_regime"]),
+        test_start,
+        test_end,
+        datetime_col="date",
+    )
+    print(f"   Regime test bars: {regime_df.height}")
+
+    print("5. Loading Horizon universe...")
     stock_15m, nifty_15m, sector_15m, daily_stock, daily_nifty = load_horizon_data(
         data_dir=GOLDEN,
         config_path=config_path,
@@ -114,7 +130,7 @@ def main():
         end_period=load_end,
     )
 
-    print("5. Building Horizon features / TB geometry...")
+    print("6. Building Horizon features / TB geometry...")
     horizon_df = build_horizon_features(
         stock_15m,
         nifty_15m,
@@ -126,7 +142,7 @@ def main():
         regime_df=regime_df,
     )
 
-    print(f"6. Filtering Horizon test window ({args.test_period})...")
+    print(f"7. Filtering Horizon test window ({args.test_period})...")
     test_df = filter_by_period(horizon_df, test_start, test_end, datetime_col="date")
     print(f"   Test shape: {test_df.shape}")
 
@@ -134,7 +150,7 @@ def main():
         print("Error: empty Horizon test — check periods.")
         return
 
-    print("7. Loading Horizon models from Horizon_Pipeline + scoring test...")
+    print("8. Loading Horizon models from Horizon_Pipeline + scoring test...")
     directions = ["long", "short"] if args.direction == "both" else [args.direction]
     try:
         models, resolved_horizon_run_id = load_horizon_models(
@@ -155,20 +171,19 @@ def main():
 
     scored = pl.concat(scored_dfs, how="diagonal")
 
-    print("8. Loading 1m + building Precision features...")
-    symbols = scored.select("symbol").unique().to_series().to_list()
+    print("9. Loading 1m + building Precision features...")
     stock_1m, nifty_1m = load_precision_data(
         data_dir=GOLDEN,
         config_path=config_path,
         start_period=test_start,
         end_period=test_end,
-        symbols=symbols,
     )
-    features_1m = build_precision_features(stock_1m, nifty_1m)
+    features_1m, registry = build_precision_features(stock_1m, nifty_1m, scored)
     print(f"   1m feature rows: {features_1m.height}")
 
-    print("9. Running Precision rules...")
-    registry, trades, summary = run_precision_on_scored(scored, features_1m)
+    print("10. Running Precision rules...")
+    trades = classify_precision(registry, features_1m)
+    summary = summarize_precision_trades(trades)
     print(f"   Registry: {registry.height}, Trades: {trades.height}")
     print("\nSummary:")
     for key, val in summary.items():

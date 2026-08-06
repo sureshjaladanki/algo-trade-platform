@@ -16,7 +16,7 @@
 | Third barrier | **Vertical / time barrier** (max hold) |
 | v1 timeout | **Hard timeout** `H = 4` bars (**60 minutes**) |
 | Vol-based timeout | **Reject as primary** — do not vary `H` by stock/sector vol in v1 |
-| Where vol goes | **Horizontal barriers** — ATR / TOD-`rv`-scaled TP & SL |
+| Where vol goes | **Horizontal barriers** — TOD absolute `rv_15_mean`-scaled TP & SL (not daily ATR; not intensity ratio) |
 | Sector-conditioned `H` | **None in v1** (stock ATR already absorbs sector vol) |
 | Cost `c` | **0.30%** enters barrier floors **and** net-of-cost labels |
 | Build posture | Accept with revisions; shrink-only hybrid staged later |
@@ -71,18 +71,20 @@ H_actual = min(H_max, bars_until_MIS_safe_exit)
 
 1. **Cross-sectional ranking** needs a uniform label horizon — mixed `H` across names breaks LightGBM rank comparability (Gemini).  
 2. **30 bps** needs time to clear — shrinking `H` in high vol often kills the trade before it can cover cost (Gemini, reinforced by cost revision).  
-3. **Sector vol** is already absorbed by **stock-level ATR / `rv_15`** on TP/SL width; separate sector `H_max` tables add parameters without lift (both judges).
+3. **Sector vol** is already absorbed by **stock-level TOD `rv_15_mean`** on TP/SL width; separate sector `H_max` tables add parameters without lift (both judges).
 
 ### Horizontal barriers — vol-scaled TP/SL + cost floors
 
-Let `c = 0.0030` (30 bps). Use **trailing** vol only (ATR14 or TOD-norm `rv_15` ending at `t−1` — no lookahead).
+Let `c = 0.0030` (30 bps). Use **trailing** vol only — **locked vol scale (2026-08-06):** causal same-clock absolute **`rv_15_mean`** (typical `(H−L)/close` for that TOD bucket, prior sessions only). Do **not** use daily ATR14 (unreachable on H=4) or the dimensionless `stock_rv_15` intensity ratio (wrong units for barrier %).
+
+Column name `atr_pct` is retained for downstream compatibility; its value is `rv_15_mean`.
 
 | Side | TP | SL |
 |---|---|---|
-| **Long** | `max(2.5 × ATR% , 3c = 90 bps)` | `max(1.0 × ATR% , 1.5c = 45 bps)` |
-| **Short** | `max(2.0 × ATR% , ~2.5c ≈ 75 bps)` | `max(0.9 × ATR% , ~1.5c = 45 bps)` |
+| **Long** | `max(2.5 × atr_pct , 3c = 90 bps)` | `max(1.0 × atr_pct , 1.5c = 45 bps)` |
+| **Short** | `max(2.0 × atr_pct , ~2.5c ≈ 75 bps)` | `max(0.9 × atr_pct , ~1.5c = 45 bps)` |
 
-Multiples lean toward Gemini’s post–30 bps revision (wider TP to restore net R:R). Floor multiples lean toward Claude’s `max(vol, cost×k)` rule.
+Multiples lean toward Gemini’s post–30 bps revision (wider TP to restore net R:R). Floor multiples lean toward Claude’s `max(vol, cost×k)` rule. Vol clock leans toward Claude’s TOD-`rv` reading (absolute baseline, not the ratio).
 
 **Eligibility screen (both judges, cost-aware):** if at `H=4` the vol-based TP cannot clear the **90 bps** floor (or `3c`), **skip the entry** — do not force a sub-economic trade into training. Low-vol sectors (e.g. FMCG) self-filter without a sector timeout axis.
 
@@ -102,7 +104,7 @@ Do **not** treat 30 bps as eval-only PnL haircut after training on gross labels.
 |---|---|
 | `HIGH_VOL` | Tier 1 already pauses/reduces momentum; **do not invent a second H regime in v1**. ATR-widened TP/SL absorb vol. (Claude’s extra `×0.75` H shrink → ideal only.) |
 | `CHOP` | Out of scope — mean-reversion sleeve, not this momentum triple barrier |
-| Quiet `TREND_*` | Keep `H=4`; tighter ATR → narrower TP/SL automatically |
+| Quiet `TREND_*` | Keep `H=4`; tighter TOD `rv_15_mean` → narrower TP/SL automatically |
 
 ### Long vs Short asymmetry (time)
 
@@ -153,13 +155,13 @@ Do **not** treat 30 bps as eval-only PnL haircut after training on gross labels.
 
 1. **Cost-adjusted path labels** — `R_path − R_nifty − 0.003` with barriers resolving the path.  
 2. **Hard `H=4` + MIS entry cutoffs** (Long 14:00 / Short ~13:30–13:45).  
-3. **ATR TP/SL + 90 bps TP floor + eligibility skip** when cost cannot clear.
+3. **TOD `rv_15_mean` TP/SL + 90 bps TP floor + eligibility skip** when cost cannot clear.
 
 ---
 
 ## Next build step
 
-1. Triple-barrier label builder: fixed vertical `H=4`, ATR TP/SL, cost floors, MIS truncation.  
+1. Triple-barrier label builder: fixed vertical `H=4`, TOD `rv_15_mean` TP/SL, cost floors, MIS truncation.  
 2. Wire `c = 0.003` into label construction (not just backtest PnL).  
 3. Eligibility filter on min TP width / ATR.  
 4. Keep Tier 2 excess-return regression as primary rank target; use triple-barrier labels for meta-labeling / entry quality when ready.

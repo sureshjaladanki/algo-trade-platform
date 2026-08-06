@@ -23,7 +23,7 @@ def load_hmm_model(
     experiment_name: str = REGIME_EXPERIMENT,
 ) -> tuple[IntradayHMMRegimeModel, str]:
     """
-    Load a fitted IntradayHMMRegime logged by `regime_pipeline`.
+    Load a fitted IntradayHMMRegimeModel logged by `regime_pipeline`.
 
     Resolution order:
       1. Explicit `--regime-run-id`
@@ -45,7 +45,7 @@ def load_hmm_model(
 
     if not isinstance(hmm_model, IntradayHMMRegimeModel):
         raise TypeError(
-            f"Expected IntradayHMMRegime artifact, got {type(hmm_model)!r}"
+            f"Expected IntradayHMMRegimeModel artifact, got {type(hmm_model)!r}"
         )
     if not hmm_model.is_fitted:
         raise ValueError(f"HMM from run {resolved_run_id} is not fitted.")
@@ -60,7 +60,7 @@ def load_horizon_model(
     experiment_name: str = HORIZON_EXPERIMENT,
 ) -> tuple[GBMHorizonModel, str]:
     """
-    Load a fitted HorizonModel (long or short) logged by `horizon_pipeline`.
+    Load a fitted GBMHorizonModel (long or short) logged by `horizon_pipeline`.
 
     Artifacts are stored as `model/{direction}/{direction}_model.pkl`.
 
@@ -142,7 +142,7 @@ def _load_horizon_pkl(
         model = pickle.load(f)
 
     if not isinstance(model, GBMHorizonModel):
-        raise TypeError(f"Expected HorizonModel artifact, got {type(model)!r}")
+        raise TypeError(f"Expected GBMHorizonModel artifact, got {type(model)!r}")
     if model.direction != direction:
         raise ValueError(
             f"Loaded model direction {model.direction!r} != requested {direction!r}"

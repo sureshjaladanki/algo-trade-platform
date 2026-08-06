@@ -57,7 +57,7 @@ def fit_intraday_hmm(
 ) -> IntradayHMMRegimeModel:
     """
     Fits the intraday HMM only on cascade-gated rows (tradeable daily + non-bleed).
-    Returns the fitted IntradayHMMRegime model, which can be logged to MLflow.
+    Returns the fitted IntradayHMMRegimeModel, which can be logged to MLflow.
     """
     valid_intraday = cascade_valid_intraday(daily_features, intraday_features)
     hmm = IntradayHMMRegimeModel(random_state=random_state, n_iter=n_iter)

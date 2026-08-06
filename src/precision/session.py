@@ -4,10 +4,7 @@ import datetime as dt
 
 # Re-export Tier 2 entry / MIS masks — Precision must not invent a second clock.
 from src.horizon.session import (  # noqa: F401
-    LONG_LAST_ENTRY,
     MIS_FLAT_BY,
-    SHORT_LAST_ENTRY,
-    auction_bleed_entry_expr,
     long_entry_ok_expr,
     short_entry_ok_expr,
 )

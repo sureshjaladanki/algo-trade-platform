@@ -17,7 +17,7 @@
 | Role | **Narrow** Tier 2 top-K / bottom-K — skip, delay fill, or size down; **never** re-rank or re-forecast direction |
 | Timeframe | **1m** for entry timing; TP / SL / `H` / eligibility **frozen from Tier 2 triple-barrier** (15m decision bar) |
 | Long vs Short | **Separate** strategies — asymmetric windows, squeeze / cover gates, no-reentry on shorts |
-| Exit geometry | Reuse TB: Long `max(2.5×ATR%, 90bps)` / `max(1.0×ATR%, 45bps)`; Short `max(2.0×ATR%, 75bps)` / `max(0.9×ATR%, 45bps)`; hard `H=4` |
+| Exit geometry | Reuse TB: Long `max(2.5×rv_15_mean, 90bps)` / `max(1.0×rv_15_mean, 45bps)`; Short `max(2.0×rv_15_mean, 75bps)` / `max(0.9×rv_15_mean, 45bps)`; hard `H=4` (`atr_pct` column = TOD `rv_15_mean`) |
 | Trailing stop | **Reject in v1** — static TP / SL / timeout only |
 | Build posture | Accept with revisions; ship pure-rules v1; stage meta-label LightGBM later |
 

@@ -1,16 +1,13 @@
 """Tier 3 Precision 1-minute timing features (Long / Short)."""
 
-import datetime as dt
-
 import polars as pl
 
-# Keep local to avoid features → precision.rules → LightGBM import chain.
-AFTERNOON_COVER_START = dt.time(13, 0)
+from src.precision.session import AFTERNOON_COVER_START
 
 
 def calculate_precision_features(
     stock_1m: pl.DataFrame,
-    nifty_1m: pl.DataFrame | None = None,
+    nifty_1m: pl.DataFrame,
 ) -> pl.DataFrame:
     """
     Causal 1m timing features for Precision entry rules.
@@ -122,7 +119,7 @@ def calculate_precision_features(
         rv_1m_mean_5=pl.col("rv_1m").rolling_mean(window_size=5).over(session),
     )
 
-    if nifty_1m is not None and nifty_1m.height > 0:
+    if nifty_1m.height > 0:
         # Session-scoped roll so the 5-bar mean does not bleed across overnight gaps.
         nifty = (
             nifty_1m.sort("date")

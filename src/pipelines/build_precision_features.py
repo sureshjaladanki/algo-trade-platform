@@ -1,11 +1,15 @@
 """Load 1m universe data and build Tier 3 Precision features."""
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
 import polars as pl
 
+from src.features.horizon_precision import calculate_horizon_precision_features
 from src.features.precision import calculate_precision_features
+from src.precision.session import TOP_K
 from src.utils.load_config import load_config
 from src.utils.symbol_data import load_symbol_data
 
@@ -15,14 +19,11 @@ def load_precision_data(
     config_path: Path,
     start_period: str,
     end_period: str,
-    symbols: list[str] | None = None,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Load 1m OHLCV for Precision timing (no 15m resample).
 
-    If `symbols` is provided, only those names are loaded (typically the
-    Horizon registry universe for the eval window). Otherwise all
-    ``sectoral_indices[*].trade_symbols`` are loaded.
+    Tradable names come from ``sectoral_indices[*].trade_symbols``.
 
     Returns:
         stock_1m, nifty_1m
@@ -41,11 +42,10 @@ def load_precision_data(
         market_path, start_period=start_period, end_period=end_period
     ).select(["date", "open", "high", "low", "close", "volume"])
 
-    if symbols is None:
-        symbols = []
-        for sector_data in sectoral_indices.values():
-            symbols.extend(sector_data.get("trade_symbols") or [])
-        symbols = sorted(set(symbols))
+    symbols: list[str] = []
+    for sector_data in sectoral_indices.values():
+        symbols.extend(sector_data.get("trade_symbols") or [])
+    symbols = sorted(set(symbols))
 
     print(f"Loading 1m stock OHLCV for {len(symbols)} symbols...")
     frames: list[pl.DataFrame] = []
@@ -75,7 +75,17 @@ def load_precision_data(
 
 def build_precision_features(
     stock_1m: pl.DataFrame,
-    nifty_1m: pl.DataFrame | None = None,
-) -> pl.DataFrame:
-    """Compute Tier 3 1m timing features (causal)."""
-    return calculate_precision_features(stock_1m, nifty_1m)
+    nifty_1m: pl.DataFrame,
+    horizon_df: pl.DataFrame,
+    top_k: int = TOP_K,
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """
+    Compute Tier 3 1m timing features and narrow Horizon scores to the Precision
+    registry (top-K / bottom-K + TB gates).
+
+    Returns:
+        features_1m, registry
+    """
+    features_1m = calculate_precision_features(stock_1m, nifty_1m)
+    registry = calculate_horizon_precision_features(horizon_df, top_k=top_k)
+    return features_1m, registry

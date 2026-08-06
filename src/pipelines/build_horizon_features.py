@@ -198,6 +198,6 @@ def build_horizon_features(
     horizon_df = calculate_regime_horizon_features(horizon_df)
 
     tb_df = calculate_triple_barrier_labels(
-        stock_df, nifty_with_emissions, daily_stock_df, horizon_bars=4
+        stock_df, nifty_with_emissions, horizon_bars=4
     )
     return horizon_df.join(tb_df, on=["symbol", "date"], how="left")

@@ -18,24 +18,30 @@ DEAD_ZONE = ROUND_TRIP_COST
 # Barriers are not assumed to fill on an exact high/low touch: a take-profit must be
 # penetrated by this much, while a stop triggers on touch (conservative both ways).
 TP_PENETRATION = 0.0002  # 2 bps
+# Causal TOD lookback — match Horizon stock_rv_15 denominator.
+TOD_LOOKBACK_DAYS = 60
 
 
 def calculate_triple_barrier_labels(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
-    daily_stock_df: pl.DataFrame,
     horizon_bars: int = 4,
     cost: float = ROUND_TRIP_COST,
     tp_penetration: float = TP_PENETRATION,
     mis_flat_by: dt.time = MIS_FLAT_BY,
     long_last_entry: dt.time = LONG_LAST_ENTRY,
     short_last_entry: dt.time = SHORT_LAST_ENTRY,
+    tod_lookback_days: int = TOD_LOOKBACK_DAYS,
 ) -> pl.DataFrame:
     """
-    Hard vertical H=4, ATR-scaled TP/SL with cost floors, net-of-cost path labels.
+    Hard vertical H=4, TOD-rv-scaled TP/SL with cost floors, net-of-cost path labels.
 
-    Long:  TP = max(2.5×ATR%, 90bps), SL = max(1.0×ATR%, 45bps)
-    Short: TP = max(2.0×ATR%, 75bps), SL = max(0.9×ATR%, 45bps)
+    Vol scale (`atr_pct`) is causal same-clock **absolute** `rv_15_mean`
+    (typical (H−L)/close for that TOD bucket) — not daily ATR and not the
+    dimensionless `stock_rv_15` intensity ratio.
+
+    Long:  TP = max(2.5×atr_pct, 90bps), SL = max(1.0×atr_pct, 45bps)
+    Short: TP = max(2.0×atr_pct, 75bps), SL = max(0.9×atr_pct, 45bps)
 
     Coding: +1 TP-first, -1 SL-first, 0 timeout. The ±cost dead zone applies to
     timeout resolutions only — a barrier hit keeps its sign.
@@ -47,34 +53,17 @@ def calculate_triple_barrier_labels(
     """
     stock_df = stock_df.sort(["symbol", "date"])
     nifty_df = nifty_df.sort("date")
-    daily_stock_df = daily_stock_df.sort(["symbol", "date"])
-
-    daily = daily_stock_df.with_columns(
-        tr=pl.max_horizontal(
-            pl.col("high") - pl.col("low"),
-            (pl.col("high") - pl.col("close").shift(1).over("symbol")).abs(),
-            (pl.col("low") - pl.col("close").shift(1).over("symbol")).abs(),
-        )
-    ).with_columns(
-        prev_atr14=(
-            pl.col("tr")
-            .rolling_mean(window_size=14)
-            .over("symbol")
-            .shift(1)
-            .over("symbol")
-        ),
-    )
 
     df = (
         stock_df.with_columns(
             date_only=pl.col("date").dt.date(),
+            time_only=pl.col("date").dt.time(),
             entry_time=pl.col("date").dt.time(),
-        )
-        .join(
-            daily.select(["symbol", "date", "prev_atr14"]),
-            left_on=["symbol", "date_only"],
-            right_on=["symbol", "date"],
-            how="left",
+            # Match Horizon range_pct: range vs prior close (lookahead-safe).
+            range_pct=(
+                (pl.col("high") - pl.col("low"))
+                / pl.col("close").shift(1).over("symbol")
+            ),
         )
         .join(
             nifty_df.select(["date", pl.col("close").alias("nifty_close")]),
@@ -83,8 +72,22 @@ def calculate_triple_barrier_labels(
         )
     )
 
+    # Causal TOD baseline: prior sessions only within (symbol, clock bucket).
+    min_periods = max(10, tod_lookback_days // 4)
+    df = (
+        df.sort(["symbol", "time_only", "date_only"])
+        .with_columns(
+            rv_15_mean=pl.col("range_pct")
+            .shift(1)
+            .rolling_mean(window_size=tod_lookback_days, min_samples=min_periods)
+            .over(["symbol", "time_only"]),
+        )
+        .sort(["symbol", "date"])
+    )
+
     df = df.with_columns(
-        atr_pct=pl.col("prev_atr14") / pl.col("close"),
+        # Absolute TOD typical range % — barrier denominator (not stock_rv_15).
+        atr_pct=pl.col("rv_15_mean"),
         entry_px=pl.col("close"),
         entry_nifty=pl.col("nifty_close"),
     ).with_columns(

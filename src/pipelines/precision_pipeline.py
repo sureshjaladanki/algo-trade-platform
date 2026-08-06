@@ -25,31 +25,12 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.rules import (
-    build_decision_registry,
-    run_precision_rules,
-    summarize_precision_trades,
-)
+from src.precision.precision import classify_precision, summarize_precision_trades
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
 
 PRECISION_EXPERIMENT = "Precision_Pipeline"
-
-
-def run_precision_on_scored(
-    horizon_scored: pl.DataFrame,
-    stock_1m_features: pl.DataFrame,
-) -> tuple[pl.DataFrame, pl.DataFrame, dict[str, Any]]:
-    """
-    Apply Precision rules to a Horizon-scored frame + 1m features.
-
-    Returns (registry, trades, summary).
-    """
-    registry = build_decision_registry(horizon_scored)
-    trades = run_precision_rules(registry, stock_1m_features)
-    summary = summarize_precision_trades(trades)
-    return registry, trades, summary
 
 
 def run_pipeline(
@@ -71,7 +52,9 @@ def run_pipeline(
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
-        # Include train window so rolling Horizon features have history before test.
+        # Include train window so rolling Regime / Horizon features (and HMM
+        # hysteresis) have history before test. Tier 3 does not train — only
+        # the test window is scored / traded after warm-up.
         load_start = min(train_start, test_start)
         load_end = max(train_end, test_end)
 
@@ -102,11 +85,24 @@ def run_pipeline(
             apply_hysteresis=True,
         )
         regime_preds = override_intraday_regime(regime_preds)
-        regime_df = regime_preds.select(
-            ["date", "daily_regime", "intraday_regime"]
-        )
 
-        print("4. Loading Horizon universe (15m stocks + sectors + Nifty)...")
+        print(f"4. Filtering Regime test window ({test_period})...")
+        daily_regime = filter_by_period(
+            daily_regime, test_start, test_end, datetime_col="date"
+        )
+        intraday_regime = filter_by_period(
+            intraday_regime, test_start, test_end, datetime_col="date"
+        )
+        regime_df = filter_by_period(
+            regime_preds.select(["date", "daily_regime", "intraday_regime"]),
+            test_start,
+            test_end,
+            datetime_col="date",
+        )
+        print(f"   Regime test bars: {regime_df.height}")
+        mlflow.log_metric("regime_test_rows", regime_df.height)
+
+        print("5. Loading Horizon universe (15m stocks + sectors + Nifty)...")
         stock_15m, nifty_15m, sector_15m, daily_stock, daily_nifty = load_horizon_data(
             data_dir=data_dir,
             config_path=config_path,
@@ -114,7 +110,7 @@ def run_pipeline(
             end_period=load_end,
         )
 
-        print("5. Building Horizon features / labels / TB geometry...")
+        print("6. Building Horizon features / labels / TB geometry...")
         horizon_df = build_horizon_features(
             stock_15m,
             nifty_15m,
@@ -126,7 +122,7 @@ def run_pipeline(
             regime_df=regime_df,
         )
 
-        print(f"6. Filtering Horizon test window ({test_period})...")
+        print(f"7. Filtering Horizon test window ({test_period})...")
         test_df = filter_by_period(
             horizon_df, test_start, test_end, datetime_col="date"
         )
@@ -137,7 +133,7 @@ def run_pipeline(
             print("Error: Test Horizon dataframe is empty. Check your periods.")
             sys.exit(1)
 
-        print("7. Loading fitted Horizon models from Horizon_Pipeline experiment...")
+        print("8. Loading fitted Horizon models from Horizon_Pipeline experiment...")
         # TODO: support per-sleeve Horizon run ids (--horizon-long-run-id /
         # --horizon-short-run-id) so long and short trained in separate
         # Horizon_Pipeline runs can be selected independently; fall back to
@@ -163,26 +159,24 @@ def run_pipeline(
 
         scored = pl.concat(scored_dfs, how="diagonal")
 
-        print("8. Loading 1m data for Precision registry symbols...")
-        registry_symbols = (
-            scored.select("symbol").unique().to_series().to_list()
-        )
+        print("9. Loading 1m data for Precision trade symbols...")
         # 1m only needed on the test window (entry timing / exits).
+        # Symbols come from config sectoral_indices[*].trade_symbols.
         stock_1m, nifty_1m = load_precision_data(
             data_dir=data_dir,
             config_path=config_path,
             start_period=test_start,
             end_period=test_end,
-            symbols=registry_symbols,
         )
 
-        print("9. Building Precision 1m features...")
-        features_1m = build_precision_features(stock_1m, nifty_1m)
+        print("10. Building Precision 1m features...")
+        features_1m, registry = build_precision_features(stock_1m, nifty_1m, scored)
         print(f"   1m feature rows: {features_1m.height}")
         mlflow.log_metric("precision_1m_rows", features_1m.height)
 
-        print("10. Running Precision rules (bounded-wait entry + frozen TB exits)...")
-        registry, trades, summary = run_precision_on_scored(scored, features_1m)
+        print("11. Running Precision rules (bounded-wait entry + frozen TB exits)...")
+        trades = classify_precision(registry, features_1m)
+        summary = summarize_precision_trades(trades)
         print(f"   Registry episodes: {registry.height}")
         print(f"   Trades frame: {trades.height}")
         _print_summary(summary)
