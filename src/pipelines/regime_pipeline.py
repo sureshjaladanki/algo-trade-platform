@@ -8,9 +8,12 @@ import mlflow
 import numpy as np
 import polars as pl
 
-from src.pipelines.build_regime_features import build_regime_features
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
 from src.regime.daily import classify_daily_regime
-from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegime
+from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegimeModel
 from src.regime.intraday import open_auction_bleed_expr, override_intraday_regime
 from src.regime.types import DailyRegime
 from src.utils.date import filter_by_period, parse_period_range
@@ -51,13 +54,13 @@ def fit_intraday_hmm(
     intraday_features: pl.DataFrame,
     random_state: int = 42,
     n_iter: int = 100,
-) -> IntradayHMMRegime:
+) -> IntradayHMMRegimeModel:
     """
     Fits the intraday HMM only on cascade-gated rows (tradeable daily + non-bleed).
     Returns the fitted IntradayHMMRegime model, which can be logged to MLflow.
     """
     valid_intraday = cascade_valid_intraday(daily_features, intraday_features)
-    hmm = IntradayHMMRegime(random_state=random_state, n_iter=n_iter)
+    hmm = IntradayHMMRegimeModel(random_state=random_state, n_iter=n_iter)
 
     if valid_intraday.height == 0:
         print("No valid intraday data to fit HMM. Check daily features and thresholds.")
@@ -70,7 +73,7 @@ def fit_intraday_hmm(
 def predict_intraday_hmm(
     daily_features: pl.DataFrame,
     intraday_features: pl.DataFrame,
-    hmm_model: IntradayHMMRegime,
+    hmm_model: IntradayHMMRegimeModel,
     apply_hysteresis: bool = True,
 ) -> pl.DataFrame:
     """
@@ -114,7 +117,7 @@ def predict_intraday_hmm(
 
 
 def log_hmm_mlflow(
-    hmm_model: IntradayHMMRegime,
+    hmm_model: IntradayHMMRegimeModel,
     *,
     train_valid: pl.DataFrame,
     test_valid: pl.DataFrame,
@@ -161,13 +164,13 @@ def log_hmm_mlflow(
     # Trend flip rate on raw decoded test states (pre-hysteresis), session-aware.
     # test_valid is already cascade-gated (no open-auction bleed / non-tradeable days).
     if test_valid.height > 0:
-        ordered, _, lengths = IntradayHMMRegime.prepare_sequences(
+        ordered, _, lengths = IntradayHMMRegimeModel.prepare_sequences(
             test_valid, drop_nonfinite=False
         )
         if ordered.height > 0:
             preds = hmm_model.predict(ordered, apply_hysteresis=False)
             decoded = preds.filter(pl.col("intraday_regime_raw").is_not_null())
-            metrics["test_trend_flip_rate"] = IntradayHMMRegime.trend_flip_rate(
+            metrics["test_trend_flip_rate"] = IntradayHMMRegimeModel.trend_flip_rate(
                 decoded["intraday_regime_raw"].to_list(), lengths
             )
 
@@ -196,12 +199,17 @@ def run_pipeline(
         load_start = min(train_start, test_start)
         load_end = max(train_end, test_end)
 
-        print(f"Loading data and building features from {load_start} to {load_end}...")
-        daily_features, intraday_features = build_regime_features(
+        print(f"Loading regime data from {load_start} to {load_end}...")
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
             data_dir=data_dir,
             config_path=config_path,
             start_period=load_start,
             end_period=load_end,
+        )
+
+        print("Building regime features...")
+        daily_features, intraday_features = build_regime_features(
+            vix_daily, market_daily, market_15m, nifty100_daily_dfs
         )
 
         print(f"Splitting data into train ({train_period}) and test ({test_period})...")

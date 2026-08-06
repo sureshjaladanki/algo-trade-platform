@@ -3,7 +3,7 @@ from .horizon_model import (
     LONG_PARAMS,
     SHORT_FEATURES,
     SHORT_PARAMS,
-    HorizonModel,
+    GBMHorizonModel,
     get_purged_cv_splits,
 )
 from .session import (
@@ -20,7 +20,7 @@ __all__ = [
     "LONG_PARAMS",
     "SHORT_FEATURES",
     "SHORT_PARAMS",
-    "HorizonModel",
+    "GBMHorizonModel",
     "get_purged_cv_splits",
     "LONG_LAST_ENTRY",
     "MIS_FLAT_BY",

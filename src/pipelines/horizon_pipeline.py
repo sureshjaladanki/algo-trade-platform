@@ -22,7 +22,7 @@ from src.horizon.horizon_model import (
     DEFAULT_VAL_DAYS,
     LONG_FEATURES,
     SHORT_FEATURES,
-    HorizonModel,
+    GBMHorizonModel,
     episode_balanced_weights,
     get_purged_cv_splits,
     sleeve_sample_diagnostics,
@@ -35,7 +35,10 @@ from src.pipelines.build_horizon_features import (
     build_horizon_features,
     load_horizon_data,
 )
-from src.pipelines.build_regime_features import build_regime_features
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
 from src.pipelines.regime_pipeline import predict_intraday_hmm
 from src.regime.intraday import override_intraday_regime
 from src.regime.types import DailyRegime, IntradayRegime
@@ -103,7 +106,7 @@ def _predict_sleeve_mask(cfg: SleeveConfig) -> pl.Expr:
 
 def fit_horizon_gbm(
     df: pl.DataFrame, direction: str, cv_kwargs: Dict[str, Any] | None = None
-) -> tuple[HorizonModel | None, Dict[str, Any]]:
+) -> tuple[GBMHorizonModel | None, Dict[str, Any]]:
     """
     Train a single Horizon model (Long or Short) on cascade-valid sleeves with purged WF.
 
@@ -151,14 +154,14 @@ def fit_horizon_gbm(
 
     val_ics: list[float] = []
     test_ics: list[float] = []
-    models: list[HorizonModel] = []
+    models: list[GBMHorizonModel] = []
 
     for fold_train, fold_val, fold_test in get_purged_cv_splits(
         sleeve_df, calendar_dates=calendar_dates, **cv
     ):
         if min(fold_train.height, fold_val.height, fold_test.height) == 0:
             continue
-        model = HorizonModel(direction=direction)
+        model = GBMHorizonModel(direction=direction)
         val_ic = model.fit(
             X_train=fold_train,
             y_train=fold_train["fwd_excess_ret"],
@@ -212,7 +215,7 @@ def log_horizon_mlflow(direction: str, fit_stats: Dict[str, Any]) -> None:
 
 def predict_horizon_gbm(
     df: pl.DataFrame,
-    model: HorizonModel,
+    model: GBMHorizonModel,
 ) -> pl.DataFrame:
     """
     Score cascade-eligible names each bar; rank descending / ascending depending on direction.
@@ -258,12 +261,16 @@ def run_pipeline(
         load_start = min(train_start, test_start)
         load_end = max(train_end, test_end)
 
-        print(f"1. Building regime features from {load_start} to {load_end}...")
-        daily_regime, intraday_regime = build_regime_features(
+        print(f"1. Loading regime data from {load_start} to {load_end}...")
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
             data_dir=data_dir,
             config_path=config_path,
             start_period=load_start,
             end_period=load_end,
+        )
+        print("   Building regime features...")
+        daily_regime, intraday_regime = build_regime_features(
+            vix_daily, market_daily, market_15m, nifty100_daily_dfs
         )
 
         print("2. Pulling fitted HMM from Regime_Pipeline experiment...")
@@ -326,7 +333,7 @@ def run_pipeline(
         print("7. Fitting Horizon models on cascade-valid train sleeves...")
         
         directions = ["long", "short"] if direction == "both" else [direction]
-        models: dict[str, HorizonModel] = {}
+        models: dict[str, GBMHorizonModel] = {}
         scored_dfs = []
 
         for direction in directions:

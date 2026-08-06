@@ -9,9 +9,11 @@ from urllib.parse import urlparse
 
 import mlflow
 
-from src.regime.intraday_model import IntradayHMMRegime
+from src.horizon.horizon_model import GBMHorizonModel
+from src.regime.intraday_model import IntradayHMMRegimeModel
 
 REGIME_EXPERIMENT = "Regime_Pipeline"
+HORIZON_EXPERIMENT = "Horizon_Pipeline"
 
 
 def load_hmm_model(
@@ -19,7 +21,7 @@ def load_hmm_model(
     train_period: str | None = None,
     run_id: str | None = None,
     experiment_name: str = REGIME_EXPERIMENT,
-) -> tuple[IntradayHMMRegime, str]:
+) -> tuple[IntradayHMMRegimeModel, str]:
     """
     Load a fitted IntradayHMMRegime logged by `regime_pipeline`.
 
@@ -31,17 +33,17 @@ def load_hmm_model(
     Uses the MLflow tracking API when available; falls back to sqlite + mlruns/
     artifact paths when the tracking DB schema is incompatible with the client.
     """
-    resolved_run_id, experiment_id = _resolve_regime_run(
+    resolved_run_id, experiment_id = _resolve_run(
         train_period=train_period,
         run_id=run_id,
         experiment_name=experiment_name,
     )
-    pkl_path = _regime_model_pkl_path(experiment_id, resolved_run_id)
+    pkl_path = _model_pkl_path(experiment_id, resolved_run_id, artifact_subdir="model")
     print(f"Loading HMM from Regime_Pipeline run {resolved_run_id} ({pkl_path})")
     with open(pkl_path, "rb") as f:
         hmm_model = pickle.load(f)
 
-    if not isinstance(hmm_model, IntradayHMMRegime):
+    if not isinstance(hmm_model, IntradayHMMRegimeModel):
         raise TypeError(
             f"Expected IntradayHMMRegime artifact, got {type(hmm_model)!r}"
         )
@@ -50,7 +52,105 @@ def load_hmm_model(
     return hmm_model, resolved_run_id
 
 
-def _resolve_regime_run(
+def load_horizon_model(
+    *,
+    direction: str,
+    train_period: str | None = None,
+    run_id: str | None = None,
+    experiment_name: str = HORIZON_EXPERIMENT,
+) -> tuple[GBMHorizonModel, str]:
+    """
+    Load a fitted HorizonModel (long or short) logged by `horizon_pipeline`.
+
+    Artifacts are stored as `model/{direction}/{direction}_model.pkl`.
+
+    Resolution order:
+      1. Explicit `--horizon-run-id`
+      2. Latest FINISHED Horizon_Pipeline run whose train_period matches
+      3. Latest FINISHED Horizon_Pipeline run
+    """
+    models, resolved_run_id = load_horizon_models(
+        directions=[direction],
+        train_period=train_period,
+        run_id=run_id,
+        experiment_name=experiment_name,
+    )
+    return models[direction], resolved_run_id
+
+
+def load_horizon_models(
+    *,
+    directions: list[str] | tuple[str, ...] = ("long", "short"),
+    train_period: str | None = None,
+    run_id: str | None = None,
+    experiment_name: str = HORIZON_EXPERIMENT,
+) -> tuple[dict[str, GBMHorizonModel], str]:
+    """
+    Load one or more Horizon sleeves from a single Horizon_Pipeline run.
+
+    Resolves the MLflow run once, then loads each requested sleeve artifact under
+    `model/{direction}/`. Missing sleeves are skipped with a warning; raises if
+    none of the requested sleeves are found.
+
+    Returns (models_by_direction, resolved_run_id).
+    """
+    sleeves = list(directions)
+    if not sleeves:
+        raise ValueError("directions must be non-empty")
+    for direction in sleeves:
+        if direction not in ("long", "short"):
+            raise ValueError(
+                f"direction must be 'long' or 'short', got {direction!r}"
+            )
+
+    resolved_run_id, experiment_id = _resolve_run(
+        train_period=train_period,
+        run_id=run_id,
+        experiment_name=experiment_name,
+    )
+
+    models: dict[str, GBMHorizonModel] = {}
+    for direction in sleeves:
+        try:
+            models[direction] = _load_horizon_pkl(
+                experiment_id, resolved_run_id, direction
+            )
+        except FileNotFoundError as exc:
+            print(f"Warning: No Horizon {direction} model: {exc}")
+
+    if not models:
+        raise FileNotFoundError(
+            f"No Horizon sleeve artifacts found in run {resolved_run_id} "
+            f"for directions={sleeves!r}"
+        )
+    return models, resolved_run_id
+
+
+def _load_horizon_pkl(
+    experiment_id: str, run_id: str, direction: str
+) -> GBMHorizonModel:
+    pkl_path = _model_pkl_path(
+        experiment_id,
+        run_id,
+        artifact_subdir=Path("model") / direction,
+    )
+    print(
+        f"Loading Horizon {direction} from Horizon_Pipeline run "
+        f"{run_id} ({pkl_path})"
+    )
+    with open(pkl_path, "rb") as f:
+        model = pickle.load(f)
+
+    if not isinstance(model, GBMHorizonModel):
+        raise TypeError(f"Expected HorizonModel artifact, got {type(model)!r}")
+    if model.direction != direction:
+        raise ValueError(
+            f"Loaded model direction {model.direction!r} != requested {direction!r}"
+        )
+    return model
+
+
+def _resolve_run(
     *,
     train_period: str | None,
     run_id: str | None,
@@ -61,13 +161,16 @@ def _resolve_regime_run(
         return run_id, experiment_id
 
     try:
-        return _resolve_regime_run_mlflow(train_period, experiment_name)
+        return _resolve_run_mlflow(train_period, experiment_name)
     except Exception as exc:  # noqa: BLE001
-        print(f"MLflow client unavailable ({exc}); resolving Regime run via sqlite.")
-        return _resolve_regime_run_sqlite(train_period, experiment_name)
+        print(
+            f"MLflow client unavailable ({exc}); "
+            f"resolving {experiment_name} run via sqlite."
+        )
+        return _resolve_run_sqlite(train_period, experiment_name)
 
 
-def _resolve_regime_run_mlflow(
+def _resolve_run_mlflow(
     train_period: str | None, experiment_name: str
 ) -> tuple[str, str]:
     experiment = mlflow.get_experiment_by_name(experiment_name)
@@ -98,13 +201,13 @@ def _resolve_regime_run_mlflow(
     return str(runs.iloc[0]["run_id"]), str(experiment.experiment_id)
 
 
-def _resolve_regime_run_sqlite(
+def _resolve_run_sqlite(
     train_period: str | None, experiment_name: str
 ) -> tuple[str, str]:
     db_path = _mlflow_sqlite_path()
     if db_path is None or not db_path.exists():
         raise FileNotFoundError(
-            "Could not locate mlflow.db to resolve Regime_Pipeline runs."
+            f"Could not locate mlflow.db to resolve {experiment_name} runs."
         )
 
     conn = sqlite3.connect(db_path)
@@ -179,8 +282,15 @@ def _experiment_id_for_run(run_id: str, experiment_name: str) -> str:
     return "1"
 
 
-def _regime_model_pkl_path(experiment_id: str, run_id: str) -> Path:
-    artifact_dir = Path("mlruns") / str(experiment_id) / run_id / "artifacts" / "model"
+def _model_pkl_path(
+    experiment_id: str,
+    run_id: str,
+    *,
+    artifact_subdir: str | Path = "model",
+) -> Path:
+    artifact_dir = (
+        Path("mlruns") / str(experiment_id) / run_id / "artifacts" / Path(artifact_subdir)
+    )
     if not artifact_dir.exists():
         raise FileNotFoundError(
             f"No model artifacts for run {run_id} under {artifact_dir}"

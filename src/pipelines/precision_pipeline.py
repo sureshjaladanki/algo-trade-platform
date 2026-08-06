@@ -19,8 +19,11 @@ from src.pipelines.build_precision_features import (
     build_precision_features,
     load_precision_data,
 )
-from src.pipelines.build_regime_features import build_regime_features
-from src.pipelines.horizon_pipeline import fit_horizon_gbm, predict_horizon_gbm
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
+from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
 from src.precision.rules import (
     build_decision_registry,
@@ -29,7 +32,7 @@ from src.precision.rules import (
 )
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
-from src.utils.mlflow_loader import load_hmm_model
+from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
 
 PRECISION_EXPERIMENT = "Precision_Pipeline"
 
@@ -56,6 +59,7 @@ def run_pipeline(
     test_period: str,
     direction: str = "both",
     regime_run_id: str | None = None,
+    horizon_run_id: str | None = None,
 ):
     mlflow.set_experiment(PRECISION_EXPERIMENT)
     with mlflow.start_run(run_name=f"Precision_{train_period}_{test_period}"):
@@ -67,23 +71,28 @@ def run_pipeline(
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
+        # Include train window so rolling Horizon features have history before test.
         load_start = min(train_start, test_start)
         load_end = max(train_end, test_end)
 
-        print(f"1. Building regime features from {load_start} to {load_end}...")
-        daily_regime, intraday_regime = build_regime_features(
+        print(f"1. Loading regime data from {load_start} to {load_end}...")
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
             data_dir=data_dir,
             config_path=config_path,
             start_period=load_start,
             end_period=load_end,
         )
+        print("   Building regime features...")
+        daily_regime, intraday_regime = build_regime_features(
+            vix_daily, market_daily, market_15m, nifty100_daily_dfs
+        )
 
         print("2. Pulling fitted HMM from Regime_Pipeline experiment...")
-        hmm_model, resolved_run_id = load_hmm_model(
+        hmm_model, resolved_regime_run_id = load_hmm_model(
             train_period=train_period,
             run_id=regime_run_id,
         )
-        mlflow.log_param("regime_run_id", resolved_run_id)
+        mlflow.log_param("regime_run_id", resolved_regime_run_id)
 
         print("3. Predicting Tier 1 regimes (daily cascade + HMM)...")
         regime_preds = predict_intraday_hmm(
@@ -117,42 +126,40 @@ def run_pipeline(
             regime_df=regime_df,
         )
 
-        print(f"6. Splitting Horizon into train ({train_period}) / test ({test_period})...")
-        train_df = filter_by_period(
-            horizon_df, train_start, train_end, datetime_col="date"
-        )
+        print(f"6. Filtering Horizon test window ({test_period})...")
         test_df = filter_by_period(
             horizon_df, test_start, test_end, datetime_col="date"
         )
-        print(f"   Train shape: {train_df.shape}, Test shape: {test_df.shape}")
-        mlflow.log_metric("horizon_train_rows", train_df.height)
+        print(f"   Test shape: {test_df.shape}")
         mlflow.log_metric("horizon_test_rows", test_df.height)
 
-        if train_df.height == 0 or test_df.height == 0:
-            print("Error: Train or test Horizon dataframe is empty. Check your periods.")
+        if test_df.height == 0:
+            print("Error: Test Horizon dataframe is empty. Check your periods.")
             sys.exit(1)
 
-        print("7. Fitting Horizon models (cascade-valid sleeves) for Precision registry...")
+        print("7. Loading fitted Horizon models from Horizon_Pipeline experiment...")
+        # TODO: support per-sleeve Horizon run ids (--horizon-long-run-id /
+        # --horizon-short-run-id) so long and short trained in separate
+        # Horizon_Pipeline runs can be selected independently; fall back to
+        # auto-resolve latest matching train_period (+ direction param) per sleeve.
         directions = ["long", "short"] if direction == "both" else [direction]
-        scored_dfs: list[pl.DataFrame] = []
+        try:
+            models, resolved_horizon_run_id = load_horizon_models(
+                directions=directions,
+                train_period=train_period,
+                run_id=horizon_run_id,
+            )
+        except FileNotFoundError as exc:
+            print(f"Error: No Horizon models loaded/scored. {exc}")
+            sys.exit(1)
 
-        for sleeve in directions:
-            print(f"\n   Fitting Horizon {sleeve.capitalize()} model...")
-            model, fit_stats = fit_horizon_gbm(train_df, direction=sleeve)
-            if model is None:
-                print(f"   Warning: No Horizon {sleeve.capitalize()} model trained.")
-                continue
-            if fit_stats:
-                mlflow.log_metric(
-                    f"horizon_{sleeve}_mean_ic", float(fit_stats.get("mean_ic", 0.0))
-                )
+        mlflow.log_param("horizon_run_id", resolved_horizon_run_id)
+
+        scored_dfs: list[pl.DataFrame] = []
+        for sleeve, model in models.items():
             scored = predict_horizon_gbm(test_df, model)
             print(f"   Scored {sleeve} rows: {scored.height}")
             scored_dfs.append(scored)
-
-        if not scored_dfs:
-            print("Error: No Horizon models trained/scored. Cannot build Precision registry.")
-            sys.exit(1)
 
         scored = pl.concat(scored_dfs, how="diagonal")
 
@@ -249,6 +256,13 @@ if __name__ == "__main__":
         default=None,
         help="Optional Regime_Pipeline MLflow run id (default: match train_period / latest)",
     )
+    # TODO: add --horizon-long-run-id / --horizon-short-run-id for split sleeve runs.
+    parser.add_argument(
+        "--horizon-run-id",
+        type=str,
+        default=None,
+        help="Optional Horizon_Pipeline MLflow run id (default: match train_period / latest)",
+    )
 
     args = parser.parse_args()
 
@@ -270,4 +284,5 @@ if __name__ == "__main__":
         test_period=args.test_period,
         direction=args.direction,
         regime_run_id=args.regime_run_id,
+        horizon_run_id=args.horizon_run_id,
     )

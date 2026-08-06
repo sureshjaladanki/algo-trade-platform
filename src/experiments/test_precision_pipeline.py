@@ -13,13 +13,16 @@ from src.pipelines.build_precision_features import (
     build_precision_features,
     load_precision_data,
 )
-from src.pipelines.build_regime_features import build_regime_features
-from src.pipelines.horizon_pipeline import fit_horizon_gbm, predict_horizon_gbm
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
+from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.precision_pipeline import run_precision_on_scored
 from src.pipelines.regime_pipeline import predict_intraday_hmm
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
-from src.utils.mlflow_loader import load_hmm_model
+from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = REPO_ROOT / "data" / "GOLDEN"
@@ -60,6 +63,12 @@ def main():
         default=None,
         help="Optional Regime_Pipeline MLflow run id",
     )
+    parser.add_argument(
+        "--horizon-run-id",
+        type=str,
+        default=None,
+        help="Optional Horizon_Pipeline MLflow run id",
+    )
     args = parser.parse_args()
 
     config_path = REPO_ROOT / args.config
@@ -68,12 +77,16 @@ def main():
     load_start = min(train_start, test_start)
     load_end = max(train_end, test_end)
 
-    print(f"1. Building regime features from {load_start} to {load_end}...")
-    daily_regime, intraday_regime = build_regime_features(
+    print(f"1. Loading regime data from {load_start} to {load_end}...")
+    vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
         data_dir=GOLDEN,
         config_path=config_path,
         start_period=load_start,
         end_period=load_end,
+    )
+    print("   Building regime features...")
+    daily_regime, intraday_regime = build_regime_features(
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs
     )
 
     print("2. Pulling fitted HMM from Regime_Pipeline experiment...")
@@ -113,28 +126,32 @@ def main():
         regime_df=regime_df,
     )
 
-    print(f"6. Splitting train ({args.train_period}) / test ({args.test_period})...")
-    train_df = filter_by_period(horizon_df, train_start, train_end, datetime_col="date")
+    print(f"6. Filtering Horizon test window ({args.test_period})...")
     test_df = filter_by_period(horizon_df, test_start, test_end, datetime_col="date")
-    print(f"   Train shape: {train_df.shape}, Test shape: {test_df.shape}")
+    print(f"   Test shape: {test_df.shape}")
 
-    if train_df.height == 0 or test_df.height == 0:
-        print("Error: empty Horizon train/test — check periods.")
+    if test_df.height == 0:
+        print("Error: empty Horizon test — check periods.")
         return
 
-    print("7. Fitting Horizon + scoring test sleeves...")
+    print("7. Loading Horizon models from Horizon_Pipeline + scoring test...")
     directions = ["long", "short"] if args.direction == "both" else [args.direction]
-    scored_dfs = []
-    for sleeve in directions:
-        model, _ = fit_horizon_gbm(train_df, direction=sleeve)
-        if model is None:
-            print(f"   Warning: no {sleeve} model.")
-            continue
-        scored_dfs.append(predict_horizon_gbm(test_df, model))
-
-    if not scored_dfs:
-        print("Error: no Horizon scores — cannot run Precision.")
+    try:
+        models, resolved_horizon_run_id = load_horizon_models(
+            directions=directions,
+            train_period=args.train_period,
+            run_id=args.horizon_run_id,
+        )
+    except FileNotFoundError as exc:
+        print(f"Error: No Horizon models loaded. {exc}")
         return
+
+    print(f"   Using Horizon Run ID: {resolved_horizon_run_id}")
+    scored_dfs = [
+        predict_horizon_gbm(test_df, model) for model in models.values()
+    ]
+    for sleeve, scored_sleeve in zip(models.keys(), scored_dfs):
+        print(f"   Scored {sleeve} rows: {scored_sleeve.height}")
 
     scored = pl.concat(scored_dfs, how="diagonal")
 

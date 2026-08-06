@@ -95,7 +95,7 @@ DEFAULT_TEST_DAYS = 42
 DEFAULT_EMBARGO_DAYS = 1
 
 
-class HorizonModel:
+class GBMHorizonModel:
     """
     Tier 2 Horizon LightGBM ranker for one sleeve (long or short).
     Trains on excess-return vs Nifty; calibrates with isotonic on purged val.

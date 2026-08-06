@@ -1,7 +1,10 @@
 import argparse
 from pathlib import Path
 
-from src.pipelines.build_regime_features import build_regime_features
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
 from src.regime.daily import classify_daily_regime
 from src.regime.types import DailyRegime
 from src.utils.date import parse_period_range
@@ -29,11 +32,14 @@ def main():
     config_path = REPO_ROOT / args.config
     start_period, end_period = parse_period_range(args.test_period)
 
-    daily_features, _ = build_regime_features(
+    vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
         data_dir=GOLDEN,
         config_path=config_path,
         start_period=start_period,
         end_period=end_period,
+    )
+    daily_features, _ = build_regime_features(
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs
     )
 
     if daily_features.is_empty():

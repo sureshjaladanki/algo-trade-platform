@@ -1,7 +1,10 @@
 import argparse
 from pathlib import Path
 
-from src.pipelines.build_regime_features import build_regime_features
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
 from src.pipelines.regime_pipeline import fit_intraday_hmm, predict_intraday_hmm
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
@@ -38,12 +41,16 @@ def main():
     load_start = min(train_start, test_start)
     load_end = max(train_end, test_end)
 
-    print(f"Loading data and building features from {load_start} to {load_end}...")
-    daily_features, intraday_features = build_regime_features(
+    print(f"Loading regime data from {load_start} to {load_end}...")
+    vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
         data_dir=GOLDEN,
         config_path=config_path,
         start_period=load_start,
         end_period=load_end,
+    )
+    print("Building regime features...")
+    daily_features, intraday_features = build_regime_features(
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs
     )
 
     print(f"Splitting into train ({args.train_period}) and test ({args.test_period})...")

@@ -8,7 +8,10 @@ from src.pipelines.build_horizon_features import (
     build_horizon_features,
     load_horizon_data,
 )
-from src.pipelines.build_regime_features import build_regime_features
+from src.pipelines.build_regime_features import (
+    build_regime_features,
+    load_regime_data,
+)
 from src.pipelines.horizon_pipeline import fit_horizon_gbm, predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
 from src.regime.intraday import override_intraday_regime
@@ -60,12 +63,16 @@ def main():
     load_start = min(train_start, test_start)
     load_end = max(train_end, test_end)
 
-    print(f"1. Building regime features from {load_start} to {load_end}...")
-    daily_regime, intraday_regime = build_regime_features(
+    print(f"1. Loading regime data from {load_start} to {load_end}...")
+    vix_daily, market_daily, market_15m, nifty100_daily_dfs = load_regime_data(
         data_dir=GOLDEN,
         config_path=config_path,
         start_period=load_start,
         end_period=load_end,
+    )
+    print("   Building regime features...")
+    daily_regime, intraday_regime = build_regime_features(
+        vix_daily, market_daily, market_15m, nifty100_daily_dfs
     )
 
     print("2. Pulling fitted HMM from Regime_Pipeline experiment...")

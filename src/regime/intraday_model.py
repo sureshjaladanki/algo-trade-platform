@@ -9,7 +9,7 @@ from .types import IntradayRegime
 DEFAULT_FEATURE_COLS = ["r_15", "rv_15", "vwap_dist"]
 
 
-class IntradayHMMRegime:
+class IntradayHMMRegimeModel:
     """
     Tier 1 Intraday Regime Classifier using a 4-state Gaussian HMM.
     Runs on 15m candles with TOD-normalized emissions.
