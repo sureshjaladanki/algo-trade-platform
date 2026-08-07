@@ -7,6 +7,7 @@ import polars as pl
 import yaml
 
 from src.features.core import atr
+from src.utils.data import resample_15m
 from src.utils.date import parse_period_range
 from src.utils.symbol_data import load_symbol_data
 
@@ -38,14 +39,8 @@ def analyze_symbol(
     if df.is_empty():
         return {}
 
-    # Resample to 15m candles
-    df = df.group_by_dynamic("date", every="15m").agg([
-        pl.col("open").first(),
-        pl.col("high").max(),
-        pl.col("low").min(),
-        pl.col("close").last(),
-        pl.col("volume").sum()
-    ])
+    # Resample to 15m candles (bar-end stamps; same as cascade pipelines).
+    df = resample_15m(df)
     
     # Calculate ATR14 on 15m candles
     df = df.with_columns(

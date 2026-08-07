@@ -216,7 +216,7 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 ## NSE production constraints
 
 1. **TOD-normalize** all HMM vol/range inputs — otherwise the model learns the U-shaped clock (open/close = fake `HIGH_VOL`).
-2. Down-weight / low-confidence the **9:15–9:30** bar (call auction bleed): exclude from HMM fit/score/decode; null regime + `intraday_low_confidence`. Watch **14:30–15:15** (Europe open + MIS square-off) via `session_watch` flag.
+2. Down-weight / low-confidence the auction-bleed bar (wall **09:15–09:30**, bar-end stamp **09:30**): exclude from HMM fit/score/decode; null regime + `intraday_low_confidence`. Watch wall **14:30–15:15** (bar-end stamps **14:45–15:15**) via `session_watch` flag.
 3. Prefer **relative VIX** (vs median + ΔVIX), not absolute levels — event crush (budget/elections) fools level thresholds.
 4. **Hysteresis** on HMM flips, especially `TREND_UP` ↔ `TREND_DOWN`.
 5. **Relabel** HMM states after each fit by emission means so UP/DOWN remain stable.

@@ -110,8 +110,8 @@ These widths and flags are **passed down** to Precision as frozen exit geometry 
 
 Tier 3 watches only the Tier 2 registry on **1-minute** bars:
 
-1. **Gate** — same Regime + TB eligibility + session masks (no 9:15–9:30; Long last entry ~14:00; Short ~13:45; flat by ~15:00).
-2. **Entry** — up to ~5 minutes for a pullback/reclaim (Long) or bounce/breakdown (Short); then a deterministic fallback so signals are not left hanging.
+1. **Gate** — same Regime + TB eligibility + session masks (no auction-bleed bar; Long last entry ~14:15 bar-end; Short ~14:00; live flat by ~15:00).
+2. **Entry** — up to ~5 minutes from the 15m decision bar (bar-end / actionable) for a pullback/reclaim (Long) or bounce/breakdown (Short); then a deterministic fallback so signals are not left hanging.
 3. **Size** — scale by Horizon rank/score (not a new direction model).
 4. **Exit** — frozen TB TP / SL / timeout; no trailing stop in v1. Shorts are stricter (afternoon cover gate, no same-session re-entry after SL).
 
@@ -140,8 +140,8 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 | Daily Regime | Pre-open | Once per session |
 | Intraday Regime | Nifty 15m | Every 15m (hysteresis) |
 | Horizon rank + TB widths | Stock 15m | Every 15m when sleeve open |
-| Precision entry | Stock 1m | Within ~5m of decision bar |
-| Hold / exit | Same session | ≤ 60m or TP/SL/MIS |
+| Precision entry | Stock 1m | Within ~5m of 15m decision bar (bar-end) |
+| Hold / exit | Same session | ≤ 60m from decision bar or TP/SL/MIS |
 
 ---
 

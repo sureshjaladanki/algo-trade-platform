@@ -51,7 +51,7 @@ Tier 1 owns the regime gate and sleeve routing. Tier 2 ranks which Nifty 100 nam
 | Label (Short) | Same excess return on `TREND_DOWN` bars; **more negative = better short** | At inference: rank ascending (most underperforming predicted names first) |
 | Primary \(H\) | **4 bars / 60 minutes** | Gemini lock; safer vs MIS square-off. Claude wanted 90m primary — demoted to secondary check |
 | Secondary \(H\) | 6 bars / 90 minutes | Robustness / ensemble check only in v1 |
-| Last entry cutoff | Horizon must resolve **before ~15:15** MIS square-off | For 60m: last entry ≈ 14:00; for 90m check: ≈ 13:30–13:45 |
+| Last entry cutoff | Horizon must resolve before broker ~15:15; live flatten ~15:00 | 15m bar-end: Long ≈ 14:15, Short ≈ 14:00 (H=4 exit stamp ≤ `MIS_EXIT_BAR_END` 15:15). 90m secondary: pull entries earlier by one bar. |
 | Inference | Cross-sectional top-K / bottom-K ranking of calibrated scores | Not trade every name above a fixed probability |
 
 Loss: prefer **Huber** (or MAE) over plain L2 — fat-tailed NSE intraday returns. Stage **LambdaRank** grouped by `(date, regime-episode)` after enough episodes exist.
@@ -67,7 +67,7 @@ Loss: prefer **Huber** (or MAE) over plain L2 — fat-tailed NSE intraday return
 
 Do **not** train momentum models on `CHOP` / `HIGH_VOL` / `HOSTILE` / `NO_TRADE` bars. Do not use pre-hysteresis raw HMM states for labels or features.
 
-Exclude entry bars in **9:15–9:30** (auction bleed). Exclude any entry whose label window crosses the MIS square-off zone.
+Exclude entry bars in the **09:15–09:30** auction bleed (bar-end stamp **09:30**). Exclude any entry whose label window crosses the live MIS flatten zone (~15:00 wall).
 
 ---
 
@@ -241,7 +241,7 @@ Philosophy (both judges): **shallow trees, strong regularization, early stopping
 ## NSE production constraints (Tier 2)
 
 1. **TOD-normalize** stock returns, range, and volume — same U-shaped clock trap as Tier 1 HMM.  
-2. Down-weight / exclude **9:15–9:30**; never let a label window cross **14:30–15:15** MIS square-off.  
+2. Down-weight / exclude auction-bleed (**09:30** bar-end); never let a live position cross **`MIS_FLAT_BY` ~15:00**; 15m label exits may use stamp ≤ **`MIS_EXIT_BAR_END` ~15:15** (same physical 15:00–15:15 candle).  
 3. Shorts are **same-day only** in cash — no overnight breathe; Short model must respect flatten cutoff.  
 4. **Point-in-time universe** + trailing `adv_rank_20d` — non-negotiable for live transfer.  
 5. Retune Short `min_child_samples` / `num_leaves` after measuring actual post-filter `TREND_DOWN` bar counts.  

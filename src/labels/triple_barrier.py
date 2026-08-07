@@ -6,7 +6,7 @@ import polars as pl
 
 from src.horizon.session import (
     LONG_LAST_ENTRY,
-    MIS_FLAT_BY,
+    MIS_EXIT_BAR_END,
     SHORT_LAST_ENTRY,
 )
 
@@ -28,7 +28,7 @@ def calculate_triple_barrier_labels(
     horizon_bars: int = 4,
     cost: float = ROUND_TRIP_COST,
     tp_penetration: float = TP_PENETRATION,
-    mis_flat_by: dt.time = MIS_FLAT_BY,
+    mis_exit_bar_end: dt.time = MIS_EXIT_BAR_END,
     long_last_entry: dt.time = LONG_LAST_ENTRY,
     short_last_entry: dt.time = SHORT_LAST_ENTRY,
     tod_lookback_days: int = TOD_LOOKBACK_DAYS,
@@ -124,7 +124,7 @@ def calculate_triple_barrier_labels(
     for h in range(1, horizon_bars + 1):
         in_session = (
             (pl.col(f"_d_{h}") == pl.col("date_only"))
-            & (pl.col(f"_t_{h}") <= mis_flat_by)
+            & (pl.col(f"_t_{h}") <= mis_exit_bar_end)
             & pl.col(f"_c_{h}").is_not_null()
         )
         long_tp = in_session & (
@@ -169,7 +169,7 @@ def calculate_triple_barrier_labels(
         for h in range(1, horizon_bars + 1):
             in_session = (
                 (pl.col(f"_d_{h}") == pl.col("date_only"))
-                & (pl.col(f"_t_{h}") <= mis_flat_by)
+                & (pl.col(f"_t_{h}") <= mis_exit_bar_end)
                 & pl.col(f"_c_{h}").is_not_null()
             )
             expr = (
@@ -184,7 +184,7 @@ def calculate_triple_barrier_labels(
         for h in range(1, horizon_bars + 1):
             in_session = (
                 (pl.col(f"_d_{h}") == pl.col("date_only"))
-                & (pl.col(f"_t_{h}") <= mis_flat_by)
+                & (pl.col(f"_t_{h}") <= mis_exit_bar_end)
                 & pl.col(f"_c_{h}").is_not_null()
             )
             expr = (

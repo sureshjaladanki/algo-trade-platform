@@ -230,9 +230,9 @@ def calculate_horizon_features(
         pct_from_52w_high=(pl.col("close") - pl.col("high_52w")) / pl.col("high_52w"),
     )
 
-    # ORB reference = 09:15 bar only (09:15–09:30 range).
+    # ORB reference = auction bleed bar only (09:15–09:30; bar-end stamp 09:30).
     orb_df = (
-        stock_df.filter(pl.col("time_only") == pl.time(9, 15))
+        stock_df.filter(pl.col("time_only") == pl.time(9, 30))
         .group_by(["symbol", "date_only"])
         .agg(orb_high=pl.col("high").max(), orb_low=pl.col("low").min())
     )
@@ -245,7 +245,7 @@ def calculate_horizon_features(
         .otherwise(0),
     )
 
-    # Cyclic TOD (minutes from 09:15; session length 375m).
+    # Cyclic TOD (minutes from session open 09:15; session length 375m).
     two_pi = 2.0 * math.pi
     stock_df = stock_df.with_columns(
         mins_from_open=(

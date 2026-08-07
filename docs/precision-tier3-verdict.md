@@ -100,7 +100,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 | `long_tp_w` / `long_sl_w` | ATR% widths with cost floors (frozen at 15m bar) | Exit geometry |
 | `dist_to_tp_bps` | `(tp_px / last_1m − 1) × 1e4` | Room-to-target; reject if collapsed |
 | `dist_to_sl_bps` | `(last_1m / sl_px − 1) × 1e4` | Reject if already inside SL buffer |
-| `bars_to_vertical` | Minutes left until `min(decision_bar + 60m, 15:00)` | Skip near-zero runway |
+| `bars_to_vertical` | Minutes left until `min(decision_bar + 60m, MIS_FLAT_BY ≈ 15:00)` | Skip near-zero runway |
 | `m1_pullback_depth` | % retrace of last 1m up-leg vs prior swing | Buy the dip, not the chase |
 | `m1_range_compression` | `ATR_1m(5) / atr_pct` (TB atr) | Skip gap / halt-distorted bars |
 | `vwap_dist_1m` | % dist of 1m close to session TWAP / VWAP (ATR-scaled) | Avoid extended prints |
@@ -130,7 +130,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 | `horizon_rank` / `horizon_score` | Shared | Universe + size |
 | `spread_proxy_bps` | Shared | **Stricter ceiling** than Long |
 
-**Short-only hard rules:** `short_entry_ok_expr` (last entry ≤ ~13:45); after 13:00 require `consec_red_1m ≥ 2`; **no re-entry same symbol same session after one SL**; halt / circuit skip.
+**Short-only hard rules:** `short_entry_ok_expr` (last entry ≤ ~14:00 bar-end); after 13:00 require `consec_red_1m ≥ 2`; **no re-entry same symbol same session after one SL**; halt / circuit skip.
 
 ---
 
@@ -153,7 +153,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 |---|---|
 | TP | `entry_px × (1 + long_tp_w)` (+ 2 bps penetration for fill realism, matching TB) |
 | SL | `entry_px × (1 − long_sl_w)` — stop on touch |
-| Timeout | `min(15m_decision_bar + 60m, MIS_FLAT_BY ≈ 15:00)` — clock from **decision bar**, not delayed 1m entry |
+| Timeout | `min(15m_decision_bar + 60m, MIS_FLAT_BY ≈ 15:00 wall)` — clock from **decision bar** (bar-end / actionable), not delayed 1m entry |
 | Regime flip | Optional soft flatten on post-hysteresis leave of `TREND_UP` (ideal if dwell logic is live) |
 
 **Size:** `size_mult` from Tier 2 rank — e.g. rank 1–2 → 1.0×, 3–5 → 0.7×, 6–8 → 0.4×, else skip. Skip (not micro-size) if spread ceiling breached. Portfolio heat cap (e.g. max 5 concurrent) sits in a risk layer; Precision emits `size_mult` only.
@@ -162,7 +162,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 
 **Entry (asymmetric):**
 
-1. Name in Tier 2 bottom-K; `tb_eligible_short`; inside `short_entry_ok_expr` (≤ ~13:45).
+1. Name in Tier 2 bottom-K; `tb_eligible_short`; inside `short_entry_ok_expr` (≤ ~14:00 bar-end).
 2. Bounded 5m wait for **bounce-then-breakdown**: ask/close ≥ ~15 bps above micro EMA / last swing, then break prior 1m low; `spread_proxy` ceiling **tighter** than Long.
 3. After **13:00**: require `consec_red_1m ≥ 2` **or** skip (`afternoon_cover_risk`).
 4. Fallback at minute 5 same as Long (mirrored). No second attempt same name after an SL that session.
@@ -203,7 +203,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 | Trailing stop | BE trail @ 50% (L) / 40% (S) of TP path | Reject v1 (label mismatch) | **Reject trail in v1** |
 | Entry style | Pullback to VWAP/EMA + 30s passive | Micro-breakout + 5m wait + fallback | **Pullback/reclaim within 5m + fallback** |
 | Sizing owner | Meta-prob scaling | Tier 2 rank / score | **Rank/score in v1**; meta sizing later |
-| Short hard flatten | Soft 14:45 exit preference | MIS 15:00 + earlier last entry | **Keep TB/session locks** (`SHORT_LAST_ENTRY` ~13:45, `MIS_FLAT_BY` 15:00) + afternoon confirmation gate |
+| Short hard flatten | Soft 14:45 exit preference | MIS 15:00 live + earlier last entry | **Keep TB/session locks** (`SHORT_LAST_ENTRY` ~14:00 bar-end, `MIS_FLAT_BY` 15:00 wall, `MIS_EXIT_BAR_END` 15:15 for 15m labels) + afternoon confirmation gate |
 | Overall | REVISE | ACCEPT + minor | **ACCEPT with revisions** |
 
 ---
@@ -214,7 +214,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 - Recomputing ATR / TP / SL from post-decision 1m data (lookahead)  
 - Picking the “best” 1m bar using future bars in backtests  
 - Entries in **9:15–9:30** auction bleed  
-- Ignoring **MIS ~15:00** flatten  
+- Ignoring **MIS ~15:00** live flatten  
 - L2 order book / OBI / CVD / news NLP in v1  
 - Trailing stops, multi-parameter 1m ML search, sector peer filters in v1  
 - Same-day re-entry after SL on shorts without cooldown  
@@ -226,7 +226,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 
 ## NSE production constraints (Tier 3)
 
-1. **1m pipeline** must be causal — features from closed 1m bars only; decision clock remains the 15m Tier 2 bar.  
+1. **1m pipeline** must be causal — features from closed 1m bars only; decision clock remains the 15m Tier 2 bar-end stamp.  
 2. **Freeze TB geometry** at the 15m decision bar; 1m only chooses fill time / skip.  
 3. Vertical timeout measured from **decision bar + H**, not from delayed entry (keeps labels and live exits aligned).  
 4. Model **fills realistically** — do not assume perfect passive bid fills in research.  

@@ -6,7 +6,7 @@ import polars as pl
 
 from src.horizon.session import (
     LONG_LAST_ENTRY,
-    MIS_FLAT_BY,
+    MIS_EXIT_BAR_END,
     SHORT_LAST_ENTRY,
 )
 
@@ -15,7 +15,7 @@ def calculate_horizon_labels(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
     horizon_bars: int = 4,
-    mis_flat_by: dt.time = MIS_FLAT_BY,
+    mis_exit_bar_end: dt.time = MIS_EXIT_BAR_END,
     long_last_entry: dt.time = LONG_LAST_ENTRY,
     short_last_entry: dt.time = SHORT_LAST_ENTRY,
 ) -> pl.DataFrame:
@@ -24,10 +24,10 @@ def calculate_horizon_labels(
 
     Primary: H=4 (60m). Secondary robustness: call with horizon_bars=6 (90m).
 
-    MIS rules (bar-start timestamps):
-    - Exit bar must be same session and <= mis_flat_by (~15:00).
-    - Long entries only through long_last_entry (~14:00).
-    - Short entries only through short_last_entry (~13:45).
+    MIS rules (15m bar-end timestamps):
+    - Exit bar must be same session and <= mis_exit_bar_end (~15:15 stamp).
+    - Long entries only through long_last_entry (~14:15).
+    - Short entries only through short_last_entry (~14:00).
     """
     stock_df = stock_df.sort(["symbol", "date"])
     nifty_df = nifty_df.sort("date")
@@ -57,7 +57,7 @@ def calculate_horizon_labels(
     # alone would let IEEE NaNs through to LightGBM (which then rejects y).
     same_session_exit = (
         (pl.col("exit_date") == pl.col("entry_date"))
-        & (pl.col("exit_time") <= mis_flat_by)
+        & (pl.col("exit_time") <= mis_exit_bar_end)
         & pl.col("fwd_excess_ret").is_finite()
     )
 

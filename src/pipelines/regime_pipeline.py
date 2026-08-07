@@ -33,7 +33,7 @@ def cascade_valid_intraday(
 
     Gates:
     - daily regime is SUPPORTIVE or AMBIGUOUS (skip HOSTILE / NO_TRADE days)
-    - not open-auction bleed (skip 09:15 → intraday NO_TRADE)
+    - not open-auction bleed (skip 09:30 bar-end stamp → intraday NO_TRADE)
     """
     daily_classified = classify_daily_regime(daily_features)
     valid_days = daily_classified.filter(

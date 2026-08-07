@@ -11,7 +11,7 @@ from src.horizon.session import (
     long_entry_ok_expr,
     short_entry_ok_expr,
 )
-from src.precision.session import DECISION_BAR_MINUTES, HORIZON_MINUTES, TOP_K
+from src.precision.session import HORIZON_MINUTES, TOP_K
 from src.regime.types import DailyRegime, IntradayRegime
 
 TRADEABLE_DAILY_REGIMES = [
@@ -28,6 +28,7 @@ def calculate_horizon_precision_features(
     Narrow Horizon scores to the Precision universe (top-K / bottom-K + TB gates).
 
     Expects columns from `predict_horizon_gbm` joined with TB geometry.
+    ``date`` / ``decision_bar`` are 15m bar-end stamps (actionable clock).
     """
     required = {
         "symbol",
@@ -74,7 +75,7 @@ def calculate_horizon_precision_features(
         & (pl.col("horizon_rank") <= top_k)
     )
 
-    # MIS flatten is calendar-day 15:00 (bar-start clock), not decision+60 alone.
+    # Live MIS flatten is wall-clock MIS_FLAT_BY (~15:00), not decision+H alone.
     mis_deadline = (
         pl.col("decision_bar").dt.truncate("1d")
         + dt.timedelta(
@@ -87,7 +88,5 @@ def calculate_horizon_precision_features(
             pl.col("decision_bar") + dt.timedelta(minutes=HORIZON_MINUTES),
             mis_deadline,
         ),
-        wait_start=pl.col("decision_bar")
-        + dt.timedelta(minutes=DECISION_BAR_MINUTES),
     )
     return registry.sort(["decision_bar", "horizon_direction", "horizon_rank"])

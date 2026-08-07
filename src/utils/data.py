@@ -2,6 +2,9 @@ from pathlib import Path
 
 import polars as pl
 
+# 15m OHLCV bars are stamped at *close* (bar-end), not group_by_dynamic's bar-start.
+BAR_MINUTES_15M = 15
+
 
 def load_csv_data(filepath: str | Path, datetime_col: str = "timestamp") -> pl.DataFrame:
     """
@@ -59,12 +62,24 @@ def resample_daily(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def resample_15m(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Aggregate 1m OHLCV to 15m bars stamped at bar-end (close time).
+
+    ``group_by_dynamic`` emits bar-start labels; we shift +15m so ``date`` is
+    when the bar is closed and Tier 1 / Tier 2 features are actionable.
+    """
     if df.is_empty():
         return df
-    return df.group_by_dynamic("date", every="15m").agg([
-        pl.col("open").first(),
-        pl.col("high").max(),
-        pl.col("low").min(),
-        pl.col("close").last(),
-        pl.col("volume").sum(),
-    ])
+    return (
+        df.group_by_dynamic("date", every="15m")
+        .agg(
+            [
+                pl.col("open").first(),
+                pl.col("high").max(),
+                pl.col("low").min(),
+                pl.col("close").last(),
+                pl.col("volume").sum(),
+            ]
+        )
+        .with_columns(pl.col("date") + pl.duration(minutes=BAR_MINUTES_15M))
+    )

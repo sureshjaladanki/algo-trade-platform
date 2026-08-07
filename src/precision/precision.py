@@ -95,6 +95,10 @@ def classify_precision(
     """
     Rules-first Precision: bounded-wait 1m entry → frozen TB exits.
 
+    ``registry.decision_bar`` is the 15m bar-end (actionable) stamp. Bounded wait
+    runs on 1m bars ``[decision_bar, decision_bar + wait_minutes)``. Vertical
+    timeout stays ``min(decision_bar + H, MIS_FLAT_BY)`` (wall-clock ~15:00).
+
     Returns one row per decision episode with fire / skip, fill, barriers, exit.
     `stock_1m` must already carry Precision 1m features
     (`calculate_precision_features`).
@@ -134,7 +138,7 @@ def _process_episode(
     symbol = ep["symbol"]
     direction = ep["horizon_direction"]
     session_day = ep["date_only"]
-    wait_start = ep["wait_start"]
+    decision_bar = ep["decision_bar"]
     vertical_deadline = ep["vertical_deadline"]
     decision_close = float(ep["decision_close"])
     atr_pct = float(ep["atr_pct"]) if ep["atr_pct"] is not None else None
@@ -152,7 +156,7 @@ def _process_episode(
 
     base = {
         "symbol": symbol,
-        "decision_bar": ep["decision_bar"],
+        "decision_bar": decision_bar,
         "horizon_direction": direction,
         "horizon_rank": rank,
         "horizon_score": score,
@@ -174,9 +178,10 @@ def _process_episode(
     if bars is None or atr_pct is None or atr_pct <= 0:
         return _skip_row(base, "SKIP")
 
-    wait_end = wait_start + dt.timedelta(minutes=wait_minutes - 1)
+    # Bounded wait: 1m bars from decision_bar through the next wait_minutes.
+    entry_window_end = decision_bar + dt.timedelta(minutes=wait_minutes - 1)
     wait_bars = bars.filter(
-        (pl.col("date") >= wait_start) & (pl.col("date") <= wait_end)
+        (pl.col("date") >= decision_bar) & (pl.col("date") <= entry_window_end)
     ).sort("date")
 
     if wait_bars.height == 0:
@@ -331,8 +336,8 @@ def _entry_hard_gates(
     if compression is not None and compression > 3.0:
         return {"ok": False}
 
-    t = bar["date"].time() if hasattr(bar["date"], "time") else bar.get("time_only")
-    if direction == "short" and t is not None and t >= AFTERNOON_COVER_START:
+    t = bar["date"].time()
+    if direction == "short" and t >= AFTERNOON_COVER_START:
         consec = bar.get("consec_red_1m") or 0
         if consec < 2:
             return {"ok": False}
@@ -368,9 +373,8 @@ def _resolve_exit(
         high = float(bar["high"])
         low = float(bar["low"])
         close = float(bar["close"])
-        t = ts.time() if hasattr(ts, "time") else None
 
-        if t is not None and t >= MIS_FLAT_BY:
+        if ts.time() >= MIS_FLAT_BY:
             return _exit_at(ts, close, entry_px, direction, "MIS_FLATTEN")
 
         if direction == "long":

@@ -6,12 +6,12 @@ import polars as pl
 
 from .types import IntradayRegime
 
-# Bar timestamps from group_by_dynamic are bar *starts*.
-# 09:15 bar = 09:15–09:30 call-auction bleed.
-NSE_OPEN_BLEED_BAR = dt.time(9, 15)
-# Watch window 14:30–15:15 → bars 14:30, 14:45, 15:00.
-NSE_WATCH_START = dt.time(14, 30)
-NSE_WATCH_END = dt.time(15, 15)
+# 15m ``date`` is bar-end (close time). See ``resample_15m``.
+# 09:30 stamp = 09:15–09:30 call-auction bleed candle.
+NSE_OPEN_BLEED_BAR = dt.time(9, 30)
+# Watch window wall 14:30–15:15 → bar-end stamps 14:45, 15:00, 15:15.
+NSE_WATCH_START = dt.time(14, 45)
+NSE_WATCH_END = dt.time(15, 30)
 
 
 def open_auction_bleed_expr(datetime_col: str = "date") -> pl.Expr:

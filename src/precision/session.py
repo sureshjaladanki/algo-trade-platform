@@ -2,19 +2,18 @@
 
 import datetime as dt
 
-# Re-export Tier 2 entry / MIS masks — Precision must not invent a second clock.
+# Re-export Tier 2 entry / wall-clock MIS flatten — Precision must not invent
+# a second live clock. 15m label exit stamps use MIS_EXIT_BAR_END separately.
 from src.horizon.session import (  # noqa: F401
     MIS_FLAT_BY,
     long_entry_ok_expr,
     short_entry_ok_expr,
 )
 
-# Bounded wait after the 15m decision bar closes (bar-start + 15m).
+# Bounded wait on 1m bars starting at the 15m decision bar (bar-end / actionable).
 WAIT_MINUTES = 5
 # Vertical barrier length in minutes (H=4 × 15m) — clock from decision bar.
 HORIZON_MINUTES = 60
-# Decision bar length (group_by_dynamic bar-start convention).
-DECISION_BAR_MINUTES = 15
 
 # Top-K / bottom-K names Precision may touch (rank-based size beyond this → skip).
 TOP_K = 8

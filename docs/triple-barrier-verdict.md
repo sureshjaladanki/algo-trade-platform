@@ -62,9 +62,10 @@ H_actual = min(H_max, bars_until_MIS_safe_exit)
 
 | Rule | Value |
 |---|---|
-| Long last entry | ≈ **14:00** (full 60m before ~15:00 flatten) |
-| Short last entry | ≈ **13:30–13:45** (extra buffer vs afternoon cover/squeeze) |
-| MIS hard ceiling | All positions flat by **~15:00** (before broker ~15:15 square-off) |
+| Long last entry | ≈ **14:15 bar-end** (same physical candle as old 14:00 bar-start; H=4 exit stamp 15:15) |
+| Short last entry | ≈ **14:00 bar-end** (same physical candle as old 13:45 bar-start) |
+| 15m label exit stamp | ≤ **`MIS_EXIT_BAR_END` ≈ 15:15** (bar-end stamp of the 15:00–15:15 candle) |
+| Live / 1m MIS flatten | **`MIS_FLAT_BY` ≈ 15:00** wall-clock (before broker ~15:15 square-off) |
 | Expand `H` above 4? | **No in v1** (90m stays Tier 2 secondary check only) |
 
 **Why not vol-based / sector-based `H` in v1**
@@ -154,7 +155,7 @@ Do **not** treat 30 bps as eval-only PnL haircut after training on gross labels.
 ## 80% lift priority
 
 1. **Cost-adjusted path labels** — `R_path − R_nifty − 0.003` with barriers resolving the path.  
-2. **Hard `H=4` + MIS entry cutoffs** (Long 14:00 / Short ~13:30–13:45).  
+2. **Hard `H=4` + MIS entry cutoffs** (Long ~14:15 / Short ~14:00 bar-end; live flatten ~15:00).  
 3. **TOD `rv_15_mean` TP/SL + 90 bps TP floor + eligibility skip** when cost cannot clear.
 
 ---

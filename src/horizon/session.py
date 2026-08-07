@@ -7,17 +7,22 @@ import polars as pl
 
 from src.regime.intraday import NSE_OPEN_BLEED_BAR
 
-# Bar timestamps are bar *starts* (group_by_dynamic convention).
-# Long: last entry 14:00 → exit at 15:00 for H=4.
-# Short: last entry 13:45 → earlier flatten / squeeze buffer.
-LONG_LAST_ENTRY = dt.time(14, 0)
-SHORT_LAST_ENTRY = dt.time(13, 45)
-# Positions flat by ~15:00 (before broker ~15:15 square-off).
+# 15m ``date`` is bar-end (close time). Same physical candles as the old
+# bar-start cutoffs, shifted +15m.
+# Long: last entry 14:15 → H=4 exit stamp 15:15.
+# Short: last entry 14:00 → earlier flatten / squeeze buffer.
+LONG_LAST_ENTRY = dt.time(14, 15)
+SHORT_LAST_ENTRY = dt.time(14, 0)
+
+# Two MIS clocks (do not conflate):
+# - Wall-clock: live / 1m flatten before broker ~15:15 square-off.
 MIS_FLAT_BY = dt.time(15, 0)
+# - 15m bar-end stamp of the last allowed exit candle (interval 15:00–15:15).
+MIS_EXIT_BAR_END = dt.time(15, 15)
 
 
 def auction_bleed_entry_expr(time_col: str = "time_only") -> pl.Expr:
-    """True on the 09:15–09:30 call-auction bleed bar (bar start 09:15).
+    """True on the 09:15–09:30 call-auction bleed bar (bar-end stamp 09:30).
 
     Deprecated: unused. Prefer ``long_entry_ok_expr`` / ``short_entry_ok_expr``,
     which already exclude the bleed bar via ``t > NSE_OPEN_BLEED_BAR``.
