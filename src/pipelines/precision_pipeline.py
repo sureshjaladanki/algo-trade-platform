@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 import mlflow
-import numpy as np
 import polars as pl
 
 from src.pipelines.build_horizon_features import (
@@ -25,7 +24,12 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.precision import classify_precision, summarize_precision_trades
+from src.precision.precision import (
+    classify_precision,
+    flatten_precision_summary_metrics,
+    format_precision_summary,
+    summarize_precision_trades,
+)
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
@@ -195,19 +199,14 @@ def run_pipeline(
 
 
 def _print_summary(summary: dict[str, Any]) -> None:
-    print("\nPrecision summary:")
-    for key, val in summary.items():
-        if isinstance(val, float):
-            print(f"   {key}: {val:.4f}")
-        else:
-            print(f"   {key}: {val}")
+    print()
+    for line in format_precision_summary(summary):
+        print(line)
 
 
 def _log_summary_mlflow(summary: dict[str, Any]) -> None:
-    for key, val in summary.items():
-        if isinstance(val, (int, float)) and np.isfinite(val):
-            mlflow.log_metric(key, float(val))
-
+    for key, val in flatten_precision_summary_metrics(summary).items():
+        mlflow.log_metric(key, val)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

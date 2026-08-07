@@ -19,7 +19,11 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.precision import classify_precision, summarize_precision_trades
+from src.precision.precision import (
+    classify_precision,
+    format_precision_summary,
+    summarize_precision_trades,
+)
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
@@ -185,12 +189,9 @@ def main():
     trades = classify_precision(registry, features_1m)
     summary = summarize_precision_trades(trades)
     print(f"   Registry: {registry.height}, Trades: {trades.height}")
-    print("\nSummary:")
-    for key, val in summary.items():
-        if isinstance(val, float):
-            print(f"   {key}: {val:.4f}")
-        else:
-            print(f"   {key}: {val}")
+    print()
+    for line in format_precision_summary(summary):
+        print(line)
 
     fired = trades.filter(pl.col("precision_fire"))
     if fired.height > 0:

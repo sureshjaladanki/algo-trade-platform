@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import datetime as dt
+import math
 from typing import Literal
 
 import polars as pl
 
-from src.labels.triple_barrier import TP_PENETRATION
+from src.labels.triple_barrier import ROUND_TRIP_COST, TP_PENETRATION
 from src.precision.session import (
     AFTERNOON_COVER_START,
     MIS_FLAT_BY,
@@ -466,8 +467,49 @@ def _empty_trades() -> pl.DataFrame:
     )
 
 
+def _slice_stats(
+    fires: pl.DataFrame,
+    *,
+    label_col: str | None = None,
+) -> dict[str, float | int]:
+    """Per-slice n / gross / net / exit mix (+ optional TB TP rate)."""
+    n = fires.height
+    if n == 0:
+        return {"n": 0}
+
+    mean_gross = float(fires["gross_ret"].mean())
+    stats: dict[str, float | int] = {
+        "n": n,
+        "mean_gross_ret": mean_gross,
+        "mean_net_ret": mean_gross - ROUND_TRIP_COST,
+        "mean_size_mult": float(fires["size_mult"].mean()),
+        "tp_rate": fires.filter(pl.col("exit_reason") == "TP").height / n,
+        "sl_rate": fires.filter(pl.col("exit_reason") == "SL").height / n,
+        "timeout_rate": fires.filter(pl.col("exit_reason") == "TIMEOUT").height / n,
+        "mis_flatten_rate": (
+            fires.filter(pl.col("exit_reason") == "MIS_FLATTEN").height / n
+        ),
+    }
+    if label_col is not None and label_col in fires.columns:
+        labeled = fires.drop_nulls(subset=[label_col])
+        if labeled.height > 0:
+            stats["tb_tp_rate"] = (
+                labeled.filter(pl.col(label_col) == 1).height / labeled.height
+            )
+            stats["prec_tp_rate"] = (
+                labeled.filter(pl.col("exit_reason") == "TP").height / labeled.height
+            )
+    return stats
+
+
 def summarize_precision_trades(trades: pl.DataFrame) -> dict:
-    """Hit-rate / PnL diagnostics vs TB label expectations."""
+    """
+    Hit-rate / PnL diagnostics vs TB label expectations.
+
+    Top-level scalars stay MLflow-friendly. Nested dicts under ``by_*`` break
+    down fires by entry reason, Horizon rank band, direction, and score quartile
+    for A/B diagnosis (setup vs fallback, K-tighten, sleeve skew).
+    """
     if trades.height == 0:
         return {"episodes": 0, "fires": 0, "fire_rate": 0.0}
 
@@ -483,25 +525,148 @@ def summarize_precision_trades(trades: pl.DataFrame) -> dict:
         return out
 
     out["mean_gross_ret"] = float(fires["gross_ret"].mean())
+    out["mean_net_ret"] = out["mean_gross_ret"] - ROUND_TRIP_COST
     out["mean_size_mult"] = float(fires["size_mult"].mean())
     for reason in ("TP", "SL", "TIMEOUT", "MIS_FLATTEN"):
         out[f"exit_{reason.lower()}"] = fires.filter(
             pl.col("exit_reason") == reason
         ).height
 
+    # Direction + TB label alignment (legacy top-level keys kept for MLflow).
+    by_direction: dict[str, dict] = {}
     for direction, label_col in (
         ("long", "tb_label_long"),
         ("short", "tb_label_short"),
     ):
-        subset = fires.filter(pl.col("horizon_direction") == direction).drop_nulls(
-            subset=[label_col]
-        )
+        subset = fires.filter(pl.col("horizon_direction") == direction)
         if subset.height == 0:
             continue
-        tb_tp = subset.filter(pl.col(label_col) == 1).height
-        prec_tp = subset.filter(pl.col("exit_reason") == "TP").height
-        out[f"{direction}_n"] = subset.height
-        out[f"{direction}_tb_tp_rate"] = tb_tp / subset.height
-        out[f"{direction}_prec_tp_rate"] = prec_tp / subset.height
+        stats = _slice_stats(subset, label_col=label_col)
+        by_direction[direction] = stats
+        out[f"{direction}_n"] = stats["n"]
+        if "tb_tp_rate" in stats:
+            out[f"{direction}_tb_tp_rate"] = stats["tb_tp_rate"]
+            out[f"{direction}_prec_tp_rate"] = stats["prec_tp_rate"]
+    out["by_direction"] = by_direction
+
+    # Setup vs fallback fills.
+    by_entry: dict[str, dict] = {}
+    if "entry_reason" in fires.columns:
+        for reason in ("setup", "fallback"):
+            subset = fires.filter(pl.col("entry_reason") == reason)
+            if subset.height == 0:
+                continue
+            by_entry[reason] = _slice_stats(subset)
+    out["by_entry_reason"] = by_entry
+
+    # Rank bands match size_mult_from_rank buckets.
+    by_rank: dict[str, dict] = {}
+    if "horizon_rank" in fires.columns:
+        rank_bands = (
+            ("1-2", pl.col("horizon_rank") <= 2),
+            (
+                "3-5",
+                (pl.col("horizon_rank") >= 3) & (pl.col("horizon_rank") <= 5),
+            ),
+            (
+                "6-8",
+                (pl.col("horizon_rank") >= 6) & (pl.col("horizon_rank") <= 8),
+            ),
+        )
+        for label, mask in rank_bands:
+            subset = fires.filter(mask)
+            if subset.height == 0:
+                continue
+            by_rank[label] = _slice_stats(subset)
+    out["by_rank"] = by_rank
+
+    # Score quartiles among fires (Q1 = weakest scores).
+    by_score: dict[str, dict] = {}
+    if "horizon_score" in fires.columns:
+        scored = fires.drop_nulls(subset=["horizon_score"])
+        if scored.height >= 4:
+            qs = scored.select(
+                q25=pl.col("horizon_score").quantile(0.25),
+                q50=pl.col("horizon_score").quantile(0.50),
+                q75=pl.col("horizon_score").quantile(0.75),
+            ).row(0, named=True)
+            q25, q50, q75 = qs["q25"], qs["q50"], qs["q75"]
+            score_bands = (
+                ("Q1_weak", pl.col("horizon_score") <= q25),
+                (
+                    "Q2",
+                    (pl.col("horizon_score") > q25) & (pl.col("horizon_score") <= q50),
+                ),
+                (
+                    "Q3",
+                    (pl.col("horizon_score") > q50) & (pl.col("horizon_score") <= q75),
+                ),
+                ("Q4_strong", pl.col("horizon_score") > q75),
+            )
+            for label, mask in score_bands:
+                subset = scored.filter(mask)
+                if subset.height == 0:
+                    continue
+                by_score[label] = _slice_stats(subset)
+    out["by_score_quartile"] = by_score
 
     return out
+
+
+def format_precision_summary(summary: dict) -> list[str]:
+    """Human-readable lines for the Precision summary dict (incl. nested slices)."""
+    lines = ["Precision summary:"]
+    skip = {"by_direction", "by_entry_reason", "by_rank", "by_score_quartile"}
+    for key, val in summary.items():
+        if key in skip:
+            continue
+        if isinstance(val, float):
+            lines.append(f"   {key}: {val:.4f}")
+        else:
+            lines.append(f"   {key}: {val}")
+
+    def _append_group(title: str, group: dict | None) -> None:
+        if not group:
+            return
+        lines.append(f"\n{title}:")
+        for name, stats in group.items():
+            parts = [f"n={stats.get('n', 0)}"]
+            for metric in (
+                "mean_gross_ret",
+                "mean_net_ret",
+                "tp_rate",
+                "sl_rate",
+                "timeout_rate",
+                "tb_tp_rate",
+                "prec_tp_rate",
+            ):
+                if metric in stats and isinstance(stats[metric], float):
+                    parts.append(f"{metric}={stats[metric]:.4f}")
+            lines.append(f"   {name}: " + "  ".join(parts))
+
+    _append_group("By entry reason", summary.get("by_entry_reason"))
+    _append_group("By rank", summary.get("by_rank"))
+    _append_group("By direction", summary.get("by_direction"))
+    _append_group("By score quartile", summary.get("by_score_quartile"))
+    return lines
+
+
+def flatten_precision_summary_metrics(summary: dict) -> dict[str, float]:
+    """Flatten nested summary slices into scalar MLflow metrics."""
+    flat: dict[str, float] = {}
+    for key, val in summary.items():
+        if isinstance(val, (int, float)) and math.isfinite(float(val)):
+            flat[key] = float(val)
+    for group_key, prefix in (
+        ("by_entry_reason", "entry"),
+        ("by_rank", "rank"),
+        ("by_direction", "dir"),
+        ("by_score_quartile", "score"),
+    ):
+        group = summary.get(group_key) or {}
+        for name, stats in group.items():
+            tag = str(name).replace("-", "_").lower()
+            for metric, mval in stats.items():
+                if isinstance(mval, (int, float)) and math.isfinite(float(mval)):
+                    flat[f"{prefix}_{tag}_{metric}"] = float(mval)
+    return flat
