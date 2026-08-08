@@ -62,11 +62,12 @@ MIN_DIST_TO_SL_BPS = 10.0
 MIN_BARS_TO_VERTICAL = 15.0
 MAX_RANGE_COMPRESSION = 3.0
 
-_RANK_SIZE = ((2, 1.0), (5, 0.7), (TOP_K, 0.4))
+# Phase 1 size schedule: ranks 1–2 full, 3–5 reduced; ranks > TOP_K skipped upstream.
+_RANK_SIZE = ((2, 1.0), (TOP_K, 0.7))
 
 
 def size_mult_from_rank(rank: int | None, *, afternoon_cover_risk: bool = False) -> float:
-    """Rank 1–2 → 1.0×, 3–5 → 0.7×, 6–8 → 0.4×; outside TOP_K → skip. Short afternoon ×0.5."""
+    """Rank 1–2 → 1.0×, 3–TOP_K → 0.7×; outside TOP_K → skip. Short afternoon ×0.5."""
     if rank is None or rank < 1 or rank > TOP_K:
         return 0.0
     mult = next(size for ceiling, size in _RANK_SIZE if rank <= ceiling)
@@ -86,12 +87,21 @@ def classify_precision(
     runs on 1m bars ``[decision_bar, decision_bar + wait_minutes)``. Vertical
     timeout stays ``min(decision_bar + H, MIS_FLAT_BY)`` (wall-clock ~15:00).
 
+    Phase 1 selectivity: registry is already TOP_K; episodes below the bar×sleeve
+    ``edge_score`` median are skipped (setup and fallback alike).
+
     Returns one row per decision episode with fire / skip, fill, barriers, exit.
     ``stock_1m`` must already carry Precision 1m features
     (``calculate_precision_features``). Registry must include ``edge_score``.
     """
     if registry.height == 0:
         return _empty_trades()
+
+    registry = registry.with_columns(
+        edge_median=pl.col("edge_score")
+        .median()
+        .over(["decision_bar", "horizon_direction"]),
+    )
 
     by_symbol = {
         str(key[0] if isinstance(key, tuple) else key): grp
@@ -120,6 +130,8 @@ def _process_episode(
     vertical_deadline = ep["vertical_deadline"]
     atr_pct = ep["atr_pct"]
     rank = ep["horizon_rank"]
+    edge = ep["edge_score"]
+    edge_floor = ep["edge_median"]
     tp_w, sl_w, spread_ceiling = _sleeve_geometry(ep, direction)
 
     base = {
@@ -128,7 +140,7 @@ def _process_episode(
         "horizon_direction": direction,
         "horizon_rank": int(rank) if rank is not None else None,
         "horizon_score": ep["horizon_score"],
-        "edge_score": ep["edge_score"],
+        "edge_score": edge,
         "daily_regime": ep["daily_regime"],
         "intraday_regime": ep["intraday_regime"],
         "atr_pct": float(atr_pct) if atr_pct is not None else None,
@@ -139,6 +151,10 @@ def _process_episode(
         "tb_label_short": ep.get("tb_label_short"),
         "meta_label_pass": None,
     }
+
+    # Shared conviction gate (setup + fallback): require edge ≥ bar×sleeve median.
+    if edge < edge_floor:
+        return _skip_row(base)
 
     if direction == "short" and (symbol, session_day) in short_sl_blocked:
         return _skip_row(base)

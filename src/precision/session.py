@@ -16,7 +16,8 @@ WAIT_MINUTES = 5
 HORIZON_MINUTES = 60
 
 # Top-K / bottom-K names Precision may touch (rank-based size beyond this → skip).
-TOP_K = 8
+# Phase 1 selectivity: tightened 8 → 5 (drop ranks 6–8; do not micro-size them).
+TOP_K = 5
 
 # Afternoon cover gate for Shorts (verdict: time ≥ 13:00).
 AFTERNOON_COVER_START = dt.time(13, 0)

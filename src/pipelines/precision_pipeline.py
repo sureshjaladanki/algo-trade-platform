@@ -26,6 +26,7 @@ from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
 from src.precision.scores import check_rank_edge_polarity
 from src.precision.precision import classify_precision
+from src.precision.session import TOP_K
 from src.precision.summary import (
     flatten_precision_summary_metrics,
     format_precision_summary,
@@ -54,6 +55,7 @@ def run_pipeline(
         mlflow.log_param("data_dir", str(data_dir))
         mlflow.log_param("config_path", str(config_path))
         mlflow.log_param("direction", direction)
+        mlflow.log_param("top_k", TOP_K)
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)

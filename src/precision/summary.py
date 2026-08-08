@@ -38,10 +38,10 @@ _SUMMARY_NESTED_KEYS = frozenset(
         "edge_score_floors",
     }
 )
+# Phase 1 TOP_K=5 — only size bands 1–2 and 3–5 remain.
 _RANK_BANDS = (
     ("1-2", pl.col("horizon_rank") <= 2),
     ("3-5", (pl.col("horizon_rank") >= 3) & (pl.col("horizon_rank") <= 5)),
-    ("6-8", (pl.col("horizon_rank") >= 6) & (pl.col("horizon_rank") <= 8)),
 )
 _TB_LABEL = {"long": "tb_label_long", "short": "tb_label_short"}
 
