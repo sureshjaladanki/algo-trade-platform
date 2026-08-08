@@ -11,6 +11,7 @@ from src.horizon.session import (
     long_entry_ok_expr,
     short_entry_ok_expr,
 )
+from src.precision.scores import edge_score_expr
 from src.precision.session import HORIZON_MINUTES, TOP_K
 from src.regime.types import DailyRegime, IntradayRegime
 
@@ -83,10 +84,14 @@ def calculate_horizon_precision_features(
             minutes=MIS_FLAT_BY.minute,
         )
     )
-    registry = df.filter(long_mask | short_mask).with_columns(
-        vertical_deadline=pl.min_horizontal(
-            pl.col("decision_bar") + dt.timedelta(minutes=HORIZON_MINUTES),
-            mis_deadline,
-        ),
+    registry = (
+        df.filter(long_mask | short_mask)
+        .with_columns(
+            vertical_deadline=pl.min_horizontal(
+                pl.col("decision_bar") + dt.timedelta(minutes=HORIZON_MINUTES),
+                mis_deadline,
+            ),
+        )
+        .with_columns(edge_score_expr())
     )
     return registry.sort(["decision_bar", "horizon_direction", "horizon_rank"])

@@ -24,8 +24,9 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.precision import (
-    classify_precision,
+from src.precision.scores import check_rank_edge_polarity
+from src.precision.precision import classify_precision
+from src.precision.summary import (
     flatten_precision_summary_metrics,
     format_precision_summary,
     summarize_precision_trades,
@@ -177,6 +178,22 @@ def run_pipeline(
         features_1m, registry = build_precision_features(stock_1m, nifty_1m, scored)
         print(f"   1m feature rows: {features_1m.height}")
         mlflow.log_metric("precision_1m_rows", features_1m.height)
+
+        # Phase 0: confirm Horizon rank polarity matches edge_score (live inference).
+        polarity = check_rank_edge_polarity(registry)
+        print(
+            "   Registry rank/edge polarity: "
+            f"ok={polarity['rank_polarity_ok']}  "
+            f"groups={polarity['rank_polarity_groups']}  "
+            f"violations={polarity['rank_polarity_violations']}"
+        )
+        for key, val in polarity.items():
+            mlflow.log_metric(key, float(val))
+        if not polarity["rank_polarity_ok"]:
+            print(
+                "   WARNING: registry rank/edge polarity violations — "
+                "check Horizon sleeve rank_descending vs edge_score."
+            )
 
         print("11. Running Precision rules (bounded-wait entry + frozen TB exits)...")
         trades = classify_precision(registry, features_1m)

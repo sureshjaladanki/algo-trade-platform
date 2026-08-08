@@ -284,4 +284,6 @@ Primary stock selection remains Tier 2 excess-return LightGBM. Precision monetiz
 4. Compare rules-only PnL / hit rate to TB label expectations on the same episodes.  
 5. (Later) Optional meta-label LightGBM take/skip with purged walk-forward — only if step 4 shows under-monetization.
 
+**Post-baseline (2026-08-07):** rules v1 is live and still ~−18 bps net after 30 bps friction. Selectivity / PnL optimization for the next cycle is locked in [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md) (TOP_K 8→5, Long SUPPORTIVE-only, `edge_score` conviction gate; meta still staged).
+
 Mean-reversion under `CHOP` remains a separate sleeve, not this verdict.
