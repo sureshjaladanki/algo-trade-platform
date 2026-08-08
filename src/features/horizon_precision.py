@@ -28,8 +28,9 @@ def calculate_horizon_precision_features(
     """
     Narrow Horizon scores to the Precision universe (top-K / bottom-K + TB gates).
 
-    Phase 1: ``TOP_K=5``. Conviction (edge ≥ bar×sleeve median) is applied later
-    in ``classify_precision`` so skipped names still count in the episode base.
+    Phase 1: ``TOP_K=5`` by default (ablate with ``top_k=8``). Conviction
+    (edge ≥ bar×sleeve median) is applied later in ``classify_precision`` so
+    skipped names still count in the episode base.
 
     Expects columns from `predict_horizon_gbm` joined with TB geometry.
     ``date`` / ``decision_bar`` are 15m bar-end stamps (actionable clock).

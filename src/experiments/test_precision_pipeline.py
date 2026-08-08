@@ -19,7 +19,13 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
+from src.precision.diagnostics import (
+    audit_entry_composition,
+    diagnose_rank_root_cause,
+    format_phase2_diagnostics,
+)
 from src.precision.precision import classify_precision
+from src.precision.session import TOP_K
 from src.precision.summary import format_precision_summary, summarize_precision_trades
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
@@ -69,6 +75,17 @@ def main():
         type=str,
         default=None,
         help="Optional Horizon_Pipeline MLflow run id",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=TOP_K,
+        help=f"Horizon registry top-K (default Phase 1: {TOP_K}; ablate with 8)",
+    )
+    parser.add_argument(
+        "--no-conviction-gate",
+        action="store_true",
+        help="Disable bar×sleeve edge_score median gate (ablation)",
     )
     args = parser.parse_args()
 
@@ -179,15 +196,33 @@ def main():
         start_period=test_start,
         end_period=test_end,
     )
-    features_1m, registry = build_precision_features(stock_1m, nifty_1m, scored)
+    features_1m, registry = build_precision_features(
+        stock_1m,
+        nifty_1m,
+        scored,
+        top_k=args.top_k,
+    )
     print(f"   1m feature rows: {features_1m.height}")
 
-    print("10. Running Precision rules...")
-    trades = classify_precision(registry, features_1m)
+    conviction_gate = not args.no_conviction_gate
+    print(
+        "10. Running Precision rules "
+        f"(top_k={args.top_k}, conviction_gate={conviction_gate})..."
+    )
+    trades = classify_precision(
+        registry,
+        features_1m,
+        top_k=args.top_k,
+        conviction_gate=conviction_gate,
+    )
     summary = summarize_precision_trades(trades)
+    rank_diag = diagnose_rank_root_cause(trades)
+    entry_audit = audit_entry_composition(trades)
     print(f"   Registry: {registry.height}, Trades: {trades.height}")
     print()
     for line in format_precision_summary(summary):
+        print(line)
+    for line in format_phase2_diagnostics(rank_diag, entry_audit):
         print(line)
 
     fired = trades.filter(pl.col("precision_fire"))

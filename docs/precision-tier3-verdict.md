@@ -156,7 +156,7 @@ Prefer **triple-barrier metrics already captured at Tier 2**, plus light 1m timi
 | Timeout | `min(15m_decision_bar + 60m, MIS_FLAT_BY ≈ 15:00 wall)` — clock from **decision bar** (bar-end / actionable), not delayed 1m entry |
 | Regime flip | Optional soft flatten on post-hysteresis leave of `TREND_UP` (ideal if dwell logic is live) |
 
-**Size:** `size_mult` from Tier 2 rank — e.g. rank 1–2 → 1.0×, 3–5 → 0.7×, 6–8 → 0.4×, else skip. Skip (not micro-size) if spread ceiling breached. Portfolio heat cap (e.g. max 5 concurrent) sits in a risk layer; Precision emits `size_mult` only.
+**Size:** `size_mult` from Tier 2 rank — Phase 1 base: rank 1–2 → 1.0×, 3–5 → 0.7×, else skip (`TOP_K=5`; ranks 6–8 dropped, not micro-sized). Ablation may restore 6–8 → 0.4× at `top_k=8`. Skip (not micro-size) if spread ceiling breached. Portfolio heat cap (e.g. max 5 concurrent) sits in a risk layer; Precision emits `size_mult` only.
 
 ### Short (`TREND_DOWN` sleeve)
 
@@ -284,6 +284,8 @@ Primary stock selection remains Tier 2 excess-return LightGBM. Precision monetiz
 4. Compare rules-only PnL / hit rate to TB label expectations on the same episodes.  
 5. (Later) Optional meta-label LightGBM take/skip with purged walk-forward — only if step 4 shows under-monetization.
 
-**Post-baseline (2026-08-07):** rules v1 is live and still ~−18 bps net after 30 bps friction. Selectivity / PnL optimization for the next cycle is locked in [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md) (TOP_K 8→5, Long SUPPORTIVE-only, `edge_score` conviction gate; meta still staged).
+**Post-baseline (2026-08-07):** rules v1 is live and still ~−18 bps net after 30 bps friction. Selectivity / PnL optimization for the next cycle is locked in [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md).
+
+**Phase 1 base shipped (2026-08-08) — measured, not acceptance-met:** `TOP_K` 8→5; size schedule 1–2 → 1.0×, 3–5 → 0.7× (no 6–8); shared `edge_score` ≥ bar×sleeve median conviction gate. Blended/Long ≥0 gates still fail (~−16 / −15 net). Ablate via `--top-k` / `--no-conviction-gate`. Closed arms (LSO / SLL / Q4 floor) measured NO-LOCK and removed from CLI — see [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md).
 
 Mean-reversion under `CHOP` remains a separate sleeve, not this verdict.

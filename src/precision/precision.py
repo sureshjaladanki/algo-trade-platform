@@ -62,13 +62,18 @@ MIN_DIST_TO_SL_BPS = 10.0
 MIN_BARS_TO_VERTICAL = 15.0
 MAX_RANGE_COMPRESSION = 3.0
 
-# Phase 1 size schedule: ranks 1–2 full, 3–5 reduced; ranks > TOP_K skipped upstream.
-_RANK_SIZE = ((2, 1.0), (TOP_K, 0.7))
+# Size schedule (ablation may restore ranks 6–8 at 0.4× when top_k=8).
+_RANK_SIZE = ((2, 1.0), (5, 0.7), (8, 0.4))
 
 
-def size_mult_from_rank(rank: int | None, *, afternoon_cover_risk: bool = False) -> float:
-    """Rank 1–2 → 1.0×, 3–TOP_K → 0.7×; outside TOP_K → skip. Short afternoon ×0.5."""
-    if rank is None or rank < 1 or rank > TOP_K:
+def size_mult_from_rank(
+    rank: int | None,
+    *,
+    top_k: int = TOP_K,
+    afternoon_cover_risk: bool = False,
+) -> float:
+    """Rank 1–2 → 1.0×, 3–5 → 0.7×, 6–8 → 0.4×; outside top_k → skip. Short afternoon ×0.5."""
+    if rank is None or rank < 1 or rank > top_k:
         return 0.0
     mult = next(size for ceiling, size in _RANK_SIZE if rank <= ceiling)
     return mult * 0.5 if afternoon_cover_risk else mult
@@ -79,6 +84,8 @@ def classify_precision(
     stock_1m: pl.DataFrame,
     *,
     wait_minutes: int = WAIT_MINUTES,
+    top_k: int = TOP_K,
+    conviction_gate: bool = True,
 ) -> pl.DataFrame:
     """
     Rules-first Precision: bounded-wait 1m entry → frozen TB exits.
@@ -87,8 +94,8 @@ def classify_precision(
     runs on 1m bars ``[decision_bar, decision_bar + wait_minutes)``. Vertical
     timeout stays ``min(decision_bar + H, MIS_FLAT_BY)`` (wall-clock ~15:00).
 
-    Phase 1 selectivity: registry is already TOP_K; episodes below the bar×sleeve
-    ``edge_score`` median are skipped (setup and fallback alike).
+    Phase 1 defaults: ``top_k=5``, ``conviction_gate=True`` (edge ≥ bar×sleeve
+    median). Ablate with ``top_k=8`` / ``conviction_gate=False``.
 
     Returns one row per decision episode with fire / skip, fill, barriers, exit.
     ``stock_1m`` must already carry Precision 1m features
@@ -111,7 +118,14 @@ def classify_precision(
     }
     short_sl_blocked: set[tuple[str, dt.date]] = set()
     rows = [
-        _process_episode(ep, by_symbol, short_sl_blocked, wait_minutes)
+        _process_episode(
+            ep,
+            by_symbol,
+            short_sl_blocked,
+            wait_minutes,
+            top_k=top_k,
+            conviction_gate=conviction_gate,
+        )
         for ep in registry.iter_rows(named=True)
     ]
     return pl.DataFrame(rows)
@@ -122,6 +136,9 @@ def _process_episode(
     by_symbol: dict[str, pl.DataFrame],
     short_sl_blocked: set[tuple[str, dt.date]],
     wait_minutes: int,
+    *,
+    top_k: int,
+    conviction_gate: bool,
 ) -> dict:
     symbol = ep["symbol"]
     direction = ep["horizon_direction"]
@@ -130,8 +147,10 @@ def _process_episode(
     vertical_deadline = ep["vertical_deadline"]
     atr_pct = ep["atr_pct"]
     rank = ep["horizon_rank"]
-    edge = ep["edge_score"]
-    edge_floor = ep["edge_median"]
+    edge = float(ep["edge_score"])
+    edge_floor = float(ep["edge_median"])
+    gate_pass = edge >= edge_floor
+    flip_bars = ep.get("bars_since_regime_flip")
     tp_w, sl_w, spread_ceiling = _sleeve_geometry(ep, direction)
 
     base = {
@@ -141,6 +160,11 @@ def _process_episode(
         "horizon_rank": int(rank) if rank is not None else None,
         "horizon_score": ep["horizon_score"],
         "edge_score": edge,
+        "edge_median": edge_floor,
+        "gate_pass": gate_pass,
+        "bars_since_regime_flip": (
+            int(flip_bars) if flip_bars is not None else None
+        ),
         "daily_regime": ep["daily_regime"],
         "intraday_regime": ep["intraday_regime"],
         "atr_pct": float(atr_pct) if atr_pct is not None else None,
@@ -150,10 +174,11 @@ def _process_episode(
         "tb_label_long": ep.get("tb_label_long"),
         "tb_label_short": ep.get("tb_label_short"),
         "meta_label_pass": None,
+        "wait_minutes": None,
     }
 
     # Shared conviction gate (setup + fallback): require edge ≥ bar×sleeve median.
-    if edge < edge_floor:
+    if conviction_gate and not gate_pass:
         return _skip_row(base)
 
     if direction == "short" and (symbol, session_day) in short_sl_blocked:
@@ -188,7 +213,9 @@ def _process_episode(
 
     afternoon_risk = bool(fill["afternoon_cover_risk"])
     size_mult = size_mult_from_rank(
-        base["horizon_rank"], afternoon_cover_risk=afternoon_risk
+        base["horizon_rank"],
+        top_k=top_k,
+        afternoon_cover_risk=afternoon_risk,
     )
     if size_mult <= 0:
         return _skip_row(base)
@@ -196,6 +223,7 @@ def _process_episode(
     entry_bar = fill["entry_bar_1m"]
     entry_px = float(fill["entry_px"])
     tp_px, sl_px = _absolute_barriers(direction, entry_px, tp_w, sl_w)
+    wait_mins = (entry_bar - decision_bar).total_seconds() / 60.0
 
     exit_info = _resolve_exit(
         bars.filter(
@@ -221,6 +249,7 @@ def _process_episode(
         "size_mult": size_mult,
         "entry_reason": fill["entry_reason"],
         "afternoon_cover_risk": afternoon_risk,
+        "wait_minutes": wait_mins,
         "exit_bar_1m": exit_info["exit_bar_1m"],
         "exit_px": exit_info["exit_px"],
         "exit_reason": exit_info["exit_reason"],
@@ -459,6 +488,9 @@ def _empty_trades() -> pl.DataFrame:
             "horizon_rank": pl.Int64,
             "horizon_score": pl.Float64,
             "edge_score": pl.Float64,
+            "edge_median": pl.Float64,
+            "gate_pass": pl.Boolean,
+            "bars_since_regime_flip": pl.Int64,
             "daily_regime": pl.Utf8,
             "intraday_regime": pl.Utf8,
             "atr_pct": pl.Float64,
@@ -468,6 +500,7 @@ def _empty_trades() -> pl.DataFrame:
             "tb_label_long": pl.Int8,
             "tb_label_short": pl.Int8,
             "meta_label_pass": pl.Boolean,
+            "wait_minutes": pl.Float64,
             "precision_fire": pl.Boolean,
             "entry_bar_1m": pl.Datetime,
             "entry_px": pl.Float64,

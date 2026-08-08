@@ -24,6 +24,12 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
+from src.precision.diagnostics import (
+    audit_entry_composition,
+    diagnose_rank_root_cause,
+    flatten_phase2_diagnostics,
+    format_phase2_diagnostics,
+)
 from src.precision.scores import check_rank_edge_polarity
 from src.precision.precision import classify_precision
 from src.precision.session import TOP_K
@@ -47,6 +53,8 @@ def run_pipeline(
     direction: str = "both",
     regime_run_id: str | None = None,
     horizon_run_id: str | None = None,
+    top_k: int = TOP_K,
+    conviction_gate: bool = True,
 ):
     mlflow.set_experiment(PRECISION_EXPERIMENT)
     with mlflow.start_run(run_name=f"Precision_{train_period}_{test_period}"):
@@ -55,7 +63,8 @@ def run_pipeline(
         mlflow.log_param("data_dir", str(data_dir))
         mlflow.log_param("config_path", str(config_path))
         mlflow.log_param("direction", direction)
-        mlflow.log_param("top_k", TOP_K)
+        mlflow.log_param("top_k", top_k)
+        mlflow.log_param("conviction_gate", conviction_gate)
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
@@ -177,7 +186,12 @@ def run_pipeline(
         )
 
         print("10. Building Precision 1m features...")
-        features_1m, registry = build_precision_features(stock_1m, nifty_1m, scored)
+        features_1m, registry = build_precision_features(
+            stock_1m,
+            nifty_1m,
+            scored,
+            top_k=top_k,
+        )
         print(f"   1m feature rows: {features_1m.height}")
         mlflow.log_metric("precision_1m_rows", features_1m.height)
 
@@ -197,13 +211,27 @@ def run_pipeline(
                 "check Horizon sleeve rank_descending vs edge_score."
             )
 
-        print("11. Running Precision rules (bounded-wait entry + frozen TB exits)...")
-        trades = classify_precision(registry, features_1m)
+        print(
+            "11. Running Precision rules "
+            f"(top_k={top_k}, conviction_gate={conviction_gate})..."
+        )
+        trades = classify_precision(
+            registry,
+            features_1m,
+            top_k=top_k,
+            conviction_gate=conviction_gate,
+        )
         summary = summarize_precision_trades(trades)
+        rank_diag = diagnose_rank_root_cause(trades)
+        entry_audit = audit_entry_composition(trades)
         print(f"   Registry episodes: {registry.height}")
         print(f"   Trades frame: {trades.height}")
         _print_summary(summary)
+        for line in format_phase2_diagnostics(rank_diag, entry_audit):
+            print(line)
         _log_summary_mlflow(summary)
+        for key, val in flatten_phase2_diagnostics(rank_diag, entry_audit).items():
+            mlflow.log_metric(key, val)
 
         print("\nExit reason counts (fired only):")
         fired = trades.filter(pl.col("precision_fire"))
@@ -275,6 +303,17 @@ if __name__ == "__main__":
         default=None,
         help="Optional Horizon_Pipeline MLflow run id (default: match train_period / latest)",
     )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=TOP_K,
+        help=f"Horizon registry top-K (default Phase 1: {TOP_K}; ablate with 8)",
+    )
+    parser.add_argument(
+        "--no-conviction-gate",
+        action="store_true",
+        help="Disable bar×sleeve edge_score median gate (ablation)",
+    )
 
     args = parser.parse_args()
 
@@ -297,4 +336,6 @@ if __name__ == "__main__":
         direction=args.direction,
         regime_run_id=args.regime_run_id,
         horizon_run_id=args.horizon_run_id,
+        top_k=args.top_k,
+        conviction_gate=not args.no_conviction_gate,
     )
