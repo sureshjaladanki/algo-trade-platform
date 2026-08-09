@@ -15,7 +15,16 @@ from src.precision.session import (
     WAIT_MINUTES,
 )
 
-ExitReason = Literal["TP", "SL", "TIMEOUT", "REGIME_FLIP", "MIS_FLATTEN", "SKIP"]
+ExitReason = Literal[
+    "TP",
+    "SL",
+    "TIMEOUT",
+    "REGIME_FLIP",
+    "MIS_FLATTEN",
+    "SKIP",
+    "NO_CHASE",
+    "RANK_SKIP",
+]
 
 # Feature names kept for documentation / future meta-filter (rules v1 uses them inline).
 LONG_FEATURES = [
@@ -62,6 +71,13 @@ MIN_DIST_TO_SL_BPS = 10.0
 MIN_BARS_TO_VERTICAL = 15.0
 MAX_RANGE_COMPRESSION = 3.0
 
+# Phase 2 no-chase: bars_since_regime_flip ≤ this = fresh flip (matches diagnostics).
+FRESH_FLIP_BARS = 1
+# Default experiment scope: ranks 1–2 (use top_k for pooled).
+NO_CHASE_RANK_MAX = 2
+# Phase 2 #10: hard-skip ranks at or below this (experiment; off by default).
+SKIP_RANK_MAX = 2
+
 # Size schedule (ablation may restore ranks 6–8 at 0.4× when top_k=8).
 _RANK_SIZE = ((2, 1.0), (5, 0.7), (8, 0.4))
 
@@ -86,6 +102,9 @@ def classify_precision(
     wait_minutes: int = WAIT_MINUTES,
     top_k: int = TOP_K,
     conviction_gate: bool = True,
+    no_chase: bool = False,
+    no_chase_rank_max: int = NO_CHASE_RANK_MAX,
+    skip_rank_1_2: bool = False,
 ) -> pl.DataFrame:
     """
     Rules-first Precision: bounded-wait 1m entry → frozen TB exits.
@@ -97,9 +116,15 @@ def classify_precision(
     Phase 1 defaults: ``top_k=5``, ``conviction_gate=True`` (edge ≥ bar×sleeve
     median). Ablate with ``top_k=8`` / ``conviction_gate=False``.
 
+    Phase 2 experiments (off by default):
+    - ``no_chase=True``: skip ``bars_since_regime_flip ≤ FRESH_FLIP_BARS`` for
+      ranks ≤ ``no_chase_rank_max`` (default 1–2; pass ``top_k`` for pooled).
+    - ``skip_rank_1_2=True``: hard-skip ranks ≤ ``SKIP_RANK_MAX`` (#10 measure).
+
     Returns one row per decision episode with fire / skip, fill, barriers, exit.
     ``stock_1m`` must already carry Precision 1m features
-    (``calculate_precision_features``). Registry must include ``edge_score``.
+    (``calculate_precision_features``). Registry must include ``edge_score``
+    and ``bars_since_regime_flip``.
     """
     if registry.height == 0:
         return _empty_trades()
@@ -125,6 +150,9 @@ def classify_precision(
             wait_minutes,
             top_k=top_k,
             conviction_gate=conviction_gate,
+            no_chase=no_chase,
+            no_chase_rank_max=no_chase_rank_max,
+            skip_rank_1_2=skip_rank_1_2,
         )
         for ep in registry.iter_rows(named=True)
     ]
@@ -139,6 +167,9 @@ def _process_episode(
     *,
     top_k: int,
     conviction_gate: bool,
+    no_chase: bool,
+    no_chase_rank_max: int,
+    skip_rank_1_2: bool,
 ) -> dict:
     symbol = ep["symbol"]
     direction = ep["horizon_direction"]
@@ -146,25 +177,25 @@ def _process_episode(
     decision_bar = ep["decision_bar"]
     vertical_deadline = ep["vertical_deadline"]
     atr_pct = ep["atr_pct"]
-    rank = ep["horizon_rank"]
+    rank = int(ep["horizon_rank"])
     edge = float(ep["edge_score"])
     edge_floor = float(ep["edge_median"])
     gate_pass = edge >= edge_floor
-    flip_bars = ep.get("bars_since_regime_flip")
+    flip_bars = int(ep["bars_since_regime_flip"])
+    fresh_flip = flip_bars <= FRESH_FLIP_BARS
     tp_w, sl_w, spread_ceiling = _sleeve_geometry(ep, direction)
 
     base = {
         "symbol": symbol,
         "decision_bar": decision_bar,
         "horizon_direction": direction,
-        "horizon_rank": int(rank) if rank is not None else None,
+        "horizon_rank": rank,
         "horizon_score": ep["horizon_score"],
         "edge_score": edge,
         "edge_median": edge_floor,
         "gate_pass": gate_pass,
-        "bars_since_regime_flip": (
-            int(flip_bars) if flip_bars is not None else None
-        ),
+        "bars_since_regime_flip": flip_bars,
+        "fresh_flip": fresh_flip,
         "daily_regime": ep["daily_regime"],
         "intraday_regime": ep["intraday_regime"],
         "atr_pct": float(atr_pct) if atr_pct is not None else None,
@@ -180,6 +211,14 @@ def _process_episode(
     # Shared conviction gate (setup + fallback): require edge ≥ bar×sleeve median.
     if conviction_gate and not gate_pass:
         return _skip_row(base)
+
+    # Phase 2 #10: hard-skip toxic rank band (measure; reject if gates fail).
+    if skip_rank_1_2 and rank <= SKIP_RANK_MAX:
+        return _skip_row(base, "RANK_SKIP")
+
+    # Phase 2 no-chase: skip fresh regime-flip chases in the scoped rank band.
+    if no_chase and fresh_flip and rank <= no_chase_rank_max:
+        return _skip_row(base, "NO_CHASE")
 
     if direction == "short" and (symbol, session_day) in short_sl_blocked:
         return _skip_row(base)
@@ -224,6 +263,10 @@ def _process_episode(
     entry_px = float(fill["entry_px"])
     tp_px, sl_px = _absolute_barriers(direction, entry_px, tp_w, sl_w)
     wait_mins = (entry_bar - decision_bar).total_seconds() / 60.0
+    bars_to_vertical = (vertical_deadline - entry_bar).total_seconds() / 60.0
+    dist_tp_bps, dist_sl_bps = _room_from_absolute_bps(
+        direction, entry_px, tp_px, sl_px
+    )
 
     exit_info = _resolve_exit(
         bars.filter(
@@ -250,6 +293,10 @@ def _process_episode(
         "entry_reason": fill["entry_reason"],
         "afternoon_cover_risk": afternoon_risk,
         "wait_minutes": wait_mins,
+        "bars_to_vertical": bars_to_vertical,
+        "dist_to_tp_bps": dist_tp_bps,
+        "dist_to_sl_bps": dist_sl_bps,
+        "spread_proxy_bps": fill["spread_proxy_bps"],
         "exit_bar_1m": exit_info["exit_bar_1m"],
         "exit_px": exit_info["exit_px"],
         "exit_reason": exit_info["exit_reason"],
@@ -302,11 +349,13 @@ def _find_entry(
         if not fallback and not _setup_ok(bar, direction):
             continue
 
+        spread = bar["spread_proxy_bps"]
         return {
             "entry_bar_1m": bar["date"],
             "entry_px": float(bar["close"]),
             "entry_reason": "fallback" if fallback else "setup",
             "afternoon_cover_risk": bool(bar["afternoon_cover_risk"]),
+            "spread_proxy_bps": float(spread),
         }
     return None
 
@@ -367,6 +416,15 @@ def _room_to_barriers_bps(
     tp_px = decision_close * (1.0 - tp_w)
     sl_px = decision_close * (1.0 + sl_w)
     return (last / tp_px - 1.0) * 1e4, (sl_px / last - 1.0) * 1e4
+
+
+def _room_from_absolute_bps(
+    direction: str, entry_px: float, tp_px: float, sl_px: float
+) -> tuple[float, float]:
+    """Room-to-barrier at fill using absolute TP/SL levels."""
+    if direction == "long":
+        return (tp_px / entry_px - 1.0) * 1e4, (entry_px / sl_px - 1.0) * 1e4
+    return (entry_px / tp_px - 1.0) * 1e4, (sl_px / entry_px - 1.0) * 1e4
 
 
 def _setup_ok(bar: dict, direction: str) -> bool:
@@ -472,6 +530,10 @@ def _skip_row(base: dict, reason: str = "SKIP") -> dict:
         "size_mult": 0.0,
         "entry_reason": None,
         "afternoon_cover_risk": False,
+        "bars_to_vertical": None,
+        "dist_to_tp_bps": None,
+        "dist_to_sl_bps": None,
+        "spread_proxy_bps": None,
         "exit_bar_1m": None,
         "exit_px": None,
         "exit_reason": reason,
@@ -491,6 +553,7 @@ def _empty_trades() -> pl.DataFrame:
             "edge_median": pl.Float64,
             "gate_pass": pl.Boolean,
             "bars_since_regime_flip": pl.Int64,
+            "fresh_flip": pl.Boolean,
             "daily_regime": pl.Utf8,
             "intraday_regime": pl.Utf8,
             "atr_pct": pl.Float64,
@@ -509,6 +572,10 @@ def _empty_trades() -> pl.DataFrame:
             "size_mult": pl.Float64,
             "entry_reason": pl.Utf8,
             "afternoon_cover_risk": pl.Boolean,
+            "bars_to_vertical": pl.Float64,
+            "dist_to_tp_bps": pl.Float64,
+            "dist_to_sl_bps": pl.Float64,
+            "spread_proxy_bps": pl.Float64,
             "exit_bar_1m": pl.Datetime,
             "exit_px": pl.Float64,
             "exit_reason": pl.Utf8,

@@ -31,7 +31,7 @@ from src.precision.diagnostics import (
     format_phase2_diagnostics,
 )
 from src.precision.scores import check_rank_edge_polarity
-from src.precision.precision import classify_precision
+from src.precision.precision import NO_CHASE_RANK_MAX, classify_precision
 from src.precision.session import TOP_K
 from src.precision.summary import (
     flatten_precision_summary_metrics,
@@ -55,6 +55,9 @@ def run_pipeline(
     horizon_run_id: str | None = None,
     top_k: int = TOP_K,
     conviction_gate: bool = True,
+    no_chase: bool = False,
+    no_chase_rank_max: int = NO_CHASE_RANK_MAX,
+    skip_rank_1_2: bool = False,
 ):
     mlflow.set_experiment(PRECISION_EXPERIMENT)
     with mlflow.start_run(run_name=f"Precision_{train_period}_{test_period}"):
@@ -65,6 +68,9 @@ def run_pipeline(
         mlflow.log_param("direction", direction)
         mlflow.log_param("top_k", top_k)
         mlflow.log_param("conviction_gate", conviction_gate)
+        mlflow.log_param("no_chase", no_chase)
+        mlflow.log_param("no_chase_rank_max", no_chase_rank_max)
+        mlflow.log_param("skip_rank_1_2", skip_rank_1_2)
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
@@ -213,13 +219,18 @@ def run_pipeline(
 
         print(
             "11. Running Precision rules "
-            f"(top_k={top_k}, conviction_gate={conviction_gate})..."
+            f"(top_k={top_k}, conviction_gate={conviction_gate}, "
+            f"no_chase={no_chase}, no_chase_rank_max={no_chase_rank_max}, "
+            f"skip_rank_1_2={skip_rank_1_2})..."
         )
         trades = classify_precision(
             registry,
             features_1m,
             top_k=top_k,
             conviction_gate=conviction_gate,
+            no_chase=no_chase,
+            no_chase_rank_max=no_chase_rank_max,
+            skip_rank_1_2=skip_rank_1_2,
         )
         summary = summarize_precision_trades(trades)
         rank_diag = diagnose_rank_root_cause(trades)
@@ -314,6 +325,26 @@ if __name__ == "__main__":
         action="store_true",
         help="Disable bar×sleeve edge_score median gate (ablation)",
     )
+    parser.add_argument(
+        "--no-chase",
+        action="store_true",
+        help="Phase 2 experiment: skip fresh regime-flip fires "
+        "(ranks ≤ --no-chase-rank-max)",
+    )
+    parser.add_argument(
+        "--no-chase-rank-max",
+        type=int,
+        default=NO_CHASE_RANK_MAX,
+        help=(
+            f"Max horizon_rank for no-chase "
+            f"(default {NO_CHASE_RANK_MAX} = ranks 1–2; use 5 for pooled)"
+        ),
+    )
+    parser.add_argument(
+        "--skip-rank-1-2",
+        action="store_true",
+        help="Phase 2 #10 experiment: hard-skip horizon ranks 1–2",
+    )
 
     args = parser.parse_args()
 
@@ -338,4 +369,7 @@ if __name__ == "__main__":
         horizon_run_id=args.horizon_run_id,
         top_k=args.top_k,
         conviction_gate=not args.no_conviction_gate,
+        no_chase=args.no_chase,
+        no_chase_rank_max=args.no_chase_rank_max,
+        skip_rank_1_2=args.skip_rank_1_2,
     )

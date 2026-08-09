@@ -24,7 +24,7 @@ from src.precision.diagnostics import (
     diagnose_rank_root_cause,
     format_phase2_diagnostics,
 )
-from src.precision.precision import classify_precision
+from src.precision.precision import NO_CHASE_RANK_MAX, classify_precision
 from src.precision.session import TOP_K
 from src.precision.summary import format_precision_summary, summarize_precision_trades
 from src.regime.intraday import override_intraday_regime
@@ -86,6 +86,26 @@ def main():
         "--no-conviction-gate",
         action="store_true",
         help="Disable bar×sleeve edge_score median gate (ablation)",
+    )
+    parser.add_argument(
+        "--no-chase",
+        action="store_true",
+        help="Phase 2 experiment: skip fresh regime-flip fires "
+        "(ranks ≤ --no-chase-rank-max)",
+    )
+    parser.add_argument(
+        "--no-chase-rank-max",
+        type=int,
+        default=NO_CHASE_RANK_MAX,
+        help=(
+            f"Max horizon_rank for no-chase "
+            f"(default {NO_CHASE_RANK_MAX} = ranks 1–2; use 5 for pooled)"
+        ),
+    )
+    parser.add_argument(
+        "--skip-rank-1-2",
+        action="store_true",
+        help="Phase 2 #10 experiment: hard-skip horizon ranks 1–2",
     )
     args = parser.parse_args()
 
@@ -207,13 +227,18 @@ def main():
     conviction_gate = not args.no_conviction_gate
     print(
         "10. Running Precision rules "
-        f"(top_k={args.top_k}, conviction_gate={conviction_gate})..."
+        f"(top_k={args.top_k}, conviction_gate={conviction_gate}, "
+        f"no_chase={args.no_chase}, no_chase_rank_max={args.no_chase_rank_max}, "
+        f"skip_rank_1_2={args.skip_rank_1_2})..."
     )
     trades = classify_precision(
         registry,
         features_1m,
         top_k=args.top_k,
         conviction_gate=conviction_gate,
+        no_chase=args.no_chase,
+        no_chase_rank_max=args.no_chase_rank_max,
+        skip_rank_1_2=args.skip_rank_1_2,
     )
     summary = summarize_precision_trades(trades)
     rank_diag = diagnose_rank_root_cause(trades)

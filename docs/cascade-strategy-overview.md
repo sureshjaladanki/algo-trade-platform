@@ -165,5 +165,6 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | Vertical `H`, ATR TP/SL, 0.30% cost |
 | [precision-tier3-verdict.md](precision-tier3-verdict.md) | 1m timing rules, Long/Short Precision features, exits |
 | [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md) | Post-v1 selectivity / PnL tweak cycle (TOP_K, conviction gate, Long asymmetry) |
+| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | WS0/WS1 Fold A path-audit verdict — escalate Horizon/Regime |
 
 Judges for the tier verdicts: **Gemini Flash** and **Claude Sonnet**.

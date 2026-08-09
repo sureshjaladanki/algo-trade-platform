@@ -51,6 +51,7 @@ def calculate_horizon_precision_features(
         "short_sl_w",
         "tb_eligible_long",
         "tb_eligible_short",
+        "bars_since_regime_flip",
     }
     missing = required - set(horizon_scored.columns)
     if missing:

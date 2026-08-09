@@ -109,13 +109,8 @@ def _rank_band_stats(band: pl.DataFrame) -> dict[str, float | int]:
         "fire_rate": n_fire / n_ep,
         "gate_pass_rate": float(band["gate_pass"].mean()),
     }
-    if "bars_since_regime_flip" in band.columns:
-        flip = band.drop_nulls(subset=["bars_since_regime_flip"])
-        if flip.height:
-            stats["fresh_flip_share"] = (
-                flip.filter(pl.col("bars_since_regime_flip") <= 1).height / flip.height
-            )
-            stats["mean_bars_since_flip"] = float(flip["bars_since_regime_flip"].mean())
+    stats["fresh_flip_share"] = float(band["fresh_flip"].mean())
+    stats["mean_bars_since_flip"] = float(band["bars_since_regime_flip"].mean())
 
     if n_fire == 0:
         return stats
@@ -177,13 +172,8 @@ def _composition_stats(cohort: pl.DataFrame) -> dict[str, float | int]:
     }
     for label, mask in _TOD_BANDS:
         stats[f"tod_{label}_share"] = cohort.filter(mask).height / n
-    if "bars_since_regime_flip" in cohort.columns:
-        flip = cohort.drop_nulls(subset=["bars_since_regime_flip"])
-        if flip.height:
-            stats["fresh_flip_share"] = (
-                flip.filter(pl.col("bars_since_regime_flip") <= 1).height / flip.height
-            )
-            stats["mean_bars_since_flip"] = float(flip["bars_since_regime_flip"].mean())
+    stats["fresh_flip_share"] = float(cohort["fresh_flip"].mean())
+    stats["mean_bars_since_flip"] = float(cohort["bars_since_regime_flip"].mean())
     return stats
 
 
