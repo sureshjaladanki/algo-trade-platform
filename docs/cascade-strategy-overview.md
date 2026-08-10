@@ -161,6 +161,7 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 |---|---|
 | **This file** | Cascade overview and contracts |
 | [regime-tier1-verdict.md](regime-tier1-verdict.md) | Daily rules + intraday HMM features / states |
+| [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md) | Tier 1 Regime eval harness (Daily + Intraday) |
 | [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Long/Short LightGBM features, hyperparams, training |
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | Vertical `H`, ATR TP/SL, 0.30% cost |
 | [precision-tier3-verdict.md](precision-tier3-verdict.md) | 1m timing rules, Long/Short Precision features, exits |
