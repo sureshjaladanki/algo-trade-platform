@@ -1,6 +1,8 @@
-"""Intraday Regime eval — I1 hit rate, I5 admission, I4 dwell, I7 state-map."""
+"""Intraday Regime eval — I1 hit rate, I5 admission (+ diagnostics), I4 dwell, I7 state-map."""
 
 from __future__ import annotations
+
+import datetime as dt
 
 import numpy as np
 import polars as pl
@@ -28,6 +30,10 @@ from src.regime.eval.common import (
 from src.regime.intraday import open_auction_bleed_expr
 from src.regime.intraday_model import IntradayHMMRegimeModel
 from src.regime.types import IntradayRegime
+
+# Coarse TOD cuts for I5tod diagnostic (bar-end stamps; bleed already excluded).
+_TOD_MID_START = dt.time(11, 0)
+_TOD_AFT_START = dt.time(13, 30)
 
 
 def _index_tb_labels(bars: pl.DataFrame) -> pl.DataFrame:
@@ -328,6 +334,50 @@ def _i5_session_counts(
     )
 
 
+def _i5_session_signed_sums(
+    panel: pl.DataFrame, state: str, signed_r: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Per-session sum/count of sleeve-signed R60 for admitted vs rejected."""
+    adm_sum, adm_n, rej_sum, rej_n = [], [], [], []
+    enriched = panel.with_columns(pl.Series("_signed", signed_r))
+    for _, day in enriched.group_by("date_only"):
+        admitted = (day["intraday_regime"] == state).to_numpy()
+        r = day["_signed"].to_numpy()
+        n_a = int(admitted.sum())
+        n_r = int((~admitted).sum())
+        adm_sum.append(float(r[admitted].sum()) if n_a else 0.0)
+        adm_n.append(n_a)
+        rej_sum.append(float(r[~admitted].sum()) if n_r else 0.0)
+        rej_n.append(n_r)
+    return (
+        np.asarray(adm_sum, dtype=float),
+        np.asarray(adm_n, dtype=float),
+        np.asarray(rej_sum, dtype=float),
+        np.asarray(rej_n, dtype=float),
+    )
+
+
+def _boot_rate_diff(
+    adm_num: np.ndarray,
+    adm_n: np.ndarray,
+    rej_num: np.ndarray,
+    rej_n: np.ndarray,
+    point: float,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> tuple[float, float]:
+    boot = np.empty(n_boot)
+    for b in range(n_boot):
+        idx = rng.integers(0, adm_n.size, size=adm_n.size)
+        a_n, r_n = adm_n[idx].sum(), rej_n[idx].sum()
+        boot[b] = (
+            float(adm_num[idx].sum() / a_n - rej_num[idx].sum() / r_n)
+            if a_n > 0 and r_n > 0
+            else point
+        )
+    return float(np.quantile(boot, 0.025)), float(np.quantile(boot, 0.975))
+
+
 def i5_cascade_admission(
     regime_paths: pl.DataFrame,
     n_boot: int,
@@ -363,16 +413,7 @@ def i5_cascade_admission(
         i5 = p_adm - p_rej
 
         adm_tp, adm_n, rej_tp, rej_n = _i5_session_counts(panel, state, label_col)
-        boot = np.empty(n_boot)
-        for b in range(n_boot):
-            idx = rng.integers(0, adm_n.size, size=adm_n.size)
-            a_n, r_n = adm_n[idx].sum(), rej_n[idx].sum()
-            boot[b] = (
-                float(adm_tp[idx].sum() / a_n - rej_tp[idx].sum() / r_n)
-                if a_n > 0 and r_n > 0
-                else i5
-            )
-        ci_lo, ci_hi = float(np.quantile(boot, 0.025)), float(np.quantile(boot, 0.975))
+        ci_lo, ci_hi = _boot_rate_diff(adm_tp, adm_n, rej_tp, rej_n, i5, n_boot, rng)
         results.append(
             MetricResult(
                 "I5",
@@ -385,6 +426,154 @@ def i5_cascade_admission(
                 f"p_adm={p_adm:.3f} p_rej={p_rej:.3f} n_rej={n_rej}",
             )
         )
+    return results
+
+
+def i5_signed_r60_diagnostic(
+    regime_paths: pl.DataFrame,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> list[MetricResult]:
+    """
+    Mean sleeve-signed R60 (admitted − rejected) — diagnostic companion to I5.
+
+    Long uses +R60; short uses −R60. Not a ship gate (eval verdict + Claude lock).
+    """
+    daily_open = regime_paths.filter(
+        pl.col("daily_regime").is_in(list(TRADEABLE_DAILY))
+        & ~pl.col("open_bleed")
+        & pl.col("r60").is_not_null()
+    )
+    results = []
+
+    for side_name, state, entry_col, sign in (
+        ("long", IntradayRegime.TREND_UP.value, "long_entry_ok", 1.0),
+        ("short", IntradayRegime.TREND_DOWN.value, "short_entry_ok", -1.0),
+    ):
+        panel = daily_open.filter(pl.col(entry_col))
+        admitted = (panel["intraday_regime"] == state).to_numpy()
+        signed = sign * panel["r60"].to_numpy()
+        n_adm = int(admitted.sum())
+        n_rej = int((~admitted).sum())
+
+        if n_adm < MIN_BARS or n_rej < MIN_BARS:
+            results.append(
+                MetricResult(
+                    "I5r",
+                    side_name,
+                    None,
+                    None,
+                    None,
+                    min(n_adm, n_rej),
+                    None,
+                    f"diagnostic;adm={n_adm} rej={n_rej}",
+                )
+            )
+            continue
+
+        delta = float(signed[admitted].mean() - signed[~admitted].mean())
+        adm_s, adm_n, rej_s, rej_n = _i5_session_signed_sums(panel, state, signed)
+        ci_lo, ci_hi = _boot_rate_diff(adm_s, adm_n, rej_s, rej_n, delta, n_boot, rng)
+        results.append(
+            MetricResult(
+                "I5r",
+                side_name,
+                delta,
+                ci_lo,
+                ci_hi,
+                n_adm,
+                None,
+                f"diagnostic;m_adm={signed[admitted].mean():.4f} m_rej={signed[~admitted].mean():.4f}",
+            )
+        )
+    return results
+
+
+# Coarse TOD buckets (bar-end stamps); open-bleed already excluded upstream.
+_I5_TOD_BUCKETS = (
+    ("morning", lambda t: t < _TOD_MID_START),
+    ("midday", lambda t: _TOD_MID_START <= t < _TOD_AFT_START),
+    ("afternoon", lambda t: t >= _TOD_AFT_START),
+)
+
+
+def i5_tod_stratified_diagnostic(
+    regime_paths: pl.DataFrame,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> list[MetricResult]:
+    """
+    I5 Δ (IndexTB+1 admitted − rejected) within coarse TOD buckets — diagnostic.
+
+    Checks whether pooled I5 FAIL is TOD-driven. Not a ship gate.
+    """
+    daily_open = regime_paths.filter(
+        pl.col("daily_regime").is_in(list(TRADEABLE_DAILY)) & ~pl.col("open_bleed")
+    )
+    results = []
+
+    for side_name, state, entry_col, label_col in (
+        ("long", IntradayRegime.TREND_UP.value, "long_entry_ok", "tb_label_long"),
+        ("short", IntradayRegime.TREND_DOWN.value, "short_entry_ok", "tb_label_short"),
+    ):
+        base = daily_open.filter(pl.col(entry_col) & pl.col(label_col).is_not_null())
+        for bucket_name, pred in _I5_TOD_BUCKETS:
+            times = base["time_only"].to_list()
+            keep = np.array([pred(t) for t in times])
+            if not keep.any():
+                results.append(
+                    MetricResult(
+                        "I5tod",
+                        f"{side_name}/{bucket_name}",
+                        None,
+                        None,
+                        None,
+                        0,
+                        None,
+                        "diagnostic;empty",
+                    )
+                )
+                continue
+
+            panel = base.with_columns(_tod_keep=pl.Series(keep)).filter(pl.col("_tod_keep")).drop("_tod_keep")
+            admitted = (panel["intraday_regime"] == state).to_numpy()
+            tp = panel[label_col].to_numpy() == 1
+            n_adm = int(admitted.sum())
+            n_rej = int((~admitted).sum())
+            side_key = f"{side_name}/{bucket_name}"
+
+            if n_adm < MIN_BARS or n_rej < MIN_BARS:
+                results.append(
+                    MetricResult(
+                        "I5tod",
+                        side_key,
+                        None,
+                        None,
+                        None,
+                        min(n_adm, n_rej),
+                        None,
+                        f"diagnostic;thin;adm={n_adm} rej={n_rej}",
+                    )
+                )
+                continue
+
+            p_adm = float(tp[admitted].mean())
+            p_rej = float(tp[~admitted].mean())
+            i5 = p_adm - p_rej
+            adm_tp, adm_n, rej_tp, rej_n = _i5_session_counts(panel, state, label_col)
+            ci_lo, ci_hi = _boot_rate_diff(adm_tp, adm_n, rej_tp, rej_n, i5, n_boot, rng)
+            results.append(
+                MetricResult(
+                    "I5tod",
+                    side_key,
+                    i5,
+                    ci_lo,
+                    ci_hi,
+                    n_adm,
+                    None,
+                    f"diagnostic;p_adm={p_adm:.3f} p_rej={p_rej:.3f}",
+                )
+            )
     return results
 
 
@@ -438,6 +627,8 @@ def evaluate_intraday(
     paths = join_regime_paths(regime_preds, attach_index_paths(market_15m))
     metrics = [i7_state_map_audit(hmm)]
     metrics.extend(i5_cascade_admission(paths, n_boot, rng))
+    metrics.extend(i5_signed_r60_diagnostic(paths, n_boot, rng))
+    metrics.extend(i5_tod_stratified_diagnostic(paths, n_boot, rng))
     metrics.extend(i1_directional_hit_rate(paths, n_boot, rng))
     metrics.extend(i4_dwell_flip(paths))
     return metrics

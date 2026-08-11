@@ -60,8 +60,6 @@ def load_regime_data(
             continue
 
         stock_df = load_symbol_data(sym_path, start_period=start_period, end_period=end_period)
-        
-        # Resample to daily
         stock_daily = resample_daily(stock_df).with_columns(pl.col("date").cast(pl.Date))
         nifty100_daily_dfs.append(stock_daily)
 

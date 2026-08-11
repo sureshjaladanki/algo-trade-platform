@@ -2,6 +2,10 @@
 data/
 !data/.gitkeep
 
+# Eval / experiment run output
+logs/
+!logs/.gitkeep
+
 # Python
 __pycache__/
 *.py[cod]
