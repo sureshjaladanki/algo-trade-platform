@@ -9,6 +9,7 @@ from pathlib import Path
 import polars as pl
 
 from src.horizon.eval import N_BOOT, evaluate_horizon, format_report, k_for
+from src.horizon.eval.common import annotate_hygiene_flags
 from src.pipelines.build_horizon_features import (
     build_horizon_features,
     load_horizon_data,
@@ -121,6 +122,8 @@ def main() -> None:
         horizon_df, train_start, train_end, datetime_col="date"
     )
     test_df = filter_by_period(horizon_df, test_start, test_end, datetime_col="date")
+    # Full-panel hygiene so H7 fwd-circuit windows see non-sleeve bars too.
+    test_df = annotate_hygiene_flags(test_df)
     print(f"   Train rows={train_df.height}  Test rows={test_df.height}")
     if train_df.height == 0 or test_df.height == 0:
         print("Error: empty train or test after period filter.")

@@ -2,7 +2,8 @@
 
 **Market:** NSE India, Nifty 100 universe, intraday MIS cash  
 **Scope:** Long / Short LightGBM **ranker** revisions after first A+B Horizon eval baselines  
-**Status:** **OPEN — REVISE** (dual-judge validated 2026-08-11; process gaps locked before next A+B)  
+**Status:** **CLOSED this cycle** — Short + Long stop-memos filed; no v1.1 merges  
+**Stop memos:** [horizon-tier2-short-stop-memo.md](horizon-tier2-short-stop-memo.md), [horizon-tier2-long-stop-memo.md](horizon-tier2-long-stop-memo.md)  
 **Judges:** [Gemini Flash](e982525b-460f-4f93-ab3d-697138b790ba), [Claude Sonnet](af622bc8-c824-4e30-8832-25ddf9e2c7c1)  
 **Date:** 2026-08-11  
 **Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (locked v1 features/hyperparams — do not edit for this cycle), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)  
@@ -32,7 +33,7 @@
 | Cascade link (WS0/WS1) | Explains Precision dead-end: Top-K `tb_tp` still ~7–11%; H4 always &lt; 0 under 30 bps |
 | Root cause | Excess-return IC ≠ TB+1 density; Short H5 fold-unstable; Long soft rank 1–2 &lt; 3–K (H3 soft) |
 | Ship / merge | **Nothing** until Short dual-fold H5 + Long soft-H3 closed without H2/H5 regress |
-| Sequence next | D1/D2 → pre-register S1 rule → S1 A+B → (spec B1 now; activate after Short H5) → pre-register L1 mechanism → L1 A+B |
+| Sequence next | **Done** — stop-memos filed; new work needs a fresh dual-judge charter |
 | Reject this cycle | Regime reopen, Precision WS2, pooled Long+Short gate, Fold-C locks, hyperparam grid on A+B, LambdaRank as first lever |
 
 **One-line:** Dual judges confirm ranking skill is real and Short fails the path bridge on Fold A — fix Short hygiene and Long mono with one lever per A+B; do not claim cascade readiness from Horizon gates alone.
@@ -166,14 +167,14 @@ Scope: A+B baseline read + v1.1 revision strategy against [horizon-tier2-eval-ve
 | ID | Change | Gemini | Claude | Working lock | Merge status |
 |---|---|---|---|---|---|
 | **D0** | Freeze v1 features/hyperparams; log A+B as baseline | ACCEPT | ACCEPT | **DONE** (this doc) | N/A |
-| **D1** | Report H7 F&O Short coverage + circuit/expiry slices (diagnostic) | ACCEPT | ACCEPT | **Run before model surgery** | OPEN |
-| **D2** | H9 calibration / top-vs-bottom; K-sweep {3,5,8} diagnostic | ACCEPT | ACCEPT-if report-only | Diagnostic only — sweep **cannot** silently change gated K | OPEN |
-| **S1** | Short path hygiene: F&O-active eligibility + UC/circuit exclude | ACCEPT | ACCEPT-if pre-registered | Primary Short lever; **exact rule before peek** | OPEN |
-| **S2** | Short TOD soft cut / afternoon down-weight | ACCEPT-IF | REVISE report-first | **Report-first only**; own A+B if gated later | OPEN |
+| **D1** | Report H7 F&O Short coverage + circuit/expiry slices (diagnostic) | ACCEPT | ACCEPT | **DONE** — see D1 results; F&O list absent | DONE (diag) |
+| **D2** | H9 calibration / top-vs-bottom; K-sweep {3,5,8} diagnostic | ACCEPT | ACCEPT-if report-only | **DONE** — see D2 results; gated K unchanged | DONE (diag) |
+| **S1** | Short path hygiene: F&O-active eligibility + UC/circuit exclude | ACCEPT | ACCEPT-if pre-registered | **A+B FAIL** — Fold A H5 CI LB≤0; Fold B H10 regress; mask reverted off | FAIL (no merge) |
+| **S2** | Short TOD soft cut / afternoon down-weight | ACCEPT-IF | REVISE report-first | **DONE (report)** — PM H5 ≥ AM both folds; do **not** hard-cut | DONE (diag; no gate) |
 | **S3** | Short episode-weight / bounce hygiene ablation | REVISE | DEFER | **DEFER** until S1 exhausted; one pre-registered ablation max | DEFERRED |
-| **L1** | Long monotonicity / score-tail guard | ACCEPT | **REVISE** (underspecified) | Pre-register transform + no H2/H5 regress before peek | OPEN |
-| **L2** | Long Top-K emission threshold (~1×c buffer) | ACCEPT-IF | ACCEPT-IF | Only after L1; separate A+B; H6 floor | OPEN |
-| **B1** | Align Precision Short registry **K=3** (Long stays 5) | ACCEPT now | ACCEPT-if activate later | **Spec now; activate after Short H5 dual-fold**; cascade metrics only | OPEN |
+| **L1** | Long monotonicity / score-tail guard | ACCEPT | **REVISE** (underspecified) | **A+B FAIL** — soft-H3 closes on B only; A still m12&lt;m3k; mask reverted off | FAIL (no merge) |
+| **L2** | Long Top-K emission threshold (~1×c buffer) | ACCEPT-IF | ACCEPT-IF | **DONE (report)** — floor rarely binds; A keep H5 &lt; drop; no gated A+B | DONE (diag; no gate) |
+| **B1** | Align Precision Short registry **K=3** (Long stays 5) | ACCEPT now | ACCEPT-if activate later | **SPEC LOCKED** below; activate after Short H5 dual-fold | OPEN (spec) |
 | **X1** | LambdaRank / multi-task TB auxiliary loss | DEFER | DEFER | After S1/L1 plateau | DEFERRED |
 | **X2** | Reopen Regime / Precision WS2 / widen TP-SL | REJECT | REJECT | **REJECT this cycle** | REJECTED |
 | **O8** | No H1–H5 / hyperparam search on A+B; one lever per fresh A+B | ACCEPT | ACCEPT — LOCK | **LOCK** | N/A |
@@ -193,29 +194,129 @@ Scope: A+B baseline read + v1.1 revision strategy against [horizon-tier2-eval-ve
 | Forbidden | Hyperparam grids on A+B; pooling sleeves; Fold C locks; Precision fills in H5; cascade net ≥ 0 from Horizon alone; activating B1 live before Short H5 dual-fold |
 | Compare | One-shot vs **this doc’s baseline table** only |
 
-### L1 pre-register requirement (Claude lock — before peek)
+### D1 results (2026-08-11) — diagnostic only
 
-Write down before any Long A+B:
+Harness: `python -m src.experiments.eval_horizon` with H7 flags (`CIRCUIT_RANGE_EPS=1e-4`, `H_BARS=4`, Thursday expiry). Logs: `logs/horizon_d1_fold_a.txt`, `logs/horizon_d1_fold_b.txt`.
 
-1. Exact transform (prefer **inference-time** score clip / rank-tier dampening — do not breach D0 hyperparam freeze via retrain-time loss change unless separately chartered).  
-2. Success = H3 soft closes **and** H2/H5 CI LBs stay &gt; 0 (no “fix mono by killing signal”).  
-3. One lever only in that A+B pass.
+| Slice | Fold A Short | Fold B Short |
+|---|---|---|
+| F&O list | **absent** | **absent** |
+| `is_circuit_bar` row % | 0.49% | 0.53% |
+| `fwd_circuit_hit` row % | 1.18% | 1.07% |
+| Top-K `fwd_circuit` % | 1.61% | 0.78% |
+| Expiry row % (Thu) | 20.8% (26/128 sess) | 20.5% (28/137 sess) |
+| H5 point — clean | 0.0203 | 0.0407 |
+| H5 point — fwd_circuit | ~0 (n≪ min-N) | ~0 (n≪ min-N) |
+| H5 point — expiry / non-expiry | 0.0304 / 0.0169 | 0.0314 / 0.0413 |
+| Gated H5 (baseline) | 0.020 [−0.001, 0.043] **FAIL** | 0.039 [0.019, 0.060] PASS |
 
-### S1 pre-register requirement (both judges)
+**Read:** Circuit/UC contamination is rare (~1% fwd; Top-K fwd ≤ 1.6%). Clean-slice H5 ≈ pooled H5 — Fold A H5 fail is **not** explained by flat-bar density alone. Expiry vs non-expiry H5 sign flips across folds — report-only; do not gate. F&O hard filter blocked until a static membership list exists.
 
-Exact F&O-active + circuit/UC exclusion rule (thresholds, windows, coverage floor) written from D1 — not tuned post-hoc to H5.
+### S1 rule (LOCKED — measured; **no merge**)
+
+Exact eligibility subtract for Short eval mask (one lever; no ε retune to H5):
+
+1. **Exclude** if `is_circuit_bar` **OR** `fwd_circuit_hit`, where  
+   - `is_circuit_bar` ⇔ `(high == low) ∨ (range_pct ≤ 1e-4)`  
+   - `fwd_circuit_hit` ⇔ any of the next **4** same-session bars is `is_circuit_bar`  
+2. **F&O-active:** **blocked** — `fno_list=absent`; do not invent coverage.  
+3. **Coverage floor:** after exclusion, Short must still clear min-N (≥150 bars / ≥30 sessions) on **both** A and B.  
+4. **Success / stop:** dual-fold Short H5; no H10 regress.
+
+### S1 A+B results (2026-08-11) — FAIL
+
+Code: `APPLY_S1_SHORT` in `src/horizon/eval/common.py` (reverted **False** after measure). Logs: `logs/horizon_s1_fold_a.txt`, `logs/horizon_s1_fold_b.txt`.
+
+| Gate | Fold A Short | Fold B Short | vs baseline |
+|---|---|---|---|
+| S1 drop | 1.33% (1634/123315) | 1.20% (1739/144533) | ~1% as D1 predicted |
+| H10 | PASS | **FAIL** (null IC 0.008 [0.003, 0.013]) | **regress** on B |
+| H1 | 0.058 [0.041, 0.075] PASS | precondition-fail | — |
+| H2 | 0.0006 PASS | precondition-fail | — |
+| H3 | PASS | precondition-fail | — |
+| H5 | 0.021 [**−0.0009**, 0.043] **FAIL** | precondition-fail | A: LB still ≤0 (was −0.0013) |
+| Long A/B | unchanged PASS (incl. soft H3) | unchanged PASS | no Long regress |
+
+**Verdict:** S1 does **not** clear dual-fold Short H5. Fold A H5 CI LB remains ≤ 0; Fold B trips H10 after the mask (gated Short metrics not scorable). **Do not merge.** Per stop rule: at most one report-first **S2**, else **Short stop-memo** for this cycle. Long path (L1) proceeds separately.
+
+### L1 transform (LOCKED — measured; **no merge**)
+
+1. **Transform (inference only — honors D0 freeze):** within each bar, rank actionable scores descending; set scores of ranks **1 and 2** equal to the **rank-3** score; re-rank. No retrain, no loss change, no hyperparam edit.  
+2. **Success:** soft H3 closes (`m12` ≥ `m3k`) on **A and B** **and** H2/H5 CI LBs stay &gt; 0 vs baseline.  
+3. **One lever only** in that A+B pass — separate from S1.
+
+### L1 A+B results (2026-08-11) — FAIL
+
+Code: `APPLY_L1_LONG` (reverted **False** after measure). Logs: `logs/horizon_l1_fold_a.txt`, `logs/horizon_l1_fold_b.txt`.
+
+| Gate | Fold A Long | Fold B Long | vs baseline |
+|---|---|---|---|
+| H3 soft | m12=0.0004 **&lt;** m3k=0.0006 (still soft) | m12=0.0008 **=** m3k=0.0008 (closes) | A unresolved |
+| H3 gate | PASS | PASS | — |
+| H2 | 0.0008 [0.0004, 0.0011] PASS | 0.0009 [0.0005, 0.0014] PASS | no gate regress |
+| H5 | 0.044 [0.029, 0.060] PASS | 0.034 [0.013, 0.056] PASS | no gate regress |
+| Short | baseline (S1 off) | baseline | unchanged |
+
+**Verdict:** L1 does **not** clear dual-fold soft-H3. **Do not merge.** → Long stop-memo this cycle.
+
+### S2 report-first (2026-08-11) — no hard cut
+
+Afternoon = bar-end `time_only ≥ 13:00`. Metrics: `S2cov` / `S2h*`. Logs: `logs/horizon_s2l2_fold_a.txt`, `logs/horizon_s2l2_fold_b.txt`.
+
+| Fold | PM row % | H5 morning / afternoon | H2 am / pm |
+|---|---:|---:|---:|
+| A Short | 27.4% (645 / 244 bars) | 0.018 / **0.024** | 0.0006 / 0.0006 |
+| B Short | 30.0% (722 / 310 bars) | 0.029 / **0.065** | 0.0005 / 0.0005 |
+
+**Read:** Afternoon is **not** the weaker Short path on H5 — PM ≥ AM on both folds. A soft afternoon cut would likely **hurt** dual-fold H5. **Do not promote S2 to gated A+B.** → Short stop-memo.
+
+### L2 report-first (2026-08-11) — no gated A+B
+
+Floor: mean Top-K `eval_score` ≥ `ROUND_TRIP_COST` (0.003). Metrics: `L2cov` / `L2gap` / `L2h*`.
+
+| Fold | Keep bars | L2gap (K vs K+1) | H5 keep / drop |
+|---|---:|---:|---:|
+| A Long | 23/749 (3.1%) | ≈0 | 0.016 / **0.047** |
+| B Long | 23/696 (3.3%) | ≈0 | 0.215 (n=15 thin) / 0.029 |
+
+**Read:** 1×c mean-Top-K floor almost never fires; when it does on Fold A it **selects worse** H5 than the drop mass. Fold B keep looks strong but n≪ min-N. **Do not charter gated L2 A+B this cycle.** → Long stop-memo stands.
+
+### D2 results (2026-08-11) — diagnostic only
+
+Harness H9: top20−bot20 `adj_excess` (`H9sep`); Q5−Q1 StockTB+1 (`H9cal`); point H2 value + H5 in note for K∈{3,5,8} (`H9ks`). Logs: `logs/horizon_d2_fold_a.txt`, `logs/horizon_d2_fold_b.txt`. **Gated K unchanged.**
+
+| Sleeve · Fold | H9sep | H9cal (Q5−Q1) | K=3 H5 / p_top | K=5 H5 / p_top | K=8 H5 / p_top |
+|---|---:|---:|---:|---:|---:|
+| Long A | 0.0009 | 0.038 | 0.053 / 0.097 | **0.047 / 0.091** (gated) | 0.037 / 0.081 |
+| Long B | 0.0007 | 0.016 | 0.037 / 0.075 | **0.034 / 0.072** (gated) | 0.028 / 0.066 |
+| Short A | 0.0006 | 0.026 | **0.020 / 0.110** (gated) | 0.027 / 0.118 | 0.023 / 0.114 |
+| Short B | 0.0002 | 0.018 | **0.039 / 0.110** (gated) | 0.029 / 0.100 | 0.023 / 0.095 |
+
+**Read:** Score separation and quintile TB calibration are positive on both sleeves/folds (ordering skill real). Long: tighter K concentrates H5; K=8 dilutes — keep gated K=5. Short Fold A: diagnostic K=5 H5 point &gt; gated K=3, but Fold B prefers K=3 — **do not retune gated Short K=3 from this sweep** (O8 / anti-pattern #5). No ship claims from D2.
+
+### B1 spec (LOCKED — not activated)
+
+Cascade / Precision contract only — **never feeds Horizon H1–H5 gates**.
+
+| Item | Spec |
+|---|---|
+| Long registry K | **5** (unchanged; matches `src/precision/session.py` `TOP_K=5` today) |
+| Short registry K | **3** (align with Horizon eval `K_SHORT`) |
+| Activate when | Short Horizon ranker clears **dual-fold H5** under S1 (or stop-memo path explicitly re-opens B1) |
+| Forbidden until then | Editing live Precision Short admit to K=3 against an unshipped Short sleeve |
+| Metrics after activate | Cascade / Precision book only — not a Horizon re-gate |
 
 ---
 
 ## Build order (working — dual-judge revised)
 
 1. **D0 done** — A+B baselines + judge lock recorded here.  
-2. **D1 → D2** — F&O/circuit/expiry + calibration + K-sweep diagnostics (no ship claims).  
-3. **B1 spec** (parallel with D1/D2) — document Precision Short `K=3`; **do not activate** until Short H5 dual-fold.  
-4. **S1** — pre-register rule → Short F&O/circuit hygiene → fresh A+B (Short only success metric).  
-5. **L1** — pre-register mechanism → Long mono guard → fresh A+B (separate pass from S1).  
-6. **L2 / S2** — only if residual; each gets its own A+B; S2 stays report-first unless separately gated.  
-7. **X1** — deferred after path hygiene / mono plateau.
+2. **D1 done** — H7 circuit/expiry + S1/L1 pre-register.  
+3. **D2 done** — H9 + K-sweep report-only; gated K unchanged. **B1 spec locked** (activate later).  
+4. **S1 done — FAIL** — circuit/UC exclude does not clear Short dual-fold H5; mask off.  
+5. **L1 done — FAIL** — rank-3 floor closes soft-H3 on B only; A still soft; mask off.  
+6. **S2 / L2 report-first done** — no gated activation (PM not weaker; 1×c floor not useful).  
+7. **Stop-memos done** — [short](horizon-tier2-short-stop-memo.md) / [long](horizon-tier2-long-stop-memo.md). B1 stays spec-only. X1 deferred.
 
 ---
 
@@ -238,7 +339,9 @@ Exact F&O-active + circuit/UC exclusion rule (thresholds, windows, coverage floo
 | Features | `LONG_FEATURES` / `SHORT_FEATURES` in `src/horizon/horizon_model.py` | Prefer mask/eligibility changes (S1) before feature surgery |
 | Hyperparams | Long Huber α0.9 depth4; Short Huber α0.7 depth3 `min_child=400` | **No grid** this cycle |
 | Eval K | Long 5 / Short 3 in `src/horizon/eval/` | Keep; B1 aligns Precision Short after Short ships |
-| Precision K | `TOP_K=5` shared today | B1: Short registry K=3 (spec now) |
+| H7 hygiene | Not in v1 gated mask | Eval-only flags in `annotate_hygiene_flags` (`CIRCUIT_RANGE_EPS`, Thu expiry); S1 may later reuse |
+| H9 / K-sweep | Not in v1 | `H9sep` / `H9cal` / `H9ks` report-only; `K_SWEEP=(3,5,8)` never changes gated K |
+| Precision K | `TOP_K=5` shared today | B1: Short registry K=3 (spec locked; activate after Short H5) |
 | Episode weights | `episode_balanced_weights` already on | Deferred under S3 |
 | Regime | Soft overlay, CLOSED | Pass-through only |
 
@@ -254,16 +357,46 @@ Exact F&O-active + circuit/UC exclusion rule (thresholds, windows, coverage floo
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | Frozen TB geometry for H5 |
 | [precision-tier3-verdict.md](precision-tier3-verdict.md) | Downstream consumer — B1 contract only |
 | [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md) | Regime CLOSED |
+| [horizon-tier2-v11-short-stop-memo.md](horizon-tier2-v11-short-stop-memo.md) | Short v1.1 stop (this cycle) |
+| [horizon-tier2-v11-long-stop-memo.md](horizon-tier2-v11-long-stop-memo.md) | Long v1.1 stop (this cycle) |
+
+---
+
+## Closeout dual-judge validation (2026-08-11)
+
+Judges: [Gemini Flash](000bb389-95c4-4a24-a768-ab4293580712), [Claude Sonnet](2b4f85d0-81d3-4545-a520-319774652d4c)  
+Scope: post-cycle metrics + S1/L1/S2/L2 outcomes + stop-memos + next steps (vs baseline A+B and eval verdict).
+
+| Axis | Gemini Flash | Claude Sonnet | Consensus |
+|---|---|---|---|
+| Metric fidelity | 10/10 ACCEPT | 8/10 ACCEPT | Numbers verified; keep soft-H3 foregrounded |
+| Long vs Short | 10/10 ACCEPT | 8/10 ACCEPT | Decoupled; Short path-fail not null IC |
+| Optimization honesty | 10/10 ACCEPT | 8/10 ACCEPT | O8 + no-merge match code flags |
+| Stop / next steps | 10/10 ACCEPT | 9/10 **REVISE** | Direction right; add peek-budget ledger |
+| Process / overfit | 10/10 ACCEPT | 7/10 | Strong O8; **7 A+B peeks** this cycle — ledger now on stop-memos |
+| Cascade honesty | 10/10 ACCEPT | 8.5/10 ACCEPT | Not cascade-ready; B1 not live |
+| Overall | **ACCEPT** | **REVISE** | **ACCEPT-IF** peek budget recorded → **CLOSED** |
+
+### Claim locks (both judges)
+
+| Claim | Gemini | Claude | Locked |
+|---|---|---|---|
+| Long Horizon-ranker PASS; not cascade-ready; soft H3 unresolved | ACCEPT | ACCEPT | **Locked** |
+| Short no ship; ranking skill real | ACCEPT | ACCEPT | **Locked** |
+| S1/L1 no-merge | ACCEPT | ACCEPT | **Locked** |
+| S2/L2 not gated | ACCEPT | ACCEPT | **Locked** |
+| Next steps = freeze + new charter only | ACCEPT | **REVISE** (+ peek ledger) | **Locked after peek ledger on stop-memos** |
+| TB+1 ≪ 15% and H4&lt;0 with H2&gt;0 coherent | ACCEPT | ACCEPT | **Locked** |
+
+**Closeout:** Peek-budget line (**7** Fold A+B harness invocations) added to both stop-memos per Claude. Cycle remains **CLOSED**; no S1/L1 reopen on these folds.
 
 ---
 
 ## Next step
 
-Run **D1** (Short F&O / circuit / expiry diagnostic slices) and **pre-register** the exact S1 eligibility rule + L1 transform before any retrain. Re-eval with:
+**None this cycle.** Stop-memos:
 
-```text
-python -m src.experiments.eval_horizon --train-period 2015-2017 --test-period 2018-2018 --direction both
-python -m src.experiments.eval_horizon --train-period 2016-2018 --test-period 2019-2019 --direction both
-```
+- [horizon-tier2-v11-short-stop-memo.md](horizon-tier2-v11-short-stop-memo.md) — Short ship / H5 bridge CLOSED  
+- [horizon-tier2-v11-long-stop-memo.md](horizon-tier2-v11-long-stop-memo.md) — Long soft-H3 / cascade-ready CLOSED  
 
-Update this ledger’s Merge status after each isolated try — one lever per A+B pass.
+Do **not** activate B1. Do **not** merge S1/L1. Baseline flags remain `APPLY_S1_SHORT=False`, `APPLY_L1_LONG=False`. Reopen only under a new dual-judge charter that inherits the **7-peek** multiplicity baseline.
