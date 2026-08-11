@@ -275,7 +275,7 @@ Second wave: D1, D3, D4, D6, I2, I3, I6.
 
 **Harness (shipped):** `src/regime/eval/` (`daily_eval.py`, `intraday_eval.py`) + CLI  
 `python -m src.experiments.eval_regime_tier1 --train-period 2015-2017 --test-period 2018-2018`  
-(`--skip-basket` for index-only D2; `--n-boot` default 500).
+(`--n-boot` default 500).
 
 ---
 

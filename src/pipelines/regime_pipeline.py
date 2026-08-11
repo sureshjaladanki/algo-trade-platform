@@ -12,7 +12,11 @@ from src.pipelines.build_regime_features import (
     build_regime_features,
     load_regime_data,
 )
-from src.regime.daily import classify_daily_regime
+from src.regime.daily import (
+    DEFAULT_TREND_STRENGTH_THRESHOLD,
+    classify_daily_regime,
+    design_trend_strength_threshold,
+)
 from src.regime.intraday_model import DEFAULT_FEATURE_COLS, IntradayHMMRegimeModel
 from src.regime.intraday import open_auction_bleed_expr, override_intraday_regime
 from src.regime.types import DailyRegime
@@ -27,6 +31,7 @@ TRADEABLE_DAILY_REGIMES = [
 def cascade_valid_intraday(
     daily_features: pl.DataFrame,
     intraday_features: pl.DataFrame,
+    trend_strength_threshold: float = DEFAULT_TREND_STRENGTH_THRESHOLD,
 ) -> pl.DataFrame:
     """
     Keep intraday bars eligible for HMM fit/score/decode.
@@ -35,7 +40,9 @@ def cascade_valid_intraday(
     - daily regime is SUPPORTIVE or AMBIGUOUS (skip HOSTILE / NO_TRADE days)
     - not open-auction bleed (skip 09:30 bar-end stamp → intraday NO_TRADE)
     """
-    daily_classified = classify_daily_regime(daily_features)
+    daily_classified = classify_daily_regime(
+        daily_features, trend_strength_threshold=trend_strength_threshold
+    )
     valid_days = daily_classified.filter(
         pl.col("daily_regime").is_in(TRADEABLE_DAILY_REGIMES)
     ).select(["date"])
@@ -54,12 +61,17 @@ def fit_intraday_hmm(
     intraday_features: pl.DataFrame,
     random_state: int = 42,
     n_iter: int = 100,
+    trend_strength_threshold: float = DEFAULT_TREND_STRENGTH_THRESHOLD,
 ) -> IntradayHMMRegimeModel:
     """
     Fits the intraday HMM only on cascade-gated rows (tradeable daily + non-bleed).
     Returns the fitted IntradayHMMRegimeModel, which can be logged to MLflow.
     """
-    valid_intraday = cascade_valid_intraday(daily_features, intraday_features)
+    valid_intraday = cascade_valid_intraday(
+        daily_features,
+        intraday_features,
+        trend_strength_threshold=trend_strength_threshold,
+    )
     hmm = IntradayHMMRegimeModel(random_state=random_state, n_iter=n_iter)
 
     if valid_intraday.height == 0:
@@ -75,6 +87,7 @@ def predict_intraday_hmm(
     intraday_features: pl.DataFrame,
     hmm_model: IntradayHMMRegimeModel,
     apply_hysteresis: bool = True,
+    trend_strength_threshold: float = DEFAULT_TREND_STRENGTH_THRESHOLD,
 ) -> pl.DataFrame:
     """
     Predicts both daily and intraday regimes.
@@ -83,7 +96,9 @@ def predict_intraday_hmm(
     - daily HOSTILE / NO_TRADE → intraday nullified
     - open_auction_bleed → skipped (null); callers apply override_intraday_regime
     """
-    daily_classified = classify_daily_regime(daily_features)
+    daily_classified = classify_daily_regime(
+        daily_features, trend_strength_threshold=trend_strength_threshold
+    )
 
     result = (
         intraday_features.with_columns(_session_day=pl.col("date").dt.date())
@@ -246,16 +261,29 @@ def run_pipeline(
             print("Error: Train or test daily dataframe is empty. Check your periods.")
             sys.exit(1)
 
+        trend_strength_threshold = design_trend_strength_threshold(daily_features_train)
+        mlflow.log_param("trend_strength_threshold", trend_strength_threshold)
+        print(f"O1 trend_strength threshold (train design prior): {trend_strength_threshold:.4f}")
+
         print("Fitting Intraday HMM on train data (applying daily cascade filter)...")
         hmm_model = fit_intraday_hmm(
             daily_features_train,
             intraday_features_train,
             random_state=42,
             n_iter=100,
+            trend_strength_threshold=trend_strength_threshold,
         )
 
-        train_valid = cascade_valid_intraday(daily_features_train, intraday_features_train)
-        test_valid = cascade_valid_intraday(daily_features_test, intraday_features_test)
+        train_valid = cascade_valid_intraday(
+            daily_features_train,
+            intraday_features_train,
+            trend_strength_threshold=trend_strength_threshold,
+        )
+        test_valid = cascade_valid_intraday(
+            daily_features_test,
+            intraday_features_test,
+            trend_strength_threshold=trend_strength_threshold,
+        )
         log_hmm_mlflow(
             hmm_model,
             train_valid=train_valid,
@@ -275,6 +303,7 @@ def run_pipeline(
             intraday_features_test,
             hmm_model,
             apply_hysteresis=apply_hysteresis,
+            trend_strength_threshold=trend_strength_threshold,
         )
 
         # Open-auction hard rule applied here (not inside the HMM), like daily filters.

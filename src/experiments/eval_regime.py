@@ -12,7 +12,7 @@ from src.pipelines.build_regime_features import (
     load_regime_data,
 )
 from src.pipelines.regime_pipeline import fit_intraday_hmm, predict_intraday_hmm
-from src.regime.daily import classify_daily_regime
+from src.regime.daily import classify_daily_regime, design_trend_strength_threshold
 from src.regime.eval import (
     N_BOOT,
     build_ew_basket_15m,
@@ -57,11 +57,6 @@ def main() -> None:
     parser.add_argument("--test-period", type=str, required=True)
     parser.add_argument("--n-boot", type=int, default=N_BOOT)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "--skip-basket",
-        action="store_true",
-        help="Skip EW Nifty-100 basket D2 (index-only).",
-    )
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -97,21 +92,38 @@ def main() -> None:
     )
     market_test = filter_by_period(market_15m, test_start, test_end, datetime_col="date")
 
+    trend_strength_threshold = design_trend_strength_threshold(daily_train)
+    print(
+        f"O1 trend_strength threshold (train design prior): {trend_strength_threshold:.4f}"
+    )
+
     print(f"Fitting HMM on train {args.train_period}...")
-    hmm = fit_intraday_hmm(daily_train, intra_train, random_state=args.seed, n_iter=100)
+    hmm = fit_intraday_hmm(
+        daily_train,
+        intra_train,
+        random_state=args.seed,
+        n_iter=100,
+        trend_strength_threshold=trend_strength_threshold,
+    )
 
     print(f"Predicting regimes on test {args.test_period}...")
     preds = override_intraday_regime(
-        predict_intraday_hmm(daily_test, intra_test, hmm, apply_hysteresis=True)
+        predict_intraday_hmm(
+            daily_test,
+            intra_test,
+            hmm,
+            apply_hysteresis=True,
+            trend_strength_threshold=trend_strength_threshold,
+        )
     )
-    daily_classified = classify_daily_regime(daily_test)
+    daily_classified = classify_daily_regime(
+        daily_test, trend_strength_threshold=trend_strength_threshold
+    )
 
-    basket = None
-    if not args.skip_basket:
-        print("Building EW Nifty-100 15m basket for confirmatory D2...")
-        stock_15m = load_nifty100_15m(data_dir, config_path, test_start, test_end)
-        basket = build_ew_basket_15m(stock_15m)
-        print(f"   Basket bars: {basket.height} from {len(stock_15m)} symbols")
+    print("Building EW Nifty-100 15m basket for confirmatory D2...")
+    stock_15m = load_nifty100_15m(data_dir, config_path, test_start, test_end)
+    basket = build_ew_basket_15m(stock_15m)
+    print(f"   Basket bars: {basket.height} from {len(stock_15m)} symbols")
 
     metrics = evaluate_regime(
         daily_features=daily_test,

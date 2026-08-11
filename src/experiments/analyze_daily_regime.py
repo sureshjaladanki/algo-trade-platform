@@ -5,7 +5,10 @@ from src.pipelines.build_regime_features import (
     build_regime_features,
     load_regime_data,
 )
-from src.regime.daily import classify_daily_regime
+from src.regime.daily import (
+    DEFAULT_TREND_STRENGTH_THRESHOLD,
+    classify_daily_regime,
+)
 from src.regime.types import DailyRegime
 from src.utils.date import parse_period_range
 
@@ -46,7 +49,11 @@ def main():
         print("Daily features are empty for the given period.")
         return
 
-    regime_df = classify_daily_regime(daily_features)
+    # Analyze uses the fixed design-prior fallback (no train fold here).
+    regime_df = classify_daily_regime(
+        daily_features, trend_strength_threshold=DEFAULT_TREND_STRENGTH_THRESHOLD
+    )
+    print(f"trend_strength_threshold={DEFAULT_TREND_STRENGTH_THRESHOLD} (design prior)")
 
     counts = regime_df.group_by("daily_regime").len().to_dict(as_series=False)
     regime_counts = {

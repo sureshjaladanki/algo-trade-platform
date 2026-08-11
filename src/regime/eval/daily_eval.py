@@ -19,6 +19,7 @@ from src.regime.types import DailyRegime
 
 DAILY_FEATURE_COLS = (
     "market_trend",
+    "trend_strength",
     "vol_regime_ratio",
     "vol_regime_delta",
     "shock",
@@ -85,6 +86,68 @@ def _day_opportunity(closes: np.ndarray, times: list, side: int, last_entry) -> 
     return best
 
 
+def _session_side_scores(
+    daily_classified: pl.DataFrame,
+    price_15m: pl.DataFrame,
+    side: int,
+    last_entry,
+    extra_daily_cols: tuple[str, ...] = (),
+) -> pl.DataFrame:
+    """One row per session: daily_regime, optional daily cols, OpportunityScore."""
+    daily_cols = ["daily_regime", *extra_daily_cols]
+    daily = daily_classified.select(
+        pl.col("date").cast(pl.Date).alias("date_only"),
+        *daily_cols,
+    )
+    bars = (
+        price_15m.sort("date")
+        .with_columns(
+            date_only=pl.col("date").dt.date(),
+            time_only=pl.col("date").dt.time(),
+        )
+        .join(daily, on="date_only", how="inner")
+    )
+    rows = []
+    for key, day_df in bars.group_by(["date_only", *daily_cols]):
+        # group_by key is a tuple when multiple columns
+        if not isinstance(key, tuple):
+            key = (key,)
+        date_only, regime, *extras = key
+        row = {
+            "date_only": date_only,
+            "daily_regime": regime,
+            "score": _day_opportunity(
+                day_df["close"].to_numpy(),
+                day_df["time_only"].to_list(),
+                side,
+                last_entry,
+            ),
+        }
+        for col, val in zip(extra_daily_cols, extras):
+            row[col] = val
+        rows.append(row)
+    return pl.DataFrame(rows)
+
+
+def _boot_mean_diff(
+    a: np.ndarray,
+    b: np.ndarray,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> tuple[float, float, float]:
+    """Point mean(a)-mean(b) and 95% session-bootstrap CI."""
+    n_pair = min(a.size, b.size)
+    point = float(a.mean() - b.mean())
+    diffs = np.array(
+        [
+            rng.choice(a, size=n_pair, replace=True).mean()
+            - rng.choice(b, size=n_pair, replace=True).mean()
+            for _ in range(n_boot)
+        ]
+    )
+    return point, float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975))
+
+
 def d2_opportunity_separation(
     daily_classified: pl.DataFrame,
     price_15m: pl.DataFrame,
@@ -97,38 +160,12 @@ def d2_opportunity_separation(
 
     NO_TRADE reported only (not gated). Gate: S >= A >= H and CI(S-H) LB > 0.
     """
-    daily = daily_classified.select(
-        pl.col("date").cast(pl.Date).alias("date_only"),
-        "daily_regime",
-    )
-    bars = (
-        price_15m.sort("date")
-        .with_columns(
-            date_only=pl.col("date").dt.date(),
-            time_only=pl.col("date").dt.time(),
-        )
-        .join(daily, on="date_only", how="inner")
-    )
-
     results: list[MetricResult] = []
     for side_name, side, last_entry in (
         ("long", 1, LONG_LAST_ENTRY),
         ("short", -1, SHORT_LAST_ENTRY),
     ):
-        rows = [
-            {
-                "date_only": day,
-                "daily_regime": regime,
-                "score": _day_opportunity(
-                    day_df["close"].to_numpy(),
-                    day_df["time_only"].to_list(),
-                    side,
-                    last_entry,
-                ),
-            }
-            for (day, regime), day_df in bars.group_by(["date_only", "daily_regime"])
-        ]
-        day_scores = pl.DataFrame(rows)
+        day_scores = _session_side_scores(daily_classified, price_15m, side, last_entry)
 
         means: dict[str, float] = {}
         ns: dict[str, int] = {}
@@ -154,20 +191,12 @@ def d2_opportunity_separation(
         h_vals = day_scores.filter(pl.col("daily_regime") == D2_ORDER[2])["score"].to_numpy()
         powered = min(s_vals.size, a_vals.size, h_vals.size) >= MIN_SESSIONS
         mono = means[D2_ORDER[0]] >= means[D2_ORDER[1]] >= means[D2_ORDER[2]]
-        sep = float(means[D2_ORDER[0]] - means[D2_ORDER[2]])
 
         if powered:
-            n_pair = min(s_vals.size, h_vals.size)
-            diffs = np.array(
-                [
-                    rng.choice(s_vals, size=n_pair, replace=True).mean()
-                    - rng.choice(h_vals, size=n_pair, replace=True).mean()
-                    for _ in range(n_boot)
-                ]
-            )
-            ci_lo, ci_hi = float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975))
+            sep, ci_lo, ci_hi = _boot_mean_diff(s_vals, h_vals, n_boot, rng)
             gate = mono and ci_lo > 0.0
         else:
+            sep = float(means[D2_ORDER[0]] - means[D2_ORDER[2]])
             ci_lo = ci_hi = float("nan")
             gate = False
 
@@ -186,6 +215,94 @@ def d2_opportunity_separation(
     return results
 
 
+def o3_side_trend_diagnostic(
+    daily_classified: pl.DataFrame,
+    price_15m: pl.DataFrame,
+    series_name: str,
+    n_boot: int,
+    rng: np.random.Generator,
+    market_trend_threshold: float = 0.0,
+) -> list[MetricResult]:
+    """
+    O3 diagnostic only — no runtime gate.
+
+    Across all sessions (O1 Daily labels in place), does market_trend sign
+    separate side opportunity?
+      long  aligned = market_trend >= thr;  Δ = aligned − misaligned
+      short aligned = market_trend <= thr;  Δ = aligned − misaligned
+
+    Uses all sessions (not S+A only): tradeable-only is underpowered because
+    SUPPORTIVE already requires market_trend >= 0, so trend- cells go thin.
+
+    CI LB > 0 is evidence to consider a later hard gate + contract re-lock,
+    not a ship gate by itself.
+    """
+    results: list[MetricResult] = []
+
+    for side_name, side, last_entry, aligned_ge in (
+        ("long", 1, LONG_LAST_ENTRY, True),
+        ("short", -1, SHORT_LAST_ENTRY, False),
+    ):
+        day_scores = _session_side_scores(
+            daily_classified,
+            price_15m,
+            side,
+            last_entry,
+            extra_daily_cols=("market_trend",),
+        )
+        trend = pl.col("market_trend")
+        if aligned_ge:
+            aligned = day_scores.filter(trend >= market_trend_threshold)["score"].to_numpy()
+            misaligned = day_scores.filter(trend < market_trend_threshold)["score"].to_numpy()
+            a_label, m_label = "trend+", "trend-"
+        else:
+            aligned = day_scores.filter(trend <= market_trend_threshold)["score"].to_numpy()
+            misaligned = day_scores.filter(trend > market_trend_threshold)["score"].to_numpy()
+            a_label, m_label = "trend-", "trend+"
+
+        for label, cell in ((a_label, aligned), (m_label, misaligned)):
+            results.append(
+                MetricResult(
+                    f"O3[{series_name}]",
+                    f"{side_name}/{label}",
+                    float(cell.mean()) if cell.size else None,
+                    None,
+                    None,
+                    int(cell.size),
+                    None,
+                    "diagnostic" if cell.size >= MIN_SESSIONS else "diagnostic;thin",
+                )
+            )
+
+        powered = min(aligned.size, misaligned.size) >= MIN_SESSIONS
+        if powered:
+            sep, ci_lo, ci_hi = _boot_mean_diff(aligned, misaligned, n_boot, rng)
+            # Informational only — PASS means CI+ evidence, not a merge lock.
+            evidence = ci_lo > 0.0
+        else:
+            sep = (
+                float(aligned.mean() - misaligned.mean())
+                if aligned.size and misaligned.size
+                else float("nan")
+            )
+            ci_lo = ci_hi = float("nan")
+            evidence = False
+
+        results.append(
+            MetricResult(
+                f"O3[{series_name}]",
+                f"{side_name}/aligned-mis",
+                sep,
+                ci_lo,
+                ci_hi,
+                int(min(aligned.size, misaligned.size)),
+                evidence,
+                "diagnostic;CI+=>consider hard gate" if powered else "diagnostic;thin",
+            )
+        )
+    return results
+
+
 def evaluate_daily(
     daily_features: pl.DataFrame,
     daily_classified: pl.DataFrame,
@@ -199,8 +316,14 @@ def evaluate_daily(
     metrics.extend(
         d2_opportunity_separation(daily_classified, market_15m, "index", n_boot, rng)
     )
+    metrics.extend(
+        o3_side_trend_diagnostic(daily_classified, market_15m, "index", n_boot, rng)
+    )
     if basket_15m is not None:
         metrics.extend(
             d2_opportunity_separation(daily_classified, basket_15m, "ew100", n_boot, rng)
+        )
+        metrics.extend(
+            o3_side_trend_diagnostic(daily_classified, basket_15m, "ew100", n_boot, rng)
         )
     return metrics

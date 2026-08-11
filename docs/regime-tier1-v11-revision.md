@@ -78,9 +78,9 @@ Illustrative D2 long index points:
 
 | ID | Change | Gemini | Claude | Working lock | Merge status |
 |---|---|---|---|---|---|
-| **O1** | Redefine `SUPPORTIVE` via **trend_strength** (ATR-scaled EMA20 slope or ADX14); flat green → `AMBIGUOUS` | ACCEPT | ACCEPT | **SHIP FIRST (alone)** | OPEN |
+| **O1** | Redefine `SUPPORTIVE` via **trend_strength** (ATR-scaled EMA20 slope or ADX14); flat green → `AMBIGUOUS` | ACCEPT | ACCEPT | **SHIP FIRST (alone)** | IMPLEMENTED — **D2 FAIL A+B** (not MERGED) |
 | O2 | Promote `breadth_div` → primary veto | ACCEPT | REVISE | Stay confirmatory; revisit only if O1 fails D2 | OPEN |
-| O3 | Side-aware admission (`market_trend` sign) | REVISE (hard gate) | REVISE (measure first) | Diagnostic slice first; hard gate only after CI-positive + re-lock Daily≠direction in locked verdict | OPEN |
+| O3 | Side-aware admission (`market_trend` sign) | REVISE (hard gate) | REVISE (measure first) | Diagnostic slice first; hard gate only after CI-positive + re-lock Daily≠direction in locked verdict | DIAGNOSTIC DONE — **no hard gate** (Long CI− both folds; Short CI+ A only) |
 | O4 | Tighten `NO_TRADE` / cut coverage; `expiry_flag` | ACCEPT | SPLIT | `expiry_flag` diagnostic only; occupancy via D4 — do not retune with O1 | OPEN |
 | O5 | HMM emission `r_autocorr` | ACCEPT | REVISE | lag-1 only, after O1 clears D2 | OPEN |
 | O6 | HMM `rv_delta` | REJECT | REJECT | **REJECT** | REJECTED |
@@ -139,6 +139,64 @@ A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only 
 | Date | Change | Result | Next |
 |---|---|---|---|
 | 2026-08-10 | Dual-judge package O1–O8 drafted from A+B eval fails | REVISE; O1 first | Implement O1; re-run D2 A+B |
+| 2026-08-11 | **O1 code** — `trend_strength` = ATR-scaled 5d EMA20 slope (pre-open); SUPPORTIVE = `market_trend≥0` + `\|ts\|≥` train-median + breadth; calm **not** required for SUPPORTIVE; flat → AMBIGUOUS. Locked verdict untouched. | Code landed | Re-run D2 A+B |
+| 2026-08-11 | **O1 D2 re-eval A+B** (thr A=0.610 / B=0.654) | **D2 FAIL both folds** — still H≳A≳S; CI(S−H) LB &lt; 0. Occupancy: S~30–33% (was ~50%). D5/I7 PASS. I1/I5 still FAIL (expected; not this cycle). | O3 diagnostic (Claude step 2) |
+| 2026-08-11 | **O3 diagnostic** — `O3[series]` in eval harness: session OpportunityScore sliced by `market_trend` sign (all sessions; no runtime gate) | **No hard gate.** Long aligned−mis **CI− / inverted** on A+B (trend− days have *higher* long opportunity). Short aligned−mis **CI+ on A only**, ~0 / CI straddles 0 on B. | Do **not** re-lock Daily side tilt; do **not** wire hard admission. Next isolated lever: **O2** (breadth) or stop and revisit D2 metric fit |
+
+### O1 D2 snapshot (post-change)
+
+| Fold | Series | Side | S | A | H | S−H CI LB | Gate |
+|---|---|---|---:|---:|---:|---:|---|
+| A 2018 | index | long | 0.0002 | 0.0007 | 0.0016 | −0.0018 | FAIL |
+| A 2018 | index | short | 0.0005 | 0.0008 | 0.0018 | −0.0019 | FAIL |
+| A 2018 | ew100 | long | 0.0008 | 0.0011 | 0.0025 | −0.0024 | FAIL |
+| A 2018 | ew100 | short | 0.0015 | 0.0012 | 0.0028 | −0.0022 | FAIL |
+| B 2019 | index | long | 0.0006 | 0.0009 | 0.0022 | −0.0028 | FAIL |
+| B 2019 | index | short | 0.0010 | 0.0012 | 0.0012 | −0.0007 | FAIL |
+| B 2019 | ew100 | long | 0.0008 | 0.0016 | 0.0027 | −0.0038 | FAIL |
+| B 2019 | ew100 | short | 0.0014 | 0.0020 | 0.0018 | −0.0010 | FAIL |
+
+**Read:** Strength floor shrinks SUPPORTIVE and moves flat greens to AMBIGUOUS, but HOSTILE still wins OpportunityScore (range-driven). Do **not** merge O1 into locked verdict. Do **not** retune the median prior against D2 on A/B.
+
+### O3 diagnostic snapshot (aligned − misaligned)
+
+Long aligned = `market_trend ≥ 0`; short aligned = `market_trend ≤ 0`. All sessions; N = min(aligned, misaligned).
+
+| Fold | Series | Side | aligned | misaligned | Δ | CI LB | Evidence |
+|---|---|---|---:|---:|---:|---:|---|
+| A 2018 | index | long | 0.0004 | 0.0017 | −0.0013 | −0.0019 | FAIL (inverted) |
+| A 2018 | index | short | 0.0017 | 0.0006 | +0.0011 | +0.0006 | PASS |
+| A 2018 | ew100 | long | 0.0009 | 0.0025 | −0.0016 | −0.0024 | FAIL (inverted) |
+| A 2018 | ew100 | short | 0.0026 | 0.0014 | +0.0012 | +0.0004 | PASS |
+| B 2019 | index | long | 0.0008 | 0.0019 | −0.0011 | −0.0021 | FAIL (inverted) |
+| B 2019 | index | short | 0.0012 | 0.0011 | ~0 | −0.0006 | FAIL |
+| B 2019 | ew100 | long | 0.0014 | 0.0023 | −0.0009 | −0.0023 | FAIL |
+| B 2019 | ew100 | short | 0.0018 | 0.0017 | ~0 | −0.0006 | FAIL |
+
+**Read:** Side-sign does **not** clear dual-fold CI+ for both Long and Short. Long is anti-aligned with OpportunityScore (same range/HOSTILE mechanism). **No contract re-lock; no hard gate.**
+
+---
+
+## O1 implementation notes (working)
+
+| Item | Choice |
+|---|---|
+| Feature | `trend_strength = (EMA20 − EMA20_{t−5}) / ATR14`, shifted to T−1 (pre-open) |
+| Lookback | 5 sessions (design prior; not D2-searched) |
+| SUPPORTIVE floor | Train-period median `\|trend_strength\|` via `design_trend_strength_threshold`; fallback `0.5` |
+| Rule change | `SUPPORTIVE` = `market_trend ≥ 0` + `|trend_strength|` floor + breadth confirmatory; **calm no longer required** for SUPPORTIVE (HOSTILE/NO_TRADE still own vol crisis). Flat/weak strength → `AMBIGUOUS` |
+| Not changed | HOSTILE / NO_TRADE; breadth confirmatory; HMM |
+
+---
+
+## O3 implementation notes (working)
+
+| Item | Choice |
+|---|---|
+| Scope | **Diagnostic only** in `o3_side_trend_diagnostic` — no cascade / admission change |
+| Universe | All sessions (tradeable-only was thin: SUPPORTIVE already requires `market_trend ≥ 0`) |
+| Metric | Mean OpportunityScore by side × trend sign; bootstrap CI on aligned − misaligned |
+| Hard gate | **Not wired** — dual-fold CI+ for Long **and** Short not met |
 
 ---
 

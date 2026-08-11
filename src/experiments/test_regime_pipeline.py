@@ -6,6 +6,7 @@ from src.pipelines.build_regime_features import (
     load_regime_data,
 )
 from src.pipelines.regime_pipeline import fit_intraday_hmm, predict_intraday_hmm
+from src.regime.daily import design_trend_strength_threshold
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 
@@ -70,11 +71,25 @@ def main():
         print("Error: Train or test daily dataframe is empty. Check your periods.")
         return
 
+    trend_strength_threshold = design_trend_strength_threshold(daily_train)
+    print(f"O1 trend_strength threshold (train design prior): {trend_strength_threshold:.4f}")
+
     print("Fitting Intraday HMM on train data (only on data passing daily filter)...")
-    hmm_model = fit_intraday_hmm(daily_train, intraday_train, random_state=42, n_iter=100)
+    hmm_model = fit_intraday_hmm(
+        daily_train,
+        intraday_train,
+        random_state=42,
+        n_iter=100,
+        trend_strength_threshold=trend_strength_threshold,
+    )
 
     print("Predicting Regimes on test data...")
-    results = predict_intraday_hmm(daily_test, intraday_test, hmm_model)
+    results = predict_intraday_hmm(
+        daily_test,
+        intraday_test,
+        hmm_model,
+        trend_strength_threshold=trend_strength_threshold,
+    )
     # Intraday hard rules (not inside the HMM).
     results = override_intraday_regime(results)
 
