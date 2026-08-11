@@ -296,4 +296,4 @@ Second wave: D1, D3, D4, D6, I2, I3, I6.
 | [cascade-strategy-overview.md](cascade-strategy-overview.md) | Cascade contracts |
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | H=4, cost floors, MIS clocks |
 | [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate to Regime |
-| [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Next tier eval owner after Regime clears |
+| [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Locked Tier 2 features / hyperparams |

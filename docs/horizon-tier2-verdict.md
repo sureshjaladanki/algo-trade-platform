@@ -7,6 +7,7 @@
 **Depends on:** [Tier 1 Regime Verdict](regime-tier1-verdict.md)  
 **Related:** [Triple-Barrier Verdict](triple-barrier-verdict.md) — vertical timeout, TP/SL, 0.30% cost  
 **Escalation (2026-08-11):** Tier 1 Regime search **CLOSED** ([A0 stop memo](regime-tier1-stop-memo.md)) — Regime is a frozen soft overlay; **Horizon is active** for path quality / selection.
+**Eval harness:** [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md) — Tier-level ranker eval (H1/H2/H3/H5 gated), answers the WS0/WS1 escalation question.
 
 ---
 
