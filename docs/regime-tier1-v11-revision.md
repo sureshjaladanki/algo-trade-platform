@@ -23,14 +23,14 @@
 
 | Decision | Working choice (not merged) |
 |---|---|
-| Overall posture | **REVISE** — D2′ honest; Daily still does not separate; freeze Daily features |
-| Root cause (updated) | Legacy D2max = vol proxy (**fixed** by D2′); under D2′ means ≈ −30 bps with **no S≥A≥H** for O1 or v1 |
-| O1 / O3 / D2′ status | O1 **reverted** (no lift vs v1); O3 closed; D2′ metric kept — **FAIL A+B** |
-| Ship / merge | **Nothing** — cascade Daily = locked v1 |
-| Sequence next | **Move to Intraday** (I1 under v1; I5 as real cascade-value test); Daily frozen as soft overlay |
-| Reject this cycle | O2, O3 hard gate, D2′ formula search, O6/O7, bundled builds, more Daily feature knobs |
+| Overall posture | **REVISE Intraday** — I1 weighting fixed; corrected Edge positive but **not dual-fold Long+Short**; I5 still FAIL → **O5 unlocked** |
+| Root cause (updated) | Daily exhausted under D2′; prior I1 FAIL was partly harness weighting; honest I1 still incomplete (cross-fold side flip); I5 Δ still red |
+| O1 / O3 / D2′ status | O1 **reverted**; O3 closed; D2′ kept — **FAIL A+B** |
+| Ship / merge | **Nothing** |
+| Sequence next | **O5 only** (lag-1 `r_autocorr`); Daily frozen; I5 TOD/signed diagnostics still open |
+| Reject this cycle | O2, O3 hard gate, D2′ formula search, O6/O7, bundled builds, Daily reopen |
 
-**One-line:** D2′ validated the vol-trap kill and O1 revert; **do not optimize Daily further** — continue cascade with Daily frozen, gate Regime on **I1/I5**.
+**One-line:** I1 Edge weighting fixed — bar hit−null ≈ +3–7pp and some side×fold PASS, but not Long+Short on A+B; I5 still FAIL → proceed to isolated **O5**.
 
 ---
 
@@ -47,7 +47,7 @@ Harness: `python -m src.experiments.eval_regime`
 |---|---|---|
 | D5 / I7 | PASS | Instrumentation OK; strategy fails |
 | **D2** | **FAIL inverted** (H > A > S on Long+Short, index+EW100) | Calm greens lose to high-vol HOSTILE on OpportunityScore |
-| **I1** | **FAIL** (bar hit ~52–57%; session Edge ≤ 0 vs TOD null) | Labels more clock-correlated than path-predictive |
+| **I1** | **FAIL gate** (corrected Edge ≈ +3–7pp; not Long+Short on A+B) | Weighting fixed; residual side×fold CI miss |
 | **I5** | **FAIL** (`p_adm` ~0–1% IndexTB+1; CI LB ≤ 0) | Admitted book not better than rejected |
 | I4 | ASD TREND ~5–7, flip ~2–2.5% | Not the failure mode |
 
@@ -112,7 +112,8 @@ All-session O3 answers “does trend sign carry market-wide side opportunity?”
 | O2 | Promote `breadth_div` → primary veto | REVISE (was ACCEPT) | **REJECT this cycle** | **Do not run** against current D2 | BLOCKED |
 | O3 | Side-aware admission (`market_trend` sign) | REJECT hard gate | ACCEPT diagnostic-closed | Diagnostic done; **no hard gate** | CLOSED (diag) |
 | O4 | Tighten `NO_TRADE` / cut coverage; `expiry_flag` | ACCEPT expiry diag | ACCEPT report-only | `expiry_flag` / D4 report-only | OPEN |
-| O5 | HMM emission `r_autocorr` | REVISE (hold) | REVISE (parallel track later) | Not next; no bundle with D2 redesign | OPEN |
+| O5 | HMM emission `r_autocorr` | REJECT until harness fix | ACCEPT if corrected FAIL | **UNLOCKED** — corrected I1/I5 still FAIL dual-fold gates | OPEN — **NEXT** |
+| **I1 fix** | Same-weight Edge (bar HitRate − bar null) | ACCEPT | ACCEPT | **IMPLEMENTED** — re-baseline logged | N/A |
 | O6 | HMM `rv_delta` | REJECT | REJECT | **REJECT** | REJECTED |
 | O7 | Force 3-bar TREND min dwell | REJECT | REJECT | **REJECT this cycle** | REJECTED |
 | O8 | No D2/I1/I5 threshold search on A+B; no supervised labels | ACCEPT | ACCEPT + extend | **LOCK** + pre-register D2 redesign before peek | N/A |
@@ -140,15 +141,16 @@ Per dual-judge stop signal: replace max-window OpportunityScore before more Dail
 
 ---
 
-## Build order (working — post O1/O3 judge lock)
+## Build order (working — post I1/I5 judge lock)
 
-Claude isolation + dual-judge metric stop signal:
+Dual-judge after v1 I1/I5 re-baseline ([Gemini](66d3c4e2-a238-4a18-863a-a1ff17347549), [Claude](a4533e9e-e0f5-4b9c-913e-70237dc944b5)):
 
-1. **Freeze Daily** — keep O1 code; no O2, no further O1 variants against current D2.  
-2. **Pre-register D2′** (before looking at A/B under it) — preferred construction (**Claude**): **fixed decision rule** — enter at first tradable bar (ex-open), hold H=4, cost-netted; removes max-over-windows inflation. Fallback / second candidate (**Gemini**): trend-efficiency / capture-ratio (net path ÷ cumulative abs path or range). No supervised regime labels.  
-3. **Re-run D2′ on Fold A+B** for **locked v1 Daily and O1 Daily** — does the metric discriminate for *any* Daily formulation?  
-4. **Parallel track:** I1 baseline read only (no O5 yet); note HMM fit sample already shaped by O1 cascade gate.  
-5. **Hold I5 / O5** until D2′ and I1 have honest current reads.
+1. **Fix I1 weighting** — Edge = bar-pooled HitRate − bar-pooled TOD null; session-block bootstrap keeps bar weights. **Done** (2026-08-11).  
+2. **I5 diagnostics (not new ship gate):** treat absolute `p_adm`~0 as index-vs-stock TB-floor caveat; keep Δ as gate; add TOD-stratified cut + signed-60m admitted−rejected companion before any floor redesign.  
+3. **Re-baseline I7→I1→I5** under corrected harness. **Done** — I1 not dual-fold Long+Short; I5 FAIL both folds.  
+4. **O5 only** (lag-1 `r_autocorr`); isolate; re-run I7→I1→I5. No emission grid. **← NEXT**  
+5. **If O5 fails:** one more isolated ideal emission (**intraday breadth** first; HL/CO second). Architecture rethink only after pre-registered escalation criteria + fresh holdout.  
+
 
 ---
 
@@ -202,6 +204,9 @@ A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only 
 | 2026-08-11 | **Revert cascade Daily to locked v1** — O1 `trend_strength` not better than v1 under D2′ and never MERGED; restore calm+trend+breadth SUPPORTIVE; drop O1 feature/threshold plumbing | Code matches [regime-tier1-verdict.md](regime-tier1-verdict.md); D2′ harness kept | I1 path; do not re-litigate O1 thresholds |
 | 2026-08-11 | Dual-judge validate D2′ + cascade policy ([Gemini](b50b8e2e-9eed-4913-99e9-fc2c1c440aa3), [Claude](3e488b5a-5146-418d-a56d-8e1c71fee4b6)) | **Both: move to Intraday; do not keep optimizing Daily.** Continue cascade with Daily frozen as soft overlay; D2′ FAIL is **not** a hard stop. Gemini: elevate I1/I5 as primary gates. Claude: same + optional one-shot multi-window D2′ power addendum; **I5** decides if Daily-as-filter earns keep | Re-baseline I1 under v1; run I5; hold O5 |
 | 2026-08-11 | **D2p_mw Fold B** (v1 Daily) — mean of non-overlapping H=4 windows | Index L/S **FAIL**; ew100 long **FAIL**; ew100 short **PASS** (CI LB≈0.0001). Means still ≈ −30 bps. Does **not** clear dual-side Daily gate | **Removed from harness**; proceed to I1 under v1 |
+| 2026-08-11 | **I1/I5 re-baseline under locked v1** — Fold A+B; Daily frozen soft overlay; no O5 | **I7 PASS** both. **I1 FAIL** both sides A+B (bar hit ~52–57%; session Edge ≤ 0 vs TOD null). **I5 FAIL** both sides A+B (`p_adm` ~0–1%; CI LB ≤ 0; B short CI entirely ≤ 0). I4 healthy (ASD TREND ~5–7, flip ~2–2.5%) | Dual-judge validate before O5 / architecture |
+| 2026-08-11 | Dual-judge validate I1/I5 + Intraday next steps ([Gemini](66d3c4e2-a238-4a18-863a-a1ff17347549), [Claude](a4533e9e-e0f5-4b9c-913e-70237dc944b5)) | **REVISE harness first.** Both: I1 Edge mixes session-equal mean vs bar-weighted null — fix before locking FAIL. Both: I5 absolute `p_adm` is stock-floor-on-index geometry caveat; Δ remains informative (Claude: B-short still red). **Disagree:** Gemini claims bar-level edge already +3–7pp → likely PASS after fix / hold O5; Claude: fix then re-read, **ACCEPT O5 if still FAIL**. Consensus: Daily frozen; no O6/O7; no architecture yet | Fix I1 weighting → re-baseline → O5 only if still FAIL |
+| 2026-08-11 | **I1 weighting fix** — Edge = bar HitRate − bar null; session-block boot keeps bar weights (`i1_directional_hit_rate`) | **Corrected re-baseline:** bar Edge ≈ +3–7pp. A long **PASS** / short **FAIL**; B long **FAIL** / short **PASS** — not dual-fold Long+Short. I5 still **FAIL** both sides A+B. I7 PASS | **O5 unlocked** (Claude path); Daily frozen |
 
 ### D2p_mw Fold B snapshot (v1 Daily, 2019)
 
@@ -213,6 +218,80 @@ A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only 
 | ew100 | short | −0.0026 | −0.0026 | −0.0032 | yes | +0.0001 | PASS |
 
 **Read:** Multi-window adds a thin short/ew100 PASS but not a dual-side clear — Claude’s one-shot power check does not reopen Daily optimization.
+
+### I1 / I5 re-baseline under locked v1 (2026-08-11)
+
+#### Pre-fix (superseded — session-equal Edge vs bar null)
+
+| Fold | Metric | Side | value | CI LB | CI UB | n | Gate | note |
+|---|---|---|---:|---:|---:|---:|---|---|
+| A 2018 | I7 | — | 0.584 | — | — | 4 | **PASS** | emit_r_up=0.305 emit_r_down=−0.280 |
+| A 2018 | I1 | long | −0.011 | −0.076 | 0.056 | 749 | **FAIL** | hit=0.570 null=0.502 |
+| A 2018 | I1 | short | −0.051 | −0.106 | 0.008 | 889 | **FAIL** | hit=0.524 null=0.491 |
+| A 2018 | I5 | long | +0.003 | −0.001 | 0.008 | 749 | **FAIL** | p_adm=0.004 p_rej=0.001 |
+| A 2018 | I5 | short | +0.004 | −0.008 | 0.018 | 889 | **FAIL** | p_adm=0.010 p_rej=0.006 |
+| B 2019 | I7 | — | 0.597 | — | — | 4 | **PASS** | emit_r_up=0.308 emit_r_down=−0.289 |
+| B 2019 | I1 | long | −0.063 | −0.131 | 0.009 | 696 | **FAIL** | hit=0.573 null=0.507 |
+| B 2019 | I1 | short | −0.045 | −0.101 | 0.014 | 1032 | **FAIL** | hit=0.553 null=0.491 |
+| B 2019 | I5 | long | −0.001 | −0.003 | ~0 | 696 | **FAIL** | p_adm=0.000 p_rej=0.001 |
+| B 2019 | I5 | short | −0.014 | −0.029 | −0.002 | 1032 | **FAIL** | p_adm=0.007 p_rej=0.021 |
+
+#### Post I1 weighting fix (honest v1 baseline)
+
+| Fold | Metric | Side | value | CI LB | CI UB | n | Gate | note |
+|---|---|---|---:|---:|---:|---:|---|---|
+| A 2018 | I7 | — | 0.584 | — | — | 4 | **PASS** | unchanged |
+| A 2018 | I1 | long | +0.068 | +0.015 | 0.113 | 749 | **PASS** | hit=0.570 null=0.502 |
+| A 2018 | I1 | short | +0.034 | −0.016 | 0.078 | 889 | **FAIL** | hit=0.524 null=0.491 |
+| A 2018 | I5 | long | +0.003 | −0.001 | 0.009 | 749 | **FAIL** | p_adm=0.004 p_rej=0.001 |
+| A 2018 | I5 | short | +0.004 | −0.009 | 0.019 | 889 | **FAIL** | p_adm=0.010 p_rej=0.006 |
+| B 2019 | I7 | — | 0.597 | — | — | 4 | **PASS** | unchanged |
+| B 2019 | I1 | long | +0.067 | −0.008 | 0.125 | 696 | **FAIL** | hit=0.573 null=0.507 |
+| B 2019 | I1 | short | +0.063 | +0.014 | 0.115 | 1032 | **PASS** | hit=0.553 null=0.491 |
+| B 2019 | I5 | long | −0.001 | −0.003 | ~0 | 696 | **FAIL** | p_adm=0.000 p_rej=0.001 |
+| B 2019 | I5 | short | −0.014 | −0.027 | −0.002 | 1032 | **FAIL** | p_adm=0.007 p_rej=0.021 |
+
+I4 diagnostic (not gated): A flip=2.6% ASD TREND_UP≈6.7 / TREND_DOWN≈5.4; B flip=2.1% ASD≈6.1 / 5.5.
+
+**Read:** Weighting fix restores the locked Edge definition. Point Edges are positive (~+3–7pp) as Gemini flagged, but **CI(Edge) LB > 0 fails to clear Long and Short on both A and B** (sides flip which fold passes). I5 Δ still FAIL — B short CI entirely ≤ 0. Per judge lock: **O5 unlocked**; do not declare I1 PASS; do not reopen Daily.
+
+---
+
+## Judge scores (post I1/I5 re-baseline — 2026-08-11)
+
+Judges: [Gemini Flash](66d3c4e2-a238-4a18-863a-a1ff17347549), [Claude Sonnet](a4533e9e-e0f5-4b9c-913e-70237dc944b5)
+
+| Question | Gemini Flash | Claude Sonnet | Consensus |
+|---|---|---|---|
+| I1/I5 numbers as printed | Validated | Validated | **Validated** |
+| Lock “escalate Intraday / O5 now”? | **No** — thermometer broken | **No** — fix I1 first | **Harness fix first** |
+| I1 issue | Session-equal Edge vs bar-weighted null; bar hit−null ≈ +3–7pp | Same weighting bug; don’t trust “TOD confound” narrative yet | **Fix same-weight Edge; re-run** |
+| I5 absolute `p_adm`~0 | Stock floors on index → starved | Agree — geometry caveat | **Diagnostic only** |
+| I5 Δ / CI FAIL | Dismiss as noise from sparsity; prefer continuous signed R60 or re-floored IndexTB | Δ still valid (floor cancels); B-short CI entirely ≤0 is real cascade read; add TOD-stratified diagnostic | **Keep Δ gate; add diagnostics; pre-register any floor change** |
+| Daily freeze | Keep | Keep | **Frozen** |
+| O5 next? | **REJECT this cycle** until corrected baseline | **ACCEPT** if corrected I1/I5 still FAIL | **O5 only after re-baseline FAIL** |
+| O6 / O7 / Daily reopen | REJECT | REJECT | **REJECT** |
+| Architecture rethink | REJECT this cycle | REVISE — only after O5 + one emission + pre-registered holdout | **Not yet** |
+
+### Candidate ledger update (Intraday)
+
+| ID | Change | Gemini | Claude | Working lock |
+|---|---|---|---|---|
+| I1 fix | Same-weight Edge (bar HitRate − bar null; session bootstrap for CI) | ACCEPT (mandatory) | ACCEPT (mandatory) | **DONE** |
+| I5 diag | TOD-stratified cut; signed-60m admitted−rejected (already in eval verdict) | ACCEPT (or re-floor) | ACCEPT TOD + signed; floor change only if pre-registered | OPEN |
+| **O5** | lag-1 `r_autocorr` emission | REJECT until harness clean | ACCEPT if still FAIL after fix | **NEXT** (corrected still FAIL) |
+| Breadth `adr_15` | Ideal HMM emission | REJECT this cycle | ACCEPT as fallback #2 after O5 | After O5 fail |
+| HL/CO candle | Ideal | REJECT this cycle | REVISE — after breadth | Later |
+| O6 / O7 | rv_delta / force dwell | REJECT | REJECT | **REJECT** |
+| Daily reopen | — | REJECT | REJECT | **REJECT** |
+
+### Cascade / Intraday policy lock (both judges)
+
+1. Daily stays **locked v1**, frozen.  
+2. I1 Edge now matches locked HitRate definition (post-fix).  
+3. Do **not** treat I5 absolute `p_adm` alone as Regime failure; gate on Δ (+ signed-return companion).  
+4. Corrected A+B still fails dual-fold I1 Long+Short and I5 → **O5 unlocked**.  
+5. No Daily retune against I1/I5 (O8).
 
 ---
 
@@ -284,7 +363,7 @@ Index long/short means and S−H gate (ew100 same qualitative FAIL):
 | B 2019 | v1 | long | −0.0032 | −0.0028 | −0.0031 | no | −0.0009 | FAIL |
 | B 2019 | v1 | short | −0.0028 | −0.0032 | −0.0029 | no | −0.0007 | FAIL |
 
-**I1 baseline (O1 cascade, same runs):** A long Edge −0.009 / short −0.051 FAIL; B long −0.061 / short −0.045 FAIL. I7 PASS both.
+**I1 baseline (O1 cascade, superseded):** A long Edge −0.009 / short −0.051 FAIL; B long −0.061 / short −0.045 FAIL. I7 PASS both. **Superseded by locked-v1 I1/I5 re-baseline above** (same qualitative FAIL).
 
 **Read:** D2′ removes max-window vol inflation (regime means collapse near −RT cost). Neither O1 nor locked v1 orders days under the pre-registered fixed rule. Daily feature work is exhausted for this metric; do **not** open Gemini capture-ratio as a search — only as a separately pre-registered experiment later if needed.
 

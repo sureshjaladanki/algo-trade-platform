@@ -50,7 +50,7 @@ def load_nifty100_15m(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate Tier 1 Regime (Daily D2′ + Intraday I1/I5) on a fold."
+        description="Evaluate Tier 1 Regime (Daily D2' + Intraday I1/I5) on a fold."
     )
     parser.add_argument("--config", type=str, default="config/market_sectoral_symbols.yml")
     parser.add_argument("--data-dir", type=str, default="data/GOLDEN")
@@ -95,7 +95,7 @@ def main() -> None:
 
     print(
         "Daily=locked v1 (regime-tier1-verdict). "
-        "D2′: first tradable bar -> exit H=4, "
+        "D2': first tradable bar -> exit H=4, "
         f"cost-netted ({ROUND_TRIP_COST:.4f} RT); gated. D2max=legacy diagnostic."
     )
 
@@ -110,7 +110,7 @@ def main() -> None:
     )
     daily_classified = classify_daily_regime(daily_test)
 
-    print("Building EW Nifty-100 15m basket for confirmatory D2′...")
+    print("Building EW Nifty-100 15m basket for confirmatory D2'...")
     stock_15m = load_nifty100_15m(data_dir, config_path, test_start, test_end)
     basket = build_ew_basket_15m(stock_15m)
     print(f"   Basket bars: {basket.height} from {len(stock_15m)} symbols")

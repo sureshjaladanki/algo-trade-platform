@@ -240,7 +240,13 @@ def i1_directional_hit_rate(
     n_boot: int,
     rng: np.random.Generator,
 ) -> list[MetricResult]:
-    """P(R60 sign matches sleeve) - TOD null; gate on CI(Edge) LB > 0."""
+    """
+    P(R60 sign matches sleeve) − TOD null.
+
+    Edge = bar-pooled HitRate − bar-pooled null (same weighting). Session-block
+    bootstrap resamples sessions but keeps bar weights inside the resampled set
+    for the CI — do not equal-weight session hit rates against a bar null.
+    """
     base = regime_paths.filter(~pl.col("open_bleed") & pl.col("r60").is_not_null())
     results = []
 
@@ -267,19 +273,24 @@ def i1_directional_hit_rate(
 
         hit_rate = float(hits[mask].mean())
         null_mean = _tod_null_hit_rate(day_ids, tod, regimes, hits, state, n_boot, rng)
+        edge = hit_rate - null_mean
 
-        sess_hit = np.array(
-            [
-                float(hits[(panel["date_only"] == d).to_numpy() & mask].mean())
-                for d in sessions
-                if ((panel["date_only"] == d).to_numpy() & mask).any()
-            ]
+        # Per-session hit counts for bar-weighted session-block bootstrap.
+        state_days = day_ids[mask]
+        state_hits = hits[mask].astype(float)
+        sess_ids = np.unique(state_days)
+        sess_hit_sum = np.array(
+            [float(state_hits[state_days == sid].sum()) for sid in sess_ids]
         )
-        edge = float(sess_hit.mean()) - null_mean
-        boot = (
-            rng.choice(sess_hit, size=(n_boot, sess_hit.size), replace=True).mean(axis=1)
-            - null_mean
-        )
+        sess_n = np.array([int((state_days == sid).sum()) for sid in sess_ids], dtype=float)
+
+        boot = np.empty(n_boot)
+        for b in range(n_boot):
+            idx = rng.integers(0, sess_ids.size, size=sess_ids.size)
+            n_tot = float(sess_n[idx].sum())
+            boot[b] = (
+                float(sess_hit_sum[idx].sum() / n_tot) - null_mean if n_tot > 0 else edge
+            )
         ci_lo, ci_hi = float(np.quantile(boot, 0.025)), float(np.quantile(boot, 0.975))
         results.append(
             MetricResult(
