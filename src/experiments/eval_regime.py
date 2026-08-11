@@ -7,12 +7,13 @@ from pathlib import Path
 
 import polars as pl
 
+from src.labels.triple_barrier import ROUND_TRIP_COST
 from src.pipelines.build_regime_features import (
     build_regime_features,
     load_regime_data,
 )
 from src.pipelines.regime_pipeline import fit_intraday_hmm, predict_intraday_hmm
-from src.regime.daily import classify_daily_regime, design_trend_strength_threshold
+from src.regime.daily import classify_daily_regime
 from src.regime.eval import (
     N_BOOT,
     build_ew_basket_15m,
@@ -49,7 +50,7 @@ def load_nifty100_15m(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate Tier 1 Regime (Daily D2 + Intraday I1/I5) on a fold."
+        description="Evaluate Tier 1 Regime (Daily D2′ + Intraday I1/I5) on a fold."
     )
     parser.add_argument("--config", type=str, default="config/market_sectoral_symbols.yml")
     parser.add_argument("--data-dir", type=str, default="data/GOLDEN")
@@ -92,35 +93,24 @@ def main() -> None:
     )
     market_test = filter_by_period(market_15m, test_start, test_end, datetime_col="date")
 
-    trend_strength_threshold = design_trend_strength_threshold(daily_train)
     print(
-        f"O1 trend_strength threshold (train design prior): {trend_strength_threshold:.4f}"
+        "Daily=locked v1 (regime-tier1-verdict). "
+        "D2′: first tradable bar -> exit H=4, "
+        f"cost-netted ({ROUND_TRIP_COST:.4f} RT); gated. D2max=legacy diagnostic."
     )
 
     print(f"Fitting HMM on train {args.train_period}...")
     hmm = fit_intraday_hmm(
-        daily_train,
-        intra_train,
-        random_state=args.seed,
-        n_iter=100,
-        trend_strength_threshold=trend_strength_threshold,
+        daily_train, intra_train, random_state=args.seed, n_iter=100
     )
 
     print(f"Predicting regimes on test {args.test_period}...")
     preds = override_intraday_regime(
-        predict_intraday_hmm(
-            daily_test,
-            intra_test,
-            hmm,
-            apply_hysteresis=True,
-            trend_strength_threshold=trend_strength_threshold,
-        )
+        predict_intraday_hmm(daily_test, intra_test, hmm, apply_hysteresis=True)
     )
-    daily_classified = classify_daily_regime(
-        daily_test, trend_strength_threshold=trend_strength_threshold
-    )
+    daily_classified = classify_daily_regime(daily_test)
 
-    print("Building EW Nifty-100 15m basket for confirmatory D2...")
+    print("Building EW Nifty-100 15m basket for confirmatory D2′...")
     stock_15m = load_nifty100_15m(data_dir, config_path, test_start, test_end)
     basket = build_ew_basket_15m(stock_15m)
     print(f"   Basket bars: {basket.height} from {len(stock_15m)} symbols")
@@ -135,7 +125,10 @@ def main() -> None:
         n_boot=args.n_boot,
         seed=args.seed,
     )
-    title = f"Tier 1 Regime Eval  train={args.train_period}  test={args.test_period}"
+    title = (
+        f"Tier 1 Regime Eval  train={args.train_period}  "
+        f"test={args.test_period}  daily=v1"
+    )
     print()
     print(format_report(metrics, title))
 

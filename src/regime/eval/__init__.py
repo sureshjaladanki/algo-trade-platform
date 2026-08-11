@@ -25,14 +25,19 @@ def evaluate_regime(
     regime_preds: pl.DataFrame,
     market_15m: pl.DataFrame,
     hmm: IntradayHMMRegimeModel,
-    basket_15m: pl.DataFrame | None,
+    basket_15m: pl.DataFrame,
     n_boot: int,
     seed: int,
 ) -> list[MetricResult]:
     """Run Daily then Intraday evals; return flat metric list for reporting."""
     rng = np.random.default_rng(seed)
     metrics = evaluate_daily(
-        daily_features, daily_classified, market_15m, basket_15m, n_boot, rng
+        daily_features,
+        daily_classified,
+        market_15m,
+        basket_15m,
+        n_boot,
+        rng,
     )
     metrics.extend(
         evaluate_intraday(regime_preds, market_15m, hmm, n_boot, rng)

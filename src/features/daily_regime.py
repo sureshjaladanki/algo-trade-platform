@@ -27,35 +27,25 @@ def calculate_daily_vix_features(vix_df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-# Lookback for ATR-scaled EMA20 slope (one trading week). Design prior, not D2-tuned.
-TREND_STRENGTH_LOOKBACK = 5
-
-
 def calculate_daily_market_features(market_df: pl.DataFrame) -> pl.DataFrame:
     """
     Pre-open market regime features for session date T.
 
     - market_trend: prior close vs EMA20 (T−1), available pre-open
-    - trend_strength: ATR-scaled EMA20 slope over TREND_STRENGTH_LOOKBACK days (T−1)
     - shock: today's open gap / prev_ATR14 — open is known by ~9:08
     """
     return (
         market_df.sort("date")
         .with_columns(
             ema20=ema("close", span=20),
-            atr14=atr(window=14),
             prev_atr14=atr(window=14).shift(1),
             gap_raw=gap("open", "close"),
         )
         .with_columns(
             market_trend=(pct_distance("close", "ema20") * 100).shift(1),
-            trend_strength=(
-                (pl.col("ema20") - pl.col("ema20").shift(TREND_STRENGTH_LOOKBACK))
-                / pl.col("atr14")
-            ).shift(1),
             shock=pl.col("gap_raw") / pl.col("prev_atr14"),
         )
-        .select(["date", "market_trend", "trend_strength", "shock"])
+        .select(["date", "market_trend", "shock"])
     )
 
 

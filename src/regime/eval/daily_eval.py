@@ -1,6 +1,8 @@
-"""Daily Regime eval — D1 occupancy, D2 opportunity separation, D5 leakage audit."""
+"""Daily Regime eval — D1 occupancy, D2max / D2′ separation, D5 leakage, O3 diagnostic."""
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import numpy as np
 import polars as pl
@@ -19,12 +21,14 @@ from src.regime.types import DailyRegime
 
 DAILY_FEATURE_COLS = (
     "market_trend",
-    "trend_strength",
     "vol_regime_ratio",
     "vol_regime_delta",
     "shock",
     "breadth_div",
 )
+
+# Session score: closes, times, side, last_entry -> float | None (None = drop session).
+SessionScoreFn = Callable[[np.ndarray, list, int, object], float | None]
 
 
 def build_ew_basket_15m(stock_frames: list[pl.DataFrame]) -> pl.DataFrame:
@@ -71,8 +75,10 @@ def d1_occupancy(daily_classified: pl.DataFrame) -> list[MetricResult]:
     return out
 
 
-def _day_opportunity(closes: np.ndarray, times: list, side: int, last_entry) -> float:
-    """Best cost-netted directional window in a session (H<=4, MIS entry cutoff)."""
+def _day_opportunity_max(
+    closes: np.ndarray, times: list, side: int, last_entry
+) -> float | None:
+    """Legacy D2: best cost-netted window in session (floored at 0). Diagnostic only."""
     best = 0.0
     n = len(closes)
     for i in range(n):
@@ -86,14 +92,34 @@ def _day_opportunity(closes: np.ndarray, times: list, side: int, last_entry) -> 
     return best
 
 
+def _day_fixed_rule_score(
+    closes: np.ndarray, times: list, side: int, last_entry
+) -> float | None:
+    """
+    D2′ (pre-registered): first tradable bar → exit exactly H_BARS later, cost-netted.
+
+    Signed (not floored). None if no eligible entry or incomplete horizon.
+    """
+    n = len(closes)
+    for i in range(n):
+        if times[i] == NSE_OPEN_BLEED_BAR or times[i] > last_entry:
+            continue
+        j = i + H_BARS
+        if j >= n:
+            return None
+        return side * (closes[j] / closes[i] - 1.0) - ROUND_TRIP_COST
+    return None
+
+
 def _session_side_scores(
     daily_classified: pl.DataFrame,
     price_15m: pl.DataFrame,
     side: int,
     last_entry,
+    score_fn: SessionScoreFn,
     extra_daily_cols: tuple[str, ...] = (),
 ) -> pl.DataFrame:
-    """One row per session: daily_regime, optional daily cols, OpportunityScore."""
+    """One row per scorable session: daily_regime, optional daily cols, score."""
     daily_cols = ["daily_regime", *extra_daily_cols]
     daily = daily_classified.select(
         pl.col("date").cast(pl.Date).alias("date_only"),
@@ -109,23 +135,33 @@ def _session_side_scores(
     )
     rows = []
     for key, day_df in bars.group_by(["date_only", *daily_cols]):
-        # group_by key is a tuple when multiple columns
         if not isinstance(key, tuple):
             key = (key,)
         date_only, regime, *extras = key
+        score = score_fn(
+            day_df["close"].to_numpy(),
+            day_df["time_only"].to_list(),
+            side,
+            last_entry,
+        )
+        if score is None:
+            continue
         row = {
             "date_only": date_only,
             "daily_regime": regime,
-            "score": _day_opportunity(
-                day_df["close"].to_numpy(),
-                day_df["time_only"].to_list(),
-                side,
-                last_entry,
-            ),
+            "score": score,
         }
         for col, val in zip(extra_daily_cols, extras):
             row[col] = val
         rows.append(row)
+    if not rows:
+        schema = {
+            "date_only": pl.Date,
+            "daily_regime": pl.Utf8,
+            "score": pl.Float64,
+            **{c: pl.Float64 for c in extra_daily_cols},
+        }
+        return pl.DataFrame(schema=schema)
     return pl.DataFrame(rows)
 
 
@@ -148,24 +184,27 @@ def _boot_mean_diff(
     return point, float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975))
 
 
-def d2_opportunity_separation(
+def _regime_side_separation(
     daily_classified: pl.DataFrame,
     price_15m: pl.DataFrame,
     series_name: str,
+    metric_name: str,
+    score_fn: SessionScoreFn,
     n_boot: int,
     rng: np.random.Generator,
+    *,
+    gated: bool,
+    note_prefix: str = "",
 ) -> list[MetricResult]:
-    """
-    Mean OpportunityScore by DailyRegime x side.
-
-    NO_TRADE reported only (not gated). Gate: S >= A >= H and CI(S-H) LB > 0.
-    """
+    """Mean session score by DailyRegime x side; optional S≥A≥H + CI(S−H) gate."""
     results: list[MetricResult] = []
     for side_name, side, last_entry in (
         ("long", 1, LONG_LAST_ENTRY),
         ("short", -1, SHORT_LAST_ENTRY),
     ):
-        day_scores = _session_side_scores(daily_classified, price_15m, side, last_entry)
+        day_scores = _session_side_scores(
+            daily_classified, price_15m, side, last_entry, score_fn
+        )
 
         means: dict[str, float] = {}
         ns: dict[str, int] = {}
@@ -173,16 +212,20 @@ def d2_opportunity_separation(
             cell = day_scores.filter(pl.col("daily_regime") == state)["score"].to_numpy()
             means[state] = float(cell.mean()) if cell.size else float("nan")
             ns[state] = int(cell.size)
+            thin = ns[state] < MIN_SESSIONS
+            note = note_prefix
+            if thin:
+                note = f"{note};thin" if note else "thin"
             results.append(
                 MetricResult(
-                    f"D2[{series_name}]",
+                    f"{metric_name}[{series_name}]",
                     f"{side_name}/{state}",
                     means[state] if cell.size else None,
                     None,
                     None,
                     ns[state],
                     None,
-                    "" if ns[state] >= MIN_SESSIONS else "thin",
+                    note,
                 )
             )
 
@@ -194,25 +237,79 @@ def d2_opportunity_separation(
 
         if powered:
             sep, ci_lo, ci_hi = _boot_mean_diff(s_vals, h_vals, n_boot, rng)
-            gate = mono and ci_lo > 0.0
+            gate = (mono and ci_lo > 0.0) if gated else None
         else:
             sep = float(means[D2_ORDER[0]] - means[D2_ORDER[2]])
             ci_lo = ci_hi = float("nan")
-            gate = False
+            gate = False if gated else None
+
+        gate_note = f"mono={mono}"
+        if note_prefix:
+            gate_note = f"{note_prefix};{gate_note}"
+        if not powered:
+            gate_note = f"{gate_note};thin"
 
         results.append(
             MetricResult(
-                f"D2[{series_name}]",
+                f"{metric_name}[{series_name}]",
                 f"{side_name}/S-H",
                 sep,
                 ci_lo,
                 ci_hi,
                 int(min(ns[D2_ORDER[0]], ns[D2_ORDER[2]])),
                 gate,
-                f"mono={mono}",
+                gate_note,
             )
         )
     return results
+
+
+def d2_max_opportunity_separation(
+    daily_classified: pl.DataFrame,
+    price_15m: pl.DataFrame,
+    series_name: str,
+    n_boot: int,
+    rng: np.random.Generator,
+) -> list[MetricResult]:
+    """Legacy max-window OpportunityScore — diagnostic only (vol-inflated)."""
+    return _regime_side_separation(
+        daily_classified,
+        price_15m,
+        series_name,
+        "D2max",
+        _day_opportunity_max,
+        n_boot,
+        rng,
+        gated=False,
+        note_prefix="diagnostic",
+    )
+
+
+def d2_prime_fixed_rule_separation(
+    daily_classified: pl.DataFrame,
+    price_15m: pl.DataFrame,
+    series_name: str,
+    n_boot: int,
+    rng: np.random.Generator,
+    metric_name: str = "D2p",
+) -> list[MetricResult]:
+    """
+    D2′ gated metric (pre-registered 2026-08-11):
+
+    Enter at first tradable 15m bar (ex-open bleed, within MIS entry cutoff);
+    exit exactly H=4 bars later; score = side*(exit/entry-1) - ROUND_TRIP_COST.
+    Gate: S ≥ A ≥ H and CI(S−H) LB > 0 (NO_TRADE reported only).
+    """
+    return _regime_side_separation(
+        daily_classified,
+        price_15m,
+        series_name,
+        metric_name,
+        _day_fixed_rule_score,
+        n_boot,
+        rng,
+        gated=True,
+    )
 
 
 def o3_side_trend_diagnostic(
@@ -226,16 +323,9 @@ def o3_side_trend_diagnostic(
     """
     O3 diagnostic only — no runtime gate.
 
-    Across all sessions (O1 Daily labels in place), does market_trend sign
-    separate side opportunity?
+    Across all sessions, does market_trend sign separate D2′ fixed-rule side scores?
       long  aligned = market_trend >= thr;  Δ = aligned − misaligned
       short aligned = market_trend <= thr;  Δ = aligned − misaligned
-
-    Uses all sessions (not S+A only): tradeable-only is underpowered because
-    SUPPORTIVE already requires market_trend >= 0, so trend- cells go thin.
-
-    CI LB > 0 is evidence to consider a later hard gate + contract re-lock,
-    not a ship gate by itself.
     """
     results: list[MetricResult] = []
 
@@ -248,6 +338,7 @@ def o3_side_trend_diagnostic(
             price_15m,
             side,
             last_entry,
+            _day_fixed_rule_score,
             extra_daily_cols=("market_trend",),
         )
         trend = pl.col("market_trend")
@@ -277,7 +368,6 @@ def o3_side_trend_diagnostic(
         powered = min(aligned.size, misaligned.size) >= MIN_SESSIONS
         if powered:
             sep, ci_lo, ci_hi = _boot_mean_diff(aligned, misaligned, n_boot, rng)
-            # Informational only — PASS means CI+ evidence, not a merge lock.
             evidence = ci_lo > 0.0
         else:
             sep = (
@@ -307,23 +397,31 @@ def evaluate_daily(
     daily_features: pl.DataFrame,
     daily_classified: pl.DataFrame,
     market_15m: pl.DataFrame,
-    basket_15m: pl.DataFrame | None,
+    basket_15m: pl.DataFrame,
     n_boot: int,
     rng: np.random.Generator,
 ) -> list[MetricResult]:
+    """
+    Daily eval block.
+
+    Gated: D2p (fixed-rule) under locked v1 Daily.
+    Diagnostic: D2max (legacy max-window).
+    Series: index + EW Nifty-100 basket.
+    """
     metrics = [d5_leakage_audit(daily_features)]
     metrics.extend(d1_occupancy(daily_classified))
-    metrics.extend(
-        d2_opportunity_separation(daily_classified, market_15m, "index", n_boot, rng)
-    )
-    metrics.extend(
-        o3_side_trend_diagnostic(daily_classified, market_15m, "index", n_boot, rng)
-    )
-    if basket_15m is not None:
+    for series_name, price_15m in (("index", market_15m), ("ew100", basket_15m)):
         metrics.extend(
-            d2_opportunity_separation(daily_classified, basket_15m, "ew100", n_boot, rng)
+            d2_prime_fixed_rule_separation(
+                daily_classified, price_15m, series_name, n_boot, rng
+            )
         )
         metrics.extend(
-            o3_side_trend_diagnostic(daily_classified, basket_15m, "ew100", n_boot, rng)
+            d2_max_opportunity_separation(
+                daily_classified, price_15m, series_name, n_boot, rng
+            )
+        )
+        metrics.extend(
+            o3_side_trend_diagnostic(daily_classified, price_15m, series_name, n_boot, rng)
         )
     return metrics
