@@ -5,7 +5,8 @@
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-07-31  
 **Depends on:** [Tier 1 Regime Verdict](regime-tier1-verdict.md)  
-**Related:** [Triple-Barrier Verdict](triple-barrier-verdict.md) — vertical timeout, TP/SL, 0.30% cost
+**Related:** [Triple-Barrier Verdict](triple-barrier-verdict.md) — vertical timeout, TP/SL, 0.30% cost  
+**Escalation (2026-08-11):** Tier 1 Regime search **CLOSED** ([A0 stop memo](regime-tier1-stop-memo.md)) — Regime is a frozen soft overlay; **Horizon is active** for path quality / selection.
 
 ---
 

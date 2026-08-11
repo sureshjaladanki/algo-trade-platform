@@ -3,7 +3,8 @@
 **Market:** NSE India, Nifty 100 universe, intraday equities  
 **Scope:** Tier 1 regime gate only (Tier 2 / 3 out of scope)  
 **Judges:** Gemini Flash, Claude Sonnet  
-**Date:** 2026-07-30
+**Date:** 2026-07-30  
+**A0 demotion:** 2026-08-11 — [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)
 
 ---
 
@@ -13,11 +14,24 @@
 |---|---|
 | Daily method | **Deterministic rules** (not LLM as primary gate) |
 | Daily states | `SUPPORTIVE` \| `AMBIGUOUS` \| `HOSTILE` \| `NO_TRADE` |
-| Intraday model | HMM on **Nifty 15-minute** candles |
+| Intraday model | HMM on **Nifty 15-minute** candles (triad emissions) |
 | HMM states | `TREND_UP` \| `TREND_DOWN` \| `CHOP` \| `HIGH_VOL` |
-| Build posture | Accept with revisions; stage ideal expansions later |
+| Build posture | **A0 (2026-08-11): soft overlay only** — not a cleared edge engine |
+| Active escalation | **Horizon / Precision** — Regime architecture search CLOSED |
 
-Daily owns the pre-open risk gate. Intraday HMM owns sleeve routing (long momentum vs short momentum vs mean-reversion vs pause).
+Daily owns the pre-open risk gate. Intraday HMM owns sleeve routing labels (long momentum vs short momentum vs mean-reversion vs pause). After A0, both are **frozen soft overlays** for the cascade — Tier 2/3 must carry path quality.
+
+### A0 demotion (merged 2026-08-11)
+
+| Lock | Decision |
+|---|---|
+| Trigger | A1 H1 quad-fail (I1+I5 Long+Short); H2 skipped reject-early |
+| Intraday ship path | **Restore triad GaussianHMM** (`r_15`, `rv_15`, `vwap_dist`); A1 rules **REJECTED** |
+| Regime role | Soft admission / sleeve labels only — **do not** treat I1/I5 Regime PASS as a cleared ship gate |
+| Closed searches | Emissions (O5 / `adr_15` / HL/CO), A1, A2, Daily reopen, D2′ formula search |
+| Next | Escalate [Horizon](horizon-tier2-verdict.md) / [Precision](precision-tier3-verdict.md) |
+
+Full terminal memo: [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md). Revision archives: [v1.1](regime-tier1-v11-revision.md), [v1.2](regime-tier1-v12-revision.md).
 
 ---
 
@@ -226,10 +240,6 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 
 ## Next build step
 
-Implement:
+**Regime v1 feature build (historical — done):** Daily rules + triad HMM emissions as above.
 
-1. Daily rules classifier → `SUPPORTIVE` \| `AMBIGUOUS` \| `HOSTILE` \| `NO_TRADE`
-2. 4-state Gaussian HMM → `TREND_UP` \| `TREND_DOWN` \| `CHOP` \| `HIGH_VOL`
-3. Nifty 15m emissions: TOD-normalized signed `r_15`, `rv_15`, and ATR-scaled TWAP-`vwap_dist` (no `volz_15` until futures volume)
-
-Tier 2 / 3 remain out of scope.
+**Post-A0 (2026-08-11):** do **not** open further Regime architecture / emission search. Active work = **Horizon / Precision** under the soft Regime overlay. See [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md).

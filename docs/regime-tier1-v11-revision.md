@@ -7,11 +7,10 @@
 **Date:** 2026-08-10  
 **Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md) (locked v1 — do not edit for this cycle), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Continues in:** [regime-tier1-v12-revision.md](regime-tier1-v12-revision.md) (A1 rule taxonomy + holdouts H1/H2)
-
+**Continues in:** [regime-tier1-v12-revision.md](regime-tier1-v12-revision.md) (**CLOSED — A0**; see [stop memo](regime-tier1-stop-memo.md))
 ---
 
-> **Continuity:** v1.1 is the archive for O1–O8, D2′, I1 harness fix, I5 diagnostics, and emission tries (O5 / `adr_15` / HL/CO). Emission-add search is **CLOSED**. Active Intraday architecture work (frozen **A1**, H1/H2, stop-memo path) lives in **[regime-tier1-v12-revision.md](regime-tier1-v12-revision.md)**. Do not reopen closed v1.1 cycles here.
+> **Continuity:** v1.1 is the archive for O1–O8, D2′, I1 harness fix, I5 diagnostics, and emission tries (O5 / `adr_15` / HL/CO). Emission-add search is **CLOSED**. Intraday architecture try (A1) completed in **[regime-tier1-v12-revision.md](regime-tier1-v12-revision.md)** and terminated via **[A0 stop memo](regime-tier1-stop-memo.md)**. Do not reopen closed cycles here.
 
 ---
 

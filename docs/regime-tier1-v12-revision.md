@@ -2,12 +2,13 @@
 
 **Market:** NSE India, Nifty 100 universe, intraday MIS cash  
 **Scope:** **Intraday Regime architecture redesign** — frozen A1 rule taxonomy vs triad HMM; one-shot holdouts H1/H2  
-**Status:** **OPEN — iterate here; merge into [regime-tier1-verdict.md](regime-tier1-verdict.md) only when locked**  
+**Status:** **CLOSED — A0 terminal** ([stop memo](regime-tier1-stop-memo.md)); A0 demotion merged into [regime-tier1-verdict.md](regime-tier1-verdict.md)  
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-11  
 **Continues from:** [regime-tier1-v11-revision.md](regime-tier1-v11-revision.md) (Daily / D2′ / emission cycle — handoff)  
-**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md) (locked v1 — do not edit until MERGED), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md)  
+**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
+**Terminal:** [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)
 
 ---
 
@@ -17,10 +18,10 @@
 
 ## How to use this doc
 
-1. Keep [regime-tier1-verdict.md](regime-tier1-verdict.md) frozen as the shipped v1 contract.  
-2. Land A1 implementation notes, H1/H2 results, and judge notes **here**.  
-3. Historical Daily / emission / harness work stays in [regime-tier1-v11-revision.md](regime-tier1-v11-revision.md) — do not reopen those cycles here.  
-4. When A1 clears H1+H2 (or the stop memo is written), merge that slice into the locked verdict and mark **MERGED** / **CLOSED** below.
+1. Keep [regime-tier1-verdict.md](regime-tier1-verdict.md) as the shipped contract (now includes **A0 demotion**).  
+2. This file is the archive of the A1 try + H1 FAIL.  
+3. Historical Daily / emission / harness work stays in [regime-tier1-v11-revision.md](regime-tier1-v11-revision.md).  
+4. **CLOSED** via [stop memo](regime-tier1-stop-memo.md) — do not reopen A1 / A2 / emissions here.
 
 ---
 
@@ -44,15 +45,15 @@ Full narrative + judge transcripts: [v1.1 revision](regime-tier1-v11-revision.md
 
 ## Summary
 
-| Decision | Working choice (not merged) |
+| Decision | Locked outcome |
 |---|---|
-| Overall posture | **REVISE — one frozen A1 try**, then terminal stop-memo if FAIL |
-| Architecture candidate | **A1** deterministic rule taxonomy (non-hidden); replaces GaussianHMM decode |
-| Ship / merge | **Nothing** until A1 clears **both** H1 and H2 (I1+I5 Long+Short, CI LB>0) |
-| Sequence next | Implement A1 → H1 (2021) → H2 (2022) → merge or **stop-Tier-1-Regime memo** |
+| Overall posture | **CLOSED — A0** ([stop memo](regime-tier1-stop-memo.md)) |
+| Architecture candidate | **A1 REJECTED** after H1 quad-fail |
+| Ship / merge | **A0 demotion** into locked verdict; triad HMM restored as soft overlay |
+| Sequence next | **Escalate Horizon / Precision** — no further Regime architecture search |
 | Reject this cycle | Quantile search, A2, more emissions, Daily reopen, merge-on-H1-alone, new metrics for architecture |
 
-**One-line:** v1.2 = single pre-registered Intraday architecture shot (A1 rules on triad) on never-touched test years 2021/2022; FAIL → demote Regime (A0 path) and escalate Horizon/Precision.
+**One-line:** v1.2 ran the single pre-registered A1 shot on 2021; **FAIL → A0** (demote Regime, restore triad HMM soft overlay, escalate Horizon/Precision).
 
 ---
 
@@ -62,16 +63,16 @@ Judges: [Gemini Flash](34249fc1-129e-4313-afb6-d68e83133148), [Claude Sonnet](1e
 
 | Question | Gemini | Claude | Working lock |
 |---|---|---|---|
-| A0 demote now | **ACCEPT** | **REJECT this round** | Defer to A1 **FAIL** path |
-| A1 rule taxonomy | **REJECT** (quantile chase) | **ACCEPT** frozen p80/p50 | **ACCEPT A1** under frozen spec |
+| A0 demote now | **ACCEPT** | **REJECT this round** | Defer to A1 **FAIL** path → **now taken** |
+| A1 rule taxonomy | **REJECT** (quantile chase) | **ACCEPT** frozen p80/p50 | Ran under frozen spec; **FAIL** |
 | A2 soft-prior HMM | **REJECT** | **REJECT** | **REJECT** |
-| Holdout 2021/2022 | Skip / quarantine | Run; both required to merge | **H1+H2**; both to merge |
+| Holdout 2021/2022 | Skip / quarantine | Run; both required to merge | H1 run; H2 skipped on reject-early |
 
-**Disagreement:** Gemini would stop and quarantine 2021–2022 for Horizon. Working lock completes the prior architecture step with a non-searchable formula; A0 is the outcome if A1 fails.
+**Disagreement resolved by evidence:** Claude’s one frozen A1 try completed and failed; Gemini’s A0 demotion is the locked outcome.
 
 ---
 
-## Frozen A1 spec (implement exactly — no further judge round)
+## Frozen A1 spec (implement exactly — archive; do not re-open)
 
 **Inputs:** triad only — `r_15`, `rv_15`, `vwap_dist` from `src/features/intraday_regime.py`. No new features.
 
@@ -109,27 +110,27 @@ else: CHOP
 
 | Fold | Train → Test | Notes |
 |---|---|---|
-| **H1** | 2018–2020 → **2021** | Test year never used as Regime I1/I5 test (A=2018, B=2019, C=2020 quarantine) |
-| **H2** | 2019–2021 → **2022** | Same; mandatory on accept/merge path |
+| **H1** | 2018–2020 → **2021** | **FAIL** (quad) — see stop memo |
+| **H2** | 2019–2021 → **2022** | **Skipped** (reject-early) |
 
 **Harness:** `python -m src.experiments.eval_regime --train-period … --test-period …`  
-(Wire A1 behind the same CLI; banner should note `intraday=A1`.)
+(A1 code removed after A0; H1 log retained at `logs/eval_a1_h1.txt`.)
 
 **Gates:** occupancy pre-check → I7 (report) → I1 → I5 (Long ≠ Short) → I4 diagnostic.
 
-**Merge:** only if **both** H1 and H2 clear I1+I5 Long **and** Short with CI LB > 0 (real margin, not LB≈0).
+**Merge:** only if **both** H1 and H2 clear I1+I5 Long **and** Short with CI LB > 0 — **not met**.
 
-**Reject-early:** H1 quad-fail may skip H2 for reject compute only. If H1 clears any accept path, H2 is required.
+**Reject-early:** H1 quad-fail may skip H2 for reject compute only — **applied**.
 
 ---
 
-## Build order (working)
+## Build order (working) — COMPLETE
 
-1. Implement A1 classifier (replace HMM fit/predict path for this try; triad features unchanged).  
-2. Run **H1** (2018–2020 → 2021); log occupancy, I1, I5, I4 + 2020 S/A %.  
-3. Run **H2** (2019–2021 → 2022) — required if not reject-early.  
-4. If both clear → dual-judge validate → merge path into locked verdict.  
-5. Else → write **stop-Tier-1-Regime memo** (terminal); escalate Horizon/Precision; restore triad HMM as frozen soft overlay (A0 outcome).
+1. Implement A1 classifier — **DONE**  
+2. Run **H1** (2018–2020 → 2021) — **DONE; FAIL**  
+3. Run **H2** — **SKIPPED** (reject-early)  
+4. If both clear → merge — **N/A**  
+5. Else → **stop-Tier-1-Regime memo** + restore triad HMM soft overlay (A0) — **DONE** → [stop memo](regime-tier1-stop-memo.md)
 
 ---
 
@@ -137,18 +138,16 @@ else: CHOP
 
 | ID | Change | Gemini | Claude | Working lock | Merge status |
 |---|---|---|---|---|---|
-| **A1** | Deterministic triad rule taxonomy (p80 `rv` / p50 `\|r\|` + vwap sign) | REJECT | ACCEPT frozen | **← ACTIVE** | OPEN |
-| A0 | Demote Regime soft overlay + stop memo | ACCEPT now | ACCEPT after A1 FAIL | **FAIL path** | PENDING |
+| **A1** | Deterministic triad rule taxonomy (p80 `rv` / p50 `\|r\|` + vwap sign) | REJECT | ACCEPT frozen | Ran; H1 FAIL | **REJECTED** |
+| **A0** | Demote Regime soft overlay + stop memo | ACCEPT now | ACCEPT after A1 FAIL | **← LOCKED** | **MERGED** |
 | A2 | Soft-prior / anchored HMM | REJECT | REJECT | **REJECT** | REJECTED |
 
 ---
 
 ## Explicit do-not (this revision cycle)
 
-- Edit [regime-tier1-verdict.md](regime-tier1-verdict.md) until MERGED  
-- Reopen Daily features, D2′ formula search, emission-add search, O6/O7, IndexTB floors  
-- Run A2 or any second architecture candidate after A1  
-- Change frozen quantiles after seeing H1/H2  
+- Reopen A1 / A2 / emissions after this CLOSE  
+- Change frozen quantiles after peek  
 - Merge on a single holdout  
 - Invent new ship gates to make A1 look better than HMM  
 - Treat I7 PASS as evidence of a healthy A1 state map  
@@ -160,12 +159,7 @@ else: CHOP
 | Date | Change | Result | Next |
 |---|---|---|---|
 | 2026-08-11 | Opened v1.2 from v1.1 handoff; A1 + H1/H2 pre-registered | Spec frozen in this doc | Implement A1 |
-
----
-
-## Acceptance before merge
-
-- Occupancy pre-check PASS on H1 and H2  
-- I1 and I5: CI LB > 0 per side on **both** H1 and H2; Long ≠ Short  
-- No quantile / threshold change after peek  
-- Dual-judge validate before editing locked [regime-tier1-verdict.md](regime-tier1-verdict.md)  
+| 2026-08-11 | Implemented A1 (`IntradayRuleRegimeModel`): train-only p80/p50, triad rules, hysteresis reuse; eval CLI `--intraday A1` + OCC pre-check + I7 report-only + 2020 S/A disclosure | Code ready | Run H1 (2018–2020 → 2021) |
+| 2026-08-11 | **H1** A1 2018–2020→2021 (`logs/eval_a1_h1.txt`): OCC PASS; 2020 S/A=73.0%; **I1 L/S FAIL**; **I5 L/S FAIL** | **H1 FAIL** (quad) | Skip H2; write stop memo (A0) |
+| 2026-08-11 | **A0** stop memo + demotion merged into locked verdict | **CLOSED** | Escalate Horizon / Precision |
+| 2026-08-11 | Removed A1 code (`IntradayRuleRegimeModel`, CLI flag, OCC/I7 A1 hooks); triad HMM only | Cleanup | — |

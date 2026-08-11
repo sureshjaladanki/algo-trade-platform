@@ -5,7 +5,8 @@
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-05  
 **Depends on:** [Tier 1 Regime](regime-tier1-verdict.md), [Tier 2 Horizon](horizon-tier2-verdict.md), [Triple-Barrier](triple-barrier-verdict.md)  
-**Friction lock:** **0.30%** round-trip (inherited — do not re-derive)
+**Friction lock:** **0.30%** round-trip (inherited — do not re-derive)  
+**Escalation (2026-08-11):** Tier 1 Regime search **CLOSED** ([A0 stop memo](regime-tier1-stop-memo.md)) — escalate after Horizon path quality; do not reopen Regime knobs from Precision.
 
 ---
 
