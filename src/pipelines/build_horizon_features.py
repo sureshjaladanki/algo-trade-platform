@@ -8,6 +8,7 @@ from src.features.regime_horizon import calculate_regime_horizon_features
 from src.labels.horizon import calculate_horizon_labels
 from src.labels.triple_barrier import calculate_triple_barrier_labels
 from src.utils.data import resample_15m, resample_daily
+from src.utils.eval_common import H_BARS
 from src.utils.load_config import load_config
 from src.utils.symbol_data import load_symbol_data
 
@@ -168,8 +169,8 @@ def build_horizon_features(
         regime_df: Post-hysteresis daily_regime / intraday_regime predictions.
 
     Returns:
-        Per-bar Horizon frame with features, labels, cascade regimes,
-        regime-episode features, and triple-barrier columns.
+        Per-bar Horizon frame with features, H=6 labels/TB, cascade regimes,
+        and regime-episode features.
     """
     # Attach Tier 1 emissions used as Horizon pass-throughs.
     emissions = intraday_regime_df.select(["date", "r_15", "vwap_dist"])
@@ -184,7 +185,7 @@ def build_horizon_features(
         daily_regime_df,
     )
     labels_df = calculate_horizon_labels(
-        stock_df, nifty_with_emissions, horizon_bars=4
+        stock_df, nifty_with_emissions, horizon_bars=H_BARS
     )
 
     horizon_df = features_df.join(labels_df, on=["symbol", "date"], how="inner")
@@ -198,6 +199,6 @@ def build_horizon_features(
     horizon_df = calculate_regime_horizon_features(horizon_df)
 
     tb_df = calculate_triple_barrier_labels(
-        stock_df, nifty_with_emissions, horizon_bars=4
+        stock_df, nifty_with_emissions, horizon_bars=H_BARS
     )
     return horizon_df.join(tb_df, on=["symbol", "date"], how="left")

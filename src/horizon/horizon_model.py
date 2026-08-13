@@ -8,11 +8,14 @@ import polars as pl
 from scipy.stats import spearmanr
 from sklearn.isotonic import IsotonicRegression
 
-# Shared core + Long-only confirmation (~15) + regime pass-throughs.
+from src.utils.eval_common import H_BARS
+
+# Locked after v2 path-EV charter stop (peek 5/5): path-room off both sleeves;
+# Long omits stock_r_15; Short keeps stock_r_15. See horizon-tier2-v2-verdict.md.
 LONG_FEATURES = [
     "rel_ret_15_vs_nifty",
     "rel_ret_60_vs_nifty",
-    "stock_r_15",
+    "rel_ret_15_xs_rank",
     "stock_rv_15",
     "stock_volz_15",
     "stock_vwap_dist",
@@ -30,10 +33,10 @@ LONG_FEATURES = [
     "index_vwap_dist",
 ]
 
-# Shared core + Short asymmetry + regime pass-throughs.
 SHORT_FEATURES = [
     "rel_ret_15_vs_nifty",
     "rel_ret_60_vs_nifty",
+    "rel_ret_15_xs_rank",
     "stock_r_15",
     "stock_rv_15",
     "stock_volz_15",
@@ -93,12 +96,15 @@ DEFAULT_TRAIN_DAYS = 420
 DEFAULT_VAL_DAYS = 21
 DEFAULT_TEST_DAYS = 42
 DEFAULT_EMBARGO_DAYS = 1
+DEFAULT_EMBARGO_BARS = H_BARS
 
 
 class GBMHorizonModel:
     """
-    Tier 2 Horizon LightGBM ranker for one sleeve (long or short).
-    Trains on excess-return vs Nifty; calibrates with isotonic on purged val.
+    Tier 2 Horizon LightGBM path-EV model for one sleeve (long or short).
+
+    Primary target: net path EV (``tb_excess_ret_*``); calibrates with isotonic
+    on purged val. Auxiliary excess weight locked at 0.
     """
 
     def __init__(self, direction: str):
@@ -198,7 +204,7 @@ def get_purged_cv_splits(
     df: pl.DataFrame,
     n_splits: int = 5,
     embargo_days: int = DEFAULT_EMBARGO_DAYS,
-    embargo_bars: int = 4,
+    embargo_bars: int = DEFAULT_EMBARGO_BARS,
     train_days: int = DEFAULT_TRAIN_DAYS,
     val_days: int = DEFAULT_VAL_DAYS,
     test_days: int = DEFAULT_TEST_DAYS,
@@ -212,9 +218,9 @@ def get_purged_cv_splits(
     `date_only` values so DEFAULT_TRAIN_DAYS ≈ 21 calendar trading months even
     when the sleeve only fires on TREND_UP / TREND_DOWN days.
 
-    Embargo ≥ horizon (4 bars) plus ≥ 1 trading day at every train/val and val/test
-    boundary. Same-day labels make a full trading-day embargo sufficient; we also
-    drop the last `embargo_bars` from the end of each train/val block.
+    Embargo ≥ primary horizon bars plus ≥ 1 trading day at every train/val and
+    val/test boundary. Same-day labels make a full trading-day embargo sufficient;
+    we also drop the last `embargo_bars` from the end of each train/val block.
     """
     if calendar_dates is not None:
         dates = sorted(set(calendar_dates))

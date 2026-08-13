@@ -4,6 +4,7 @@ import math
 
 import polars as pl
 
+
 def calculate_horizon_features(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
@@ -277,6 +278,21 @@ def calculate_horizon_features(
         bounce_risk_zscore=(pl.col("ret_3bar") - pl.col("ret_3bar_mean"))
         / pl.col("ret_3bar_std"),
         downside_acceleration=pl.col("down_range") / pl.col("total_range"),
+    )
+
+    # Demote chase magnitude: XS winsorize noisy RS / extension tails per bar.
+    for col in ("rel_ret_15_vs_nifty", "rel_ret_60_vs_nifty", "pct_from_20d_high"):
+        stock_df = stock_df.with_columns(
+            pl.col(col).clip(
+                pl.col(col).quantile(0.01).over("date"),
+                pl.col(col).quantile(0.99).over("date"),
+            )
+        )
+    stock_df = stock_df.with_columns(
+        rel_ret_15_xs_rank=(
+            pl.col("rel_ret_15_vs_nifty").rank(method="average").over("date")
+            / pl.len().over("date")
+        ),
     )
 
     # Tier 1 daily vol pass-through (same column name as Regime).

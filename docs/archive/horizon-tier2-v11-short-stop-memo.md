@@ -5,7 +5,7 @@
 **Status:** **TERMINAL this cycle — Short ship / path-bridge search CLOSED**  
 **Date:** 2026-08-11  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [horizon-tier2-v11-revision.md](horizon-tier2-v11-revision.md), [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)  
+**Depends on:** [horizon-tier2-v11-revision.md](horizon-tier2-v11-revision.md), [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md)  
 **Trigger:** S1 A+B FAIL dual-fold H5 (+ H10 regress on B); S2 report-first does not support gated activation  
 **Harness:** `python -m src.experiments.eval_horizon`  
 **A+B peeks spent this cycle (Fold A+B pair):** **7** — baseline, D1, D2, S1, L1, S2 report-first, L2 report-first. Carry into any new charter as the multiplicity baseline; do not silently re-peek these folds for S1/L1 retunes.
@@ -46,7 +46,7 @@ D1 showed circuit contamination ~1% and clean-slice H5 ≈ pooled H5 — Fold A 
 | Gated K | **Stay Short K=3** — D2 sweep must not retune K from Fold A peek (O8) |
 | B1 live | **Do not activate** until a new charter clears Short dual-fold H5 |
 | Sleeve deletion | **Do not** delete Short — ranking skill remains real |
-| v1 features / hyperparams | Stay frozen in [horizon-tier2-verdict.md](horizon-tier2-verdict.md) |
+| v1 features / hyperparams | Stay frozen in [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) |
 
 ---
 

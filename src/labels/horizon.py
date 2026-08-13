@@ -1,4 +1,9 @@
-"""Tier 2 Horizon excess-return labels (primary rank target)."""
+"""Tier 2 Horizon forward excess labels (secondary / eval readout).
+
+Primary training target under the v2 path-EV charter is ``tb_excess_ret_*``
+from ``triple_barrier`` (net path EV). ``fwd_excess_ret`` remains for H1/H2
+secondary checks and aux ablations (default weight 0).
+"""
 
 import datetime as dt
 
@@ -9,12 +14,13 @@ from src.horizon.session import (
     MIS_EXIT_BAR_END,
     SHORT_LAST_ENTRY,
 )
+from src.utils.eval_common import H_BARS
 
 
 def calculate_horizon_labels(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
-    horizon_bars: int = 4,
+    horizon_bars: int = H_BARS,
     mis_exit_bar_end: dt.time = MIS_EXIT_BAR_END,
     long_last_entry: dt.time = LONG_LAST_ENTRY,
     short_last_entry: dt.time = SHORT_LAST_ENTRY,
@@ -22,12 +28,12 @@ def calculate_horizon_labels(
     """
     Forward excess return vs Nifty for Tier 2 Horizon models.
 
-    Primary: H=4 (60m). Secondary robustness: call with horizon_bars=6 (90m).
+    Default: ``H_BARS`` (H=6 / 90m) with matching MIS entry cutoffs.
 
     MIS rules (15m bar-end timestamps):
     - Exit bar must be same session and <= mis_exit_bar_end (~15:15 stamp).
-    - Long entries only through long_last_entry (~14:15).
-    - Short entries only through short_last_entry (~14:00).
+    - Long entries only through long_last_entry (~13:45).
+    - Short entries only through short_last_entry (~13:30).
     """
     stock_df = stock_df.sort(["symbol", "date"])
     nifty_df = nifty_df.sort("date")

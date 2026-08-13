@@ -6,7 +6,7 @@
 **Stop memos:** [horizon-tier2-short-stop-memo.md](horizon-tier2-short-stop-memo.md), [horizon-tier2-long-stop-memo.md](horizon-tier2-long-stop-memo.md)  
 **Judges:** [Gemini Flash](e982525b-460f-4f93-ab3d-697138b790ba), [Claude Sonnet](af622bc8-c824-4e30-8832-25ddf9e2c7c1)  
 **Date:** 2026-08-11  
-**Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (locked v1 features/hyperparams — do not edit for this cycle), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)  
+**Depends on:** [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) (locked v1 features/hyperparams — do not edit for this cycle), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md), [triple-barrier-verdict.md](../triple-barrier-verdict.md), [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
 **Harness:** `python -m src.experiments.eval_horizon`
 
@@ -14,10 +14,10 @@
 
 ## How to use this doc
 
-1. Keep [horizon-tier2-verdict.md](horizon-tier2-verdict.md) frozen as the shipped v1 feature/hyperparam contract.  
+1. Keep [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) frozen as the shipped v1 feature/hyperparam contract.  
 2. Land candidate changes, ablations, and judge notes **here**.  
 3. When a change clears **A+B** gates (H1/H2/H3/H5 separately per sleeve) and is accepted, **merge** that slice into the locked verdict and mark it **MERGED** below.  
-4. Do **not** retune features / hyperparams / K against gated H1–H5 on the same fold used for selection without a fresh A+B check ([eval anti-pattern #5](horizon-tier2-eval-verdict.md)).  
+4. Do **not** retune features / hyperparams / K against gated H1–H5 on the same fold used for selection without a fresh A+B check ([eval anti-pattern #5](../horizon-tier2-eval-verdict.md)).  
 5. Do **not** reopen Regime search (CLOSED). Horizon owns path quality / selection this cycle.  
 6. Never say bare “Long ship” — always **Horizon-ranker ship** (not cascade-ready).
 
@@ -96,7 +96,7 @@ Short remains ~½ Long bars with shorter episodes — locked Short regularizatio
 
 ## Link to cascade WS0/WS1 (why this revision exists)
 
-From [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) (Fold A Precision book):
+From [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) (Fold A Precision book):
 
 | WS finding | Horizon A+B echo |
 |---|---|
@@ -113,7 +113,7 @@ From [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) (Fold A Prec
 ## Dual-judge validation (2026-08-11)
 
 Judges: [Gemini Flash](e982525b-460f-4f93-ab3d-697138b790ba), [Claude Sonnet](af622bc8-c824-4e30-8832-25ddf9e2c7c1)  
-Scope: A+B baseline read + v1.1 revision strategy against [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md). Harness design not re-litigated.
+Scope: A+B baseline read + v1.1 revision strategy against [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md). Harness design not re-litigated.
 
 | Axis | Gemini Flash | Claude Sonnet | Consensus |
 |---|---|---|---|
@@ -322,7 +322,7 @@ Cascade / Precision contract only — **never feeds Horizon H1–H5 gates**.
 
 ## Explicit non-goals (this cycle)
 
-- Merging any Horizon feature/hyperparam change into [horizon-tier2-verdict.md](horizon-tier2-verdict.md) before dual-fold clear  
+- Merging any Horizon feature/hyperparam change into [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) before dual-fold clear  
 - Reopening Tier 1 Regime search or Daily/HMM emissions  
 - Precision WS2 runway / fallback / no-chase promotion  
 - Treating trainer purged-WF IC as acceptance  
@@ -351,11 +351,11 @@ Cascade / Precision contract only — **never feeds Horizon H1–H5 gates**.
 
 | Doc | Role |
 |---|---|
-| [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Locked v1 features / hyperparams |
-| [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md) | Gate taxonomy this revision obeys |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate — low TB+1 + rank inversion |
-| [triple-barrier-verdict.md](triple-barrier-verdict.md) | Frozen TB geometry for H5 |
-| [precision-tier3-verdict.md](precision-tier3-verdict.md) | Downstream consumer — B1 contract only |
+| [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) | Locked v1 features / hyperparams |
+| [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md) | Gate taxonomy this revision obeys |
+| [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) | Why escalate — low TB+1 + rank inversion |
+| [triple-barrier-verdict.md](../triple-barrier-verdict.md) | Frozen TB geometry for H5 |
+| [precision-tier3-verdict.md](../precision-tier3-verdict.md) | Downstream consumer — B1 contract only |
 | [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md) | Regime CLOSED |
 | [horizon-tier2-v11-short-stop-memo.md](horizon-tier2-v11-short-stop-memo.md) | Short v1.1 stop (this cycle) |
 | [horizon-tier2-v11-long-stop-memo.md](horizon-tier2-v11-long-stop-memo.md) | Long v1.1 stop (this cycle) |

@@ -1,4 +1,4 @@
-"""Shared eval harness primitives for Tier 1 / Tier 2 gate reports."""
+"""Shared cascade / eval harness primitives for Tier 1 / Tier 2 / Tier 3."""
 
 from __future__ import annotations
 
@@ -6,7 +6,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-H_BARS = 4
+# 15m bar clock used by cascade labels, MIS cutoffs, and Precision timeout.
+BAR_MINUTES = 15
+# Cascade-wide vertical barrier (Regime IndexTB, Horizon StockTB, Precision).
+H_BARS = 6
+HORIZON_MINUTES = H_BARS * BAR_MINUTES
+
 N_BOOT = 500
 MIN_SESSIONS = 30
 MIN_BARS = 100

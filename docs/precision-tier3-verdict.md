@@ -6,7 +6,7 @@
 **Date:** 2026-08-05  
 **Depends on:** [Tier 1 Regime](regime-tier1-verdict.md), [Tier 2 Horizon](horizon-tier2-verdict.md), [Triple-Barrier](triple-barrier-verdict.md)  
 **Friction lock:** **0.30%** round-trip (inherited — do not re-derive)  
-**Escalation (2026-08-11):** Tier 1 Regime search **CLOSED** ([A0 stop memo](regime-tier1-stop-memo.md)) — escalate after Horizon path quality; do not reopen Regime knobs from Precision.
+**Escalation (2026-08-11):** Tier 1 Regime search **CLOSED** ([A0 stop memo](archive/regime-tier1-stop-memo.md)) — escalate after Horizon path quality; do not reopen Regime knobs from Precision.
 
 ---
 
@@ -285,8 +285,8 @@ Primary stock selection remains Tier 2 excess-return LightGBM. Precision monetiz
 4. Compare rules-only PnL / hit rate to TB label expectations on the same episodes.  
 5. (Later) Optional meta-label LightGBM take/skip with purged walk-forward — only if step 4 shows under-monetization.
 
-**Post-baseline (2026-08-07):** rules v1 is live and still ~−18 bps net after 30 bps friction. Selectivity / PnL optimization for the next cycle is locked in [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md).
+**Post-baseline (2026-08-07):** rules v1 is live and still ~−18 bps net after 30 bps friction. Selectivity / PnL optimization for the next cycle is locked in [cascade-selectivity-tweak-plan.md](archive/cascade-selectivity-tweak-plan.md).
 
-**Phase 1 base shipped (2026-08-08) — measured, not acceptance-met:** `TOP_K` 8→5; size schedule 1–2 → 1.0×, 3–5 → 0.7× (no 6–8); shared `edge_score` ≥ bar×sleeve median conviction gate. Blended/Long ≥0 gates still fail (~−16 / −15 net). Ablate via `--top-k` / `--no-conviction-gate`. Closed arms (LSO / SLL / Q4 floor) measured NO-LOCK and removed from CLI — see [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md).
+**Phase 1 base shipped (2026-08-08) — measured, not acceptance-met:** `TOP_K` 8→5; size schedule 1–2 → 1.0×, 3–5 → 0.7× (no 6–8); shared `edge_score` ≥ bar×sleeve median conviction gate. Blended/Long ≥0 gates still fail (~−16 / −15 net). Ablate via `--top-k` / `--no-conviction-gate`. Closed arms (LSO / SLL / Q4 floor) measured NO-LOCK and removed from CLI — see [cascade-selectivity-tweak-plan.md](archive/cascade-selectivity-tweak-plan.md).
 
 Mean-reversion under `CHOP` remains a separate sleeve, not this verdict.

@@ -4,7 +4,7 @@
 **Scope:** Tier 1 regime gate only (Tier 2 / 3 out of scope)  
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-07-30  
-**A0 demotion:** 2026-08-11 — [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)
+**A0 demotion:** 2026-08-11 — [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md)
 
 ---
 
@@ -31,7 +31,7 @@ Daily owns the pre-open risk gate. Intraday HMM owns sleeve routing labels (long
 | Closed searches | Emissions (O5 / `adr_15` / HL/CO), A1, A2, Daily reopen, D2′ formula search |
 | Next | Escalate [Horizon](horizon-tier2-verdict.md) / [Precision](precision-tier3-verdict.md) |
 
-Full terminal memo: [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md). Revision archives: [v1.1](regime-tier1-v11-revision.md), [v1.2](regime-tier1-v12-revision.md).
+Full terminal memo: [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md). Revision archives: [v1.1](archive/regime-tier1-v11-revision.md), [v1.2](archive/regime-tier1-v12-revision.md).
 
 ---
 
@@ -242,4 +242,4 @@ Judges scored ideal vs minimal lift as **~6/10 (Claude)** to **~8/10 (Gemini)**.
 
 **Regime v1 feature build (historical — done):** Daily rules + triad HMM emissions as above.
 
-**Post-A0 (2026-08-11):** do **not** open further Regime architecture / emission search. Active work = **Horizon / Precision** under the soft Regime overlay. See [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md).
+**Post-A0 (2026-08-11):** do **not** open further Regime architecture / emission search. Active work = **Horizon / Precision** under the soft Regime overlay. See [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md).

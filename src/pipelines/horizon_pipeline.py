@@ -57,6 +57,12 @@ class SleeveConfig:
     features: list[str]
     intraday_regime: str
     valid_label_col: str
+    # Net path EV: R_path − R_nifty − c (Long); Short stores short-PnL space in TB.
+    target_col: str
+    eligible_col: str
+    # Multiply TB target so higher model score = more actionable under sleeve rank.
+    # Long: +1 (descending). Short: −1 keeps ascending rank + eval side-flip intact.
+    target_sign: float
     episode_balanced: bool
     entry_ok: Callable[[str], pl.Expr]
     rank_descending: bool
@@ -67,7 +73,10 @@ SLEEVES: dict[str, SleeveConfig] = {
         features=LONG_FEATURES,
         intraday_regime=IntradayRegime.TREND_UP.value,
         valid_label_col="valid_label_long",
-        episode_balanced=False,
+        target_col="tb_excess_ret_long",
+        eligible_col="tb_eligible_long",
+        target_sign=1.0,
+        episode_balanced=True,
         entry_ok=long_entry_ok_expr,
         rank_descending=True,
     ),
@@ -75,6 +84,9 @@ SLEEVES: dict[str, SleeveConfig] = {
         features=SHORT_FEATURES,
         intraday_regime=IntradayRegime.TREND_DOWN.value,
         valid_label_col="valid_label_short",
+        target_col="tb_excess_ret_short",
+        eligible_col="tb_eligible_short",
+        target_sign=-1.0,
         episode_balanced=True,
         entry_ok=short_entry_ok_expr,
         rank_descending=False,
@@ -104,21 +116,34 @@ def _predict_sleeve_mask(cfg: SleeveConfig) -> pl.Expr:
     )
 
 
+def _path_ev_target(cfg: SleeveConfig) -> pl.Expr:
+    """Signed net path EV for regression (higher score = more actionable)."""
+    return (pl.col(cfg.target_col) * cfg.target_sign).alias("path_ev_y")
+
+
 def fit_horizon_gbm(
-    df: pl.DataFrame, direction: str, cv_kwargs: Dict[str, Any] | None = None
+    df: pl.DataFrame,
+    direction: str,
+    cv_kwargs: Dict[str, Any] | None = None,
 ) -> tuple[GBMHorizonModel | None, Dict[str, Any]]:
     """
-    Train a single Horizon model (Long or Short) on cascade-valid sleeves with purged WF.
+    Train a single Horizon path-EV model (Long or Short) on cascade-valid sleeves.
+
+    Primary label: net path EV ``tb_excess_ret_*`` (R_path − R_nifty − c).
+    Feature lists and Long ``episode_balanced`` are the locked v2 stop defaults.
 
     Returns (model, fit_stats). `fit_stats` holds CV ICs and sleeve diagnostics for
     the caller to log (e.g. via log_horizon_mlflow); fit itself does not touch MLflow.
     """
     cfg = _sleeve_config(direction)
+    features = list(cfg.features)
     # drop_nulls alone is not enough: float NaNs survive and blow up LGBM y-checks.
+    drop_cols = features + ["path_ev_y"]
     sleeve_df = (
-        df.filter(_fit_sleeve_mask(cfg))
-        .drop_nulls(subset=cfg.features + ["fwd_excess_ret"])
-        .filter(pl.col("fwd_excess_ret").is_finite())
+        df.filter(_fit_sleeve_mask(cfg) & pl.col(cfg.eligible_col))
+        .with_columns(_path_ev_target(cfg))
+        .drop_nulls(subset=drop_cols)
+        .filter(pl.col("path_ev_y").is_finite())
     )
 
     if sleeve_df.height == 0:
@@ -127,7 +152,7 @@ def fit_horizon_gbm(
 
     diagnostics = sleeve_sample_diagnostics(sleeve_df)
     print(
-        f"{direction.capitalize()} sleeve: {diagnostics['bars']} bars, "
+        f"{direction.capitalize()} sleeve (path-EV): {diagnostics['bars']} bars, "
         f"{diagnostics['sessions']} sessions, {diagnostics['episodes']} episodes "
         f"(median {diagnostics['median_episode_bars']:.0f} bars/episode)"
     )
@@ -164,15 +189,15 @@ def fit_horizon_gbm(
         model = GBMHorizonModel(direction=direction)
         val_ic = model.fit(
             X_train=fold_train,
-            y_train=fold_train["fwd_excess_ret"],
+            y_train=fold_train["path_ev_y"],
             X_val=fold_val,
-            y_val=fold_val["fwd_excess_ret"],
-            features=cfg.features,
+            y_val=fold_val["path_ev_y"],
+            features=features,
             train_weight=(
                 episode_balanced_weights(fold_train) if cfg.episode_balanced else None
             ),
         )
-        test_ic = model.spearman_ic(fold_test, fold_test["fwd_excess_ret"])
+        test_ic = model.spearman_ic(fold_test, fold_test["path_ev_y"])
         val_ics.append(val_ic)
         test_ics.append(test_ic)
         models.append(model)
@@ -188,7 +213,7 @@ def fit_horizon_gbm(
     mean_val = sum(val_ics) / len(val_ics)
     mean_test = sum(test_ics) / len(test_ics)
     print(
-        f"{direction.capitalize()} Mean Val IC: {mean_val:.4f} | "
+        f"{direction.capitalize()} Mean Val path-EV IC: {mean_val:.4f} | "
         f"Test IC: {mean_test:.4f} ({len(models)} folds)"
     )
 
@@ -198,6 +223,9 @@ def fit_horizon_gbm(
         "diagnostics": diagnostics,
         "n_splits": len(models),
         "calendar_sessions": len(calendar_dates),
+        "target": cfg.target_col,
+        "episode_balanced": cfg.episode_balanced,
+        "n_features": len(features),
     }
     return models[-1], fit_stats
 
@@ -208,6 +236,8 @@ def log_horizon_mlflow(direction: str, fit_stats: Dict[str, Any]) -> None:
         return
     mlflow.log_metric(f"{direction}_mean_ic", float(fit_stats["mean_ic"]))
     mlflow.log_metric(f"{direction}_mean_test_ic", float(fit_stats["mean_test_ic"]))
+    if "target" in fit_stats:
+        mlflow.log_param(f"{direction}_target", fit_stats["target"])
     for metric_key, metric_val in (fit_stats.get("diagnostics") or {}).items():
         if isinstance(metric_val, (int, float)) and np.isfinite(metric_val):
             mlflow.log_metric(f"{direction}_{metric_key}", float(metric_val))
@@ -330,8 +360,9 @@ def run_pipeline(
             print("Error: Train or test Horizon dataframe is empty. Check your periods.")
             sys.exit(1)
 
-        print("7. Fitting Horizon models on cascade-valid train sleeves...")
-        
+        print("7. Fitting Horizon path-EV models on cascade-valid train sleeves...")
+        mlflow.log_param("label_family", "path_ev_tb_excess")
+
         directions = ["long", "short"] if direction == "both" else [direction]
         models: dict[str, GBMHorizonModel] = {}
         scored_dfs = []

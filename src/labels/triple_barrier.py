@@ -9,6 +9,7 @@ from src.horizon.session import (
     MIS_EXIT_BAR_END,
     SHORT_LAST_ENTRY,
 )
+from src.utils.eval_common import H_BARS
 
 ROUND_TRIP_COST = 0.0030  # 30 bps
 TP_FLOOR_LONG = 3 * ROUND_TRIP_COST  # 90 bps
@@ -25,7 +26,7 @@ TOD_LOOKBACK_DAYS = 60
 def calculate_triple_barrier_labels(
     stock_df: pl.DataFrame,
     nifty_df: pl.DataFrame,
-    horizon_bars: int = 4,
+    horizon_bars: int = H_BARS,
     cost: float = ROUND_TRIP_COST,
     tp_penetration: float = TP_PENETRATION,
     mis_exit_bar_end: dt.time = MIS_EXIT_BAR_END,
@@ -34,7 +35,7 @@ def calculate_triple_barrier_labels(
     tod_lookback_days: int = TOD_LOOKBACK_DAYS,
 ) -> pl.DataFrame:
     """
-    Hard vertical H=4, TOD-rv-scaled TP/SL with cost floors, net-of-cost path labels.
+    Hard vertical primary H=6, TOD-rv-scaled TP/SL with cost floors, net-of-cost labels.
 
     Vol scale (`atr_pct`) is causal same-clock **absolute** `rv_15_mean`
     (typical (H−L)/close for that TOD bucket) — not daily ATR and not the

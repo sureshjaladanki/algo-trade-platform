@@ -5,7 +5,7 @@
 **Status:** **HANDOFF — Daily / D2′ / emission cycle closed here; Intraday architecture continues in [regime-tier1-v12-revision.md](regime-tier1-v12-revision.md)**  
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-10  
-**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md) (locked v1 — do not edit for this cycle), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md)  
+**Depends on:** [regime-tier1-verdict.md](../regime-tier1-verdict.md) (locked v1 — do not edit for this cycle), [regime-tier1-eval-verdict.md](../regime-tier1-eval-verdict.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
 **Continues in:** [regime-tier1-v12-revision.md](regime-tier1-v12-revision.md) (**CLOSED — A0**; see [stop memo](regime-tier1-stop-memo.md))
 ---
@@ -16,7 +16,7 @@
 
 ## How to use this doc
 
-1. Keep [regime-tier1-verdict.md](regime-tier1-verdict.md) frozen as the shipped v1 contract.  
+1. Keep [regime-tier1-verdict.md](../regime-tier1-verdict.md) frozen as the shipped v1 contract.  
 2. Land candidate changes, ablations, and judge notes **here** for the Daily / emission cycle only. **Intraday architecture → [v1.2](regime-tier1-v12-revision.md).**  
 3. When a change clears A+B gates and is accepted, **merge** that slice into the locked verdict and mark it **MERGED** below.  
 4. Do not retune Daily/HMM thresholds against D2/I1/I5 on the same fold used for Tier 2/3 selection without a fresh A+B check.
@@ -165,7 +165,7 @@ Dual-judge after v1 I1/I5 re-baseline ([Gemini](66d3c4e2-a238-4a18-863a-a1ff1734
 
 ## Acceptance before merge
 
-A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only when:
+A candidate merges into [regime-tier1-verdict.md](../regime-tier1-verdict.md) only when:
 
 - D2 / D2′ (for Daily changes): `S ≥ A ≥ H` per side on **both** A and B; CI(S−H) LB > 0; cell N ≥ 30  
 - I1 / I5 (when their turn): CI LB > 0 per side on both folds; Long ≠ Short  
@@ -177,7 +177,7 @@ A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only 
 
 ## Explicit do-not (this revision cycle)
 
-- Edit [regime-tier1-verdict.md](regime-tier1-verdict.md) until a row above is marked **MERGED**  
+- Edit [regime-tier1-verdict.md](../regime-tier1-verdict.md) until a row above is marked **MERGED**  
 - Run **O2** or further Daily knobs against the **current** max-window D2  
 - Wire O3 as a runtime hard gate  
 - Grid-search D2′ until S≥A≥H appears on A/B — pre-register first  
@@ -210,7 +210,7 @@ A candidate merges into [regime-tier1-verdict.md](regime-tier1-verdict.md) only 
 | 2026-08-11 | **O3 diagnostic** — `O3[series]` in eval harness: session OpportunityScore sliced by `market_trend` sign (all sessions; no runtime gate) | **No hard gate.** Long aligned−mis **CI− / inverted** on A+B (trend− days have *higher* long opportunity). Short aligned−mis **CI+ on A only**, ~0 / CI straddles 0 on B. | Dual-judge validation |
 | 2026-08-11 | Dual-judge validate O1/O3 metrics + next posture ([Gemini](4bc32ee7-a35e-4d08-b6d7-588416fcc85d), [Claude](74fcc8b3-d65c-4092-ab81-93471cd26bc9)) | **REVISE:** freeze Daily; **D2′ redesign** next (fixed-rule first); **block O2** against current D2; O3 hard gate closed; O5 held | Pre-register D2′; re-run A+B on v1 vs O1 Daily |
 | 2026-08-11 | **D2′ implemented + A+B** — fixed-rule score gated as `D2p`; legacy max-window as `D2max` diagnostic; `D2p_v1` compare; I1 baseline under O1 cascade | **D2p FAIL** both folds for O1 and v1 (means ≈ −30 bps; no reliable S≥A≥H). Vol-trap gone (D2max still inverted). **I1 FAIL** both folds. | Freeze Daily/O2; do not search D2′ formulae; next Regime question is **I1** (hold O5 until deliberate) |
-| 2026-08-11 | **Revert cascade Daily to locked v1** — O1 `trend_strength` not better than v1 under D2′ and never MERGED; restore calm+trend+breadth SUPPORTIVE; drop O1 feature/threshold plumbing | Code matches [regime-tier1-verdict.md](regime-tier1-verdict.md); D2′ harness kept | I1 path; do not re-litigate O1 thresholds |
+| 2026-08-11 | **Revert cascade Daily to locked v1** — O1 `trend_strength` not better than v1 under D2′ and never MERGED; restore calm+trend+breadth SUPPORTIVE; drop O1 feature/threshold plumbing | Code matches [regime-tier1-verdict.md](../regime-tier1-verdict.md); D2′ harness kept | I1 path; do not re-litigate O1 thresholds |
 | 2026-08-11 | Dual-judge validate D2′ + cascade policy ([Gemini](b50b8e2e-9eed-4913-99e9-fc2c1c440aa3), [Claude](3e488b5a-5146-418d-a56d-8e1c71fee4b6)) | **Both: move to Intraday; do not keep optimizing Daily.** Continue cascade with Daily frozen as soft overlay; D2′ FAIL is **not** a hard stop. Gemini: elevate I1/I5 as primary gates. Claude: same + optional one-shot multi-window D2′ power addendum; **I5** decides if Daily-as-filter earns keep | Re-baseline I1 under v1; run I5; hold O5 |
 | 2026-08-11 | **D2p_mw Fold B** (v1 Daily) — mean of non-overlapping H=4 windows | Index L/S **FAIL**; ew100 long **FAIL**; ew100 short **PASS** (CI LB≈0.0001). Means still ≈ −30 bps. Does **not** clear dual-side Daily gate | **Removed from harness**; proceed to I1 under v1 |
 | 2026-08-11 | **I1/I5 re-baseline under locked v1** — Fold A+B; Daily frozen soft overlay; no O5 | **I7 PASS** both. **I1 FAIL** both sides A+B (bar hit ~52–57%; session Edge ≤ 0 vs TOD null). **I5 FAIL** both sides A+B (`p_adm` ~0–1%; CI LB ≤ 0; B short CI entirely ≤ 0). I4 healthy (ASD TREND ~5–7, flip ~2–2.5%) | Dual-judge validate before O5 / architecture |
@@ -565,7 +565,7 @@ Index long/short means and S−H gate (ew100 same qualitative FAIL):
 
 | Doc | Role |
 |---|---|
-| [regime-tier1-verdict.md](regime-tier1-verdict.md) | Locked v1 — merge target only when locked |
-| [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md) | Eval harness / gates |
-| [cascade-strategy-overview.md](cascade-strategy-overview.md) | Cascade contracts |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why Regime was escalated |
+| [regime-tier1-verdict.md](../regime-tier1-verdict.md) | Locked v1 — merge target only when locked |
+| [regime-tier1-eval-verdict.md](../regime-tier1-eval-verdict.md) | Eval harness / gates |
+| [cascade-strategy-overview.md](../cascade-strategy-overview.md) | Cascade contracts |
+| [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) | Why Regime was escalated |

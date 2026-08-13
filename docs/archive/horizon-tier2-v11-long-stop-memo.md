@@ -5,7 +5,7 @@
 **Status:** **TERMINAL this cycle — Long soft-H3 / cascade-ready search CLOSED**  
 **Date:** 2026-08-11  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [horizon-tier2-v11-revision.md](horizon-tier2-v11-revision.md), [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)  
+**Depends on:** [horizon-tier2-v11-revision.md](horizon-tier2-v11-revision.md), [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md)  
 **Trigger:** L1 A+B FAIL dual-fold soft-H3; L2 report-first does not support gated emission threshold  
 **Harness:** `python -m src.experiments.eval_horizon`  
 **A+B peeks spent this cycle (Fold A+B pair):** **7** — baseline, D1, D2, S1, L1, S2 report-first, L2 report-first. Carry into any new charter as the multiplicity baseline; do not silently re-peek these folds for L1/L2 retunes.

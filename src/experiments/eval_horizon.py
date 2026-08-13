@@ -130,14 +130,17 @@ def main() -> None:
         sys.exit(1)
 
     print(
-        "Fitting Horizon models on train "
+        "Fitting Horizon path-EV models on train "
         f"(K_long={k_for('long')} K_short={k_for('short')}; "
         "gates use holdout only — trainer CV IC is not a ship gate)..."
     )
     scored_parts: list[pl.DataFrame] = []
     for direction in directions:
         print(f"\n   Fitting {direction}...")
-        model, fit_stats = fit_horizon_gbm(train_df, direction=direction)
+        model, fit_stats = fit_horizon_gbm(
+            train_df,
+            direction=direction,
+        )
         if model is None:
             print(f"   Warning: no {direction} model — skipping sleeve.")
             continue

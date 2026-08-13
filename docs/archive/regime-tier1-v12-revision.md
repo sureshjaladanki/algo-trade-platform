@@ -2,11 +2,11 @@
 
 **Market:** NSE India, Nifty 100 universe, intraday MIS cash  
 **Scope:** **Intraday Regime architecture redesign** — frozen A1 rule taxonomy vs triad HMM; one-shot holdouts H1/H2  
-**Status:** **CLOSED — A0 terminal** ([stop memo](regime-tier1-stop-memo.md)); A0 demotion merged into [regime-tier1-verdict.md](regime-tier1-verdict.md)  
+**Status:** **CLOSED — A0 terminal** ([stop memo](regime-tier1-stop-memo.md)); A0 demotion merged into [regime-tier1-verdict.md](../regime-tier1-verdict.md)  
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-11  
 **Continues from:** [regime-tier1-v11-revision.md](regime-tier1-v11-revision.md) (Daily / D2′ / emission cycle — handoff)  
-**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md)  
+**Depends on:** [regime-tier1-verdict.md](../regime-tier1-verdict.md), [regime-tier1-eval-verdict.md](../regime-tier1-eval-verdict.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
 **Terminal:** [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)
 
@@ -18,7 +18,7 @@
 
 ## How to use this doc
 
-1. Keep [regime-tier1-verdict.md](regime-tier1-verdict.md) as the shipped contract (now includes **A0 demotion**).  
+1. Keep [regime-tier1-verdict.md](../regime-tier1-verdict.md) as the shipped contract (now includes **A0 demotion**).  
 2. This file is the archive of the A1 try + H1 FAIL.  
 3. Historical Daily / emission / harness work stays in [regime-tier1-v11-revision.md](regime-tier1-v11-revision.md).  
 4. **CLOSED** via [stop memo](regime-tier1-stop-memo.md) — do not reopen A1 / A2 / emissions here.
