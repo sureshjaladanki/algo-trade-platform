@@ -11,8 +11,8 @@ from src.labels.triple_barrier import TP_PENETRATION
 from src.precision.session import (
     AFTERNOON_COVER_START,
     MIS_FLAT_BY,
-    TOP_K,
     WAIT_MINUTES,
+    top_k_for,
 )
 
 ExitReason = Literal[
@@ -21,9 +21,14 @@ ExitReason = Literal[
     "TIMEOUT",
     "REGIME_FLIP",
     "MIS_FLATTEN",
-    "SKIP",
+    "CONVICTION",
+    "HARD_GATE",
+    "NO_REENTRY",
+    "MISSING_PATH",
+    "EMPTY_WAIT",
     "NO_CHASE",
     "RANK_SKIP",
+    "SIZE",
 ]
 
 # Feature names kept for documentation / future meta-filter (rules v1 uses them inline).
@@ -73,23 +78,23 @@ MAX_RANGE_COMPRESSION = 3.0
 
 # Phase 2 no-chase: bars_since_regime_flip ≤ this = fresh flip (matches diagnostics).
 FRESH_FLIP_BARS = 1
-# Default experiment scope: ranks 1–2 (use top_k for pooled).
+# Default experiment scope: ranks 1–2.
 NO_CHASE_RANK_MAX = 2
 # Phase 2 #10: hard-skip ranks at or below this (experiment; off by default).
 SKIP_RANK_MAX = 2
 
-# Size schedule (ablation may restore ranks 6–8 at 0.4× when top_k=8).
+# Size schedule: rank 1–2 → 1.0×, 3–5 → 0.7×; outside sleeve K → skip.
 _RANK_SIZE = ((2, 1.0), (5, 0.7), (8, 0.4))
 
 
 def size_mult_from_rank(
     rank: int | None,
     *,
-    top_k: int = TOP_K,
+    direction: str,
     afternoon_cover_risk: bool = False,
 ) -> float:
-    """Rank 1–2 → 1.0×, 3–5 → 0.7×, 6–8 → 0.4×; outside top_k → skip. Short afternoon ×0.5."""
-    if rank is None or rank < 1 or rank > top_k:
+    """Rank 1–2 → 1.0×, 3–5 → 0.7×; outside sleeve K → skip. Short afternoon ×0.5."""
+    if rank is None or rank < 1 or rank > top_k_for(direction):
         return 0.0
     mult = next(size for ceiling, size in _RANK_SIZE if rank <= ceiling)
     return mult * 0.5 if afternoon_cover_risk else mult
@@ -100,7 +105,6 @@ def classify_precision(
     stock_1m: pl.DataFrame,
     *,
     wait_minutes: int = WAIT_MINUTES,
-    top_k: int = TOP_K,
     conviction_gate: bool = True,
     no_chase: bool = False,
     no_chase_rank_max: int = NO_CHASE_RANK_MAX,
@@ -113,12 +117,12 @@ def classify_precision(
     runs on 1m bars ``[decision_bar, decision_bar + wait_minutes)``. Vertical
     timeout stays ``min(decision_bar + H, MIS_FLAT_BY)`` (wall-clock ~15:00).
 
-    Phase 1 defaults: ``top_k=5``, ``conviction_gate=True`` (edge ≥ bar×sleeve
-    median). Ablate with ``top_k=8`` / ``conviction_gate=False``.
+    Locked emit: Long K=5 / Short K=3; conviction gate on (edge ≥ bar×sleeve
+    median).
 
     Phase 2 experiments (off by default):
     - ``no_chase=True``: skip ``bars_since_regime_flip ≤ FRESH_FLIP_BARS`` for
-      ranks ≤ ``no_chase_rank_max`` (default 1–2; pass ``top_k`` for pooled).
+      ranks ≤ ``no_chase_rank_max`` (default 1–2).
     - ``skip_rank_1_2=True``: hard-skip ranks ≤ ``SKIP_RANK_MAX`` (#10 measure).
 
     Returns one row per decision episode with fire / skip, fill, barriers, exit.
@@ -148,7 +152,6 @@ def classify_precision(
             by_symbol,
             short_sl_blocked,
             wait_minutes,
-            top_k=top_k,
             conviction_gate=conviction_gate,
             no_chase=no_chase,
             no_chase_rank_max=no_chase_rank_max,
@@ -165,7 +168,6 @@ def _process_episode(
     short_sl_blocked: set[tuple[str, dt.date]],
     wait_minutes: int,
     *,
-    top_k: int,
     conviction_gate: bool,
     no_chase: bool,
     no_chase_rank_max: int,
@@ -185,9 +187,12 @@ def _process_episode(
     fresh_flip = flip_bars <= FRESH_FLIP_BARS
     tp_w, sl_w, spread_ceiling = _sleeve_geometry(ep, direction)
 
+    decision_close = ep.get("decision_close")
     base = {
         "symbol": symbol,
+        "date_only": session_day,
         "decision_bar": decision_bar,
+        "decision_close": float(decision_close) if decision_close is not None else None,
         "horizon_direction": direction,
         "horizon_rank": rank,
         "horizon_score": ep["horizon_score"],
@@ -210,7 +215,7 @@ def _process_episode(
 
     # Shared conviction gate (setup + fallback): require edge ≥ bar×sleeve median.
     if conviction_gate and not gate_pass:
-        return _skip_row(base)
+        return _skip_row(base, "CONVICTION")
 
     # Phase 2 #10: hard-skip toxic rank band (measure; reject if gates fail).
     if skip_rank_1_2 and rank <= SKIP_RANK_MAX:
@@ -221,18 +226,18 @@ def _process_episode(
         return _skip_row(base, "NO_CHASE")
 
     if direction == "short" and (symbol, session_day) in short_sl_blocked:
-        return _skip_row(base)
+        return _skip_row(base, "NO_REENTRY")
 
     bars = by_symbol.get(symbol)
-    if bars is None or atr_pct is None or atr_pct <= 0:
-        return _skip_row(base)
+    if bars is None or atr_pct is None or atr_pct <= 0 or decision_close is None:
+        return _skip_row(base, "MISSING_PATH")
 
     entry_window_end = decision_bar + dt.timedelta(minutes=wait_minutes - 1)
     wait_bars = bars.filter(
         (pl.col("date") >= decision_bar) & (pl.col("date") <= entry_window_end)
     ).sort("date")
     if wait_bars.height == 0:
-        return _skip_row(base)
+        return _skip_row(base, "EMPTY_WAIT")
 
     wait_bars = wait_bars.with_columns(
         m1_range_compression=(pl.col("atr_1m_5") / pl.col("close")) / atr_pct,
@@ -241,23 +246,23 @@ def _process_episode(
     fill = _find_entry(
         wait_bars,
         direction=direction,
-        decision_close=float(ep["decision_close"]),
+        decision_close=float(decision_close),
         tp_w=tp_w,
         sl_w=sl_w,
         spread_ceiling=spread_ceiling,
         vertical_deadline=vertical_deadline,
     )
     if fill is None:
-        return _skip_row(base)
+        return _skip_row(base, "HARD_GATE")
 
     afternoon_risk = bool(fill["afternoon_cover_risk"])
     size_mult = size_mult_from_rank(
         base["horizon_rank"],
-        top_k=top_k,
+        direction=direction,
         afternoon_cover_risk=afternoon_risk,
     )
     if size_mult <= 0:
-        return _skip_row(base)
+        return _skip_row(base, "SIZE")
 
     entry_bar = fill["entry_bar_1m"]
     entry_px = float(fill["entry_px"])
@@ -316,6 +321,27 @@ def _absolute_barriers(
     if direction == "long":
         return entry_px * (1.0 + tp_w), entry_px * (1.0 - sl_w)
     return entry_px * (1.0 - tp_w), entry_px * (1.0 + sl_w)
+
+
+def resolve_frozen_path(
+    hold_bars: pl.DataFrame,
+    *,
+    direction: str,
+    entry_px: float,
+    tp_w: float,
+    sl_w: float,
+    vertical_deadline: dt.datetime,
+) -> dict:
+    """Walk 1m bars with decision-frozen TP/SL widths (naive or Precision fill)."""
+    tp_px, sl_px = _absolute_barriers(direction, entry_px, tp_w, sl_w)
+    return _resolve_exit(
+        hold_bars,
+        direction=direction,
+        entry_px=entry_px,
+        tp_px=tp_px,
+        sl_px=sl_px,
+        vertical_deadline=vertical_deadline,
+    )
 
 
 def _find_entry(
@@ -519,7 +545,7 @@ def _exit_at(
     }
 
 
-def _skip_row(base: dict, reason: str = "SKIP") -> dict:
+def _skip_row(base: dict, reason: str) -> dict:
     return {
         **base,
         "precision_fire": False,
@@ -545,7 +571,9 @@ def _empty_trades() -> pl.DataFrame:
     return pl.DataFrame(
         schema={
             "symbol": pl.Utf8,
+            "date_only": pl.Date,
             "decision_bar": pl.Datetime,
+            "decision_close": pl.Float64,
             "horizon_direction": pl.Utf8,
             "horizon_rank": pl.Int64,
             "horizon_score": pl.Float64,

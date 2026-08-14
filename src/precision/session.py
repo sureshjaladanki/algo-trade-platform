@@ -14,9 +14,13 @@ from src.utils.eval_common import HORIZON_MINUTES  # noqa: F401  # cascade H_BAR
 # Bounded wait on 1m bars starting at the 15m decision bar (bar-end / actionable).
 WAIT_MINUTES = 5
 
-# Top-K / bottom-K names Precision may touch (rank-based size beyond this → skip).
-# Phase 1 selectivity: tightened 8 → 5 (drop ranks 6–8; do not micro-size them).
-TOP_K = 5
+# Locked registry width — Long K=5 / Short K=3 (Horizon emit + Precision eval).
+LONG_TOP_K = 5
+SHORT_TOP_K = 3
+
+
+def top_k_for(direction: str) -> int:
+    return LONG_TOP_K if direction == "long" else SHORT_TOP_K
 
 # Afternoon cover gate for Shorts (verdict: time ≥ 13:00).
 AFTERNOON_COVER_START = dt.time(13, 0)

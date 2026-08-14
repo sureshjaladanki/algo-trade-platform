@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.horizon.session import long_entry_ok_expr, short_entry_ok_expr
+from src.precision.session import LONG_TOP_K as K_LONG, SHORT_TOP_K as K_SHORT
 from src.regime.types import DailyRegime, IntradayRegime
 from src.utils.eval_common import (
     H_BARS,
@@ -14,9 +15,7 @@ from src.utils.eval_common import (
     session_block_mean_ci,
 )
 
-# Locked K (docs/horizon-tier2-eval-verdict.md) — Long matches Precision TOP_K.
-K_LONG = 5
-K_SHORT = 3
+# Locked K — live Precision registry (docs/horizon-tier2-eval-verdict.md).
 
 MIN_BARS_LONG = MIN_BARS
 MIN_BARS_SHORT = 150

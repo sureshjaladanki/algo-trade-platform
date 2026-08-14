@@ -9,7 +9,6 @@ import polars as pl
 
 from src.features.horizon_precision import calculate_horizon_precision_features
 from src.features.precision import calculate_precision_features
-from src.precision.session import TOP_K
 from src.utils.load_config import load_config
 from src.utils.symbol_data import load_symbol_data
 
@@ -77,15 +76,14 @@ def build_precision_features(
     stock_1m: pl.DataFrame,
     nifty_1m: pl.DataFrame,
     horizon_df: pl.DataFrame,
-    top_k: int = TOP_K,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
     """
     Compute Tier 3 1m timing features and narrow Horizon scores to the Precision
-    registry (top-K / bottom-K + TB gates).
+    registry (Long K=5 / Short K=3 + TB gates).
 
     Returns:
         features_1m, registry
     """
     features_1m = calculate_precision_features(stock_1m, nifty_1m)
-    registry = calculate_horizon_precision_features(horizon_df, top_k=top_k)
+    registry = calculate_horizon_precision_features(horizon_df)
     return features_1m, registry

@@ -1,4 +1,4 @@
-"""Smoke / diagnostics harness for Tier 3 Precision (mirrors test_horizon_pipeline)."""
+"""Smoke harness for Tier 3 Precision (mirrors test_horizon_pipeline)."""
 
 import argparse
 from pathlib import Path
@@ -19,14 +19,7 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.diagnostics import (
-    audit_entry_composition,
-    diagnose_rank_root_cause,
-    format_phase2_diagnostics,
-)
-from src.precision.precision import NO_CHASE_RANK_MAX, classify_precision
-from src.precision.session import TOP_K
-from src.precision.summary import format_precision_summary, summarize_precision_trades
+from src.precision.precision import classify_precision
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
@@ -76,44 +69,11 @@ def main():
         default=None,
         help="Optional Horizon_Pipeline MLflow run id",
     )
-    parser.add_argument(
-        "--top-k",
-        type=int,
-        default=TOP_K,
-        help=f"Horizon registry top-K (default Phase 1: {TOP_K}; ablate with 8)",
-    )
-    parser.add_argument(
-        "--no-conviction-gate",
-        action="store_true",
-        help="Disable bar×sleeve edge_score median gate (ablation)",
-    )
-    parser.add_argument(
-        "--no-chase",
-        action="store_true",
-        help="Phase 2 experiment: skip fresh regime-flip fires "
-        "(ranks ≤ --no-chase-rank-max)",
-    )
-    parser.add_argument(
-        "--no-chase-rank-max",
-        type=int,
-        default=NO_CHASE_RANK_MAX,
-        help=(
-            f"Max horizon_rank for no-chase "
-            f"(default {NO_CHASE_RANK_MAX} = ranks 1–2; use 5 for pooled)"
-        ),
-    )
-    parser.add_argument(
-        "--skip-rank-1-2",
-        action="store_true",
-        help="Phase 2 #10 experiment: hard-skip horizon ranks 1–2",
-    )
     args = parser.parse_args()
 
     config_path = REPO_ROOT / args.config
     train_start, train_end = parse_period_range(args.train_period)
     test_start, test_end = parse_period_range(args.test_period)
-    # Train window is warm-up only (rolling features / HMM hysteresis); Tier 3
-    # does not train — score / trade the test window after filtering.
     load_start = min(train_start, test_start)
     load_end = max(train_end, test_end)
 
@@ -201,9 +161,7 @@ def main():
         return
 
     print(f"   Using Horizon Run ID: {resolved_horizon_run_id}")
-    scored_dfs = [
-        predict_horizon_gbm(test_df, model) for model in models.values()
-    ]
+    scored_dfs = [predict_horizon_gbm(test_df, model) for model in models.values()]
     for sleeve, scored_sleeve in zip(models.keys(), scored_dfs):
         print(f"   Scored {sleeve} rows: {scored_sleeve.height}")
 
@@ -220,45 +178,24 @@ def main():
         stock_1m,
         nifty_1m,
         scored,
-        top_k=args.top_k,
     )
     print(f"   1m feature rows: {features_1m.height}")
 
-    conviction_gate = not args.no_conviction_gate
-    print(
-        "10. Running Precision rules "
-        f"(top_k={args.top_k}, conviction_gate={conviction_gate}, "
-        f"no_chase={args.no_chase}, no_chase_rank_max={args.no_chase_rank_max}, "
-        f"skip_rank_1_2={args.skip_rank_1_2})..."
-    )
-    trades = classify_precision(
-        registry,
-        features_1m,
-        top_k=args.top_k,
-        conviction_gate=conviction_gate,
-        no_chase=args.no_chase,
-        no_chase_rank_max=args.no_chase_rank_max,
-        skip_rank_1_2=args.skip_rank_1_2,
-    )
-    summary = summarize_precision_trades(trades)
-    rank_diag = diagnose_rank_root_cause(trades)
-    entry_audit = audit_entry_composition(trades)
-    print(f"   Registry: {registry.height}, Trades: {trades.height}")
-    print()
-    for line in format_precision_summary(summary):
-        print(line)
-    for line in format_phase2_diagnostics(rank_diag, entry_audit):
-        print(line)
-
+    print("10. Running Precision rules...")
+    trades = classify_precision(registry, features_1m)
     fired = trades.filter(pl.col("precision_fire"))
+    print(f"   Registry: {registry.height}, Trades: {trades.height}, Fires: {fired.height}")
     if fired.height > 0:
-        print("\nExit reasons:")
+        print("\nFires by direction / exit:")
         print(
-            fired.group_by("exit_reason")
+            fired.group_by(["horizon_direction", "exit_reason"])
             .len()
-            .sort("len", descending=True)
-            .to_dict(as_series=False)
+            .sort(["horizon_direction", "len"], descending=[False, True])
         )
+    print(
+        "\nGated eval: python -m src.experiments.eval_precision "
+        f"--train-period {args.train_period} --test-period {args.test_period}"
+    )
 
 
 if __name__ == "__main__":

@@ -5,11 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
 
 import mlflow
 import polars as pl
 
+from src.labels.triple_barrier import ROUND_TRIP_COST
 from src.pipelines.build_horizon_features import (
     build_horizon_features,
     load_horizon_data,
@@ -24,20 +24,9 @@ from src.pipelines.build_regime_features import (
 )
 from src.pipelines.horizon_pipeline import predict_horizon_gbm
 from src.pipelines.regime_pipeline import predict_intraday_hmm
-from src.precision.diagnostics import (
-    audit_entry_composition,
-    diagnose_rank_root_cause,
-    flatten_phase2_diagnostics,
-    format_phase2_diagnostics,
-)
+from src.precision.precision import classify_precision
 from src.precision.scores import check_rank_edge_polarity
-from src.precision.precision import NO_CHASE_RANK_MAX, classify_precision
-from src.precision.session import TOP_K
-from src.precision.summary import (
-    flatten_precision_summary_metrics,
-    format_precision_summary,
-    summarize_precision_trades,
-)
+from src.precision.session import LONG_TOP_K, SHORT_TOP_K
 from src.regime.intraday import override_intraday_regime
 from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model, load_horizon_models
@@ -53,11 +42,6 @@ def run_pipeline(
     direction: str = "both",
     regime_run_id: str | None = None,
     horizon_run_id: str | None = None,
-    top_k: int = TOP_K,
-    conviction_gate: bool = True,
-    no_chase: bool = False,
-    no_chase_rank_max: int = NO_CHASE_RANK_MAX,
-    skip_rank_1_2: bool = False,
 ):
     mlflow.set_experiment(PRECISION_EXPERIMENT)
     with mlflow.start_run(run_name=f"Precision_{train_period}_{test_period}"):
@@ -66,11 +50,8 @@ def run_pipeline(
         mlflow.log_param("data_dir", str(data_dir))
         mlflow.log_param("config_path", str(config_path))
         mlflow.log_param("direction", direction)
-        mlflow.log_param("top_k", top_k)
-        mlflow.log_param("conviction_gate", conviction_gate)
-        mlflow.log_param("no_chase", no_chase)
-        mlflow.log_param("no_chase_rank_max", no_chase_rank_max)
-        mlflow.log_param("skip_rank_1_2", skip_rank_1_2)
+        mlflow.log_param("long_top_k", LONG_TOP_K)
+        mlflow.log_param("short_top_k", SHORT_TOP_K)
 
         train_start, train_end = parse_period_range(train_period)
         test_start, test_end = parse_period_range(test_period)
@@ -196,21 +177,15 @@ def run_pipeline(
             stock_1m,
             nifty_1m,
             scored,
-            top_k=top_k,
         )
         print(f"   1m feature rows: {features_1m.height}")
         mlflow.log_metric("precision_1m_rows", features_1m.height)
 
-        # Phase 0: confirm Horizon rank polarity matches edge_score (live inference).
         polarity = check_rank_edge_polarity(registry)
-        print(
-            "   Registry rank/edge polarity: "
-            f"ok={polarity['rank_polarity_ok']}  "
-            f"groups={polarity['rank_polarity_groups']}  "
-            f"violations={polarity['rank_polarity_violations']}"
+        mlflow.log_metric("rank_polarity_ok", float(polarity["rank_polarity_ok"]))
+        mlflow.log_metric(
+            "rank_polarity_violations", float(polarity["rank_polarity_violations"])
         )
-        for key, val in polarity.items():
-            mlflow.log_metric(key, float(val))
         if not polarity["rank_polarity_ok"]:
             print(
                 "   WARNING: registry rank/edge polarity violations — "
@@ -219,52 +194,50 @@ def run_pipeline(
 
         print(
             "11. Running Precision rules "
-            f"(top_k={top_k}, conviction_gate={conviction_gate}, "
-            f"no_chase={no_chase}, no_chase_rank_max={no_chase_rank_max}, "
-            f"skip_rank_1_2={skip_rank_1_2})..."
+            f"(long_k={LONG_TOP_K}, short_k={SHORT_TOP_K})..."
         )
-        trades = classify_precision(
-            registry,
-            features_1m,
-            top_k=top_k,
-            conviction_gate=conviction_gate,
-            no_chase=no_chase,
-            no_chase_rank_max=no_chase_rank_max,
-            skip_rank_1_2=skip_rank_1_2,
-        )
-        summary = summarize_precision_trades(trades)
-        rank_diag = diagnose_rank_root_cause(trades)
-        entry_audit = audit_entry_composition(trades)
-        print(f"   Registry episodes: {registry.height}")
-        print(f"   Trades frame: {trades.height}")
-        _print_summary(summary)
-        for line in format_phase2_diagnostics(rank_diag, entry_audit):
-            print(line)
-        _log_summary_mlflow(summary)
-        for key, val in flatten_phase2_diagnostics(rank_diag, entry_audit).items():
-            mlflow.log_metric(key, val)
-
-        print("\nExit reason counts (fired only):")
-        fired = trades.filter(pl.col("precision_fire"))
-        if fired.height > 0:
-            counts = (
-                fired.group_by("exit_reason").len().sort("len", descending=True)
-            )
-            print(counts.to_dict(as_series=False))
+        trades = classify_precision(registry, features_1m)
+        _log_run_stats(trades)
+        _print_run_stats(registry.height, trades)
 
         print("\nRun `mlflow ui` in your terminal to view the experiment tracking.")
+        print(
+            "Gated P0–P3 eval: python -m src.experiments.eval_precision "
+            f"--train-period {train_period} --test-period {test_period}"
+        )
         return trades
 
 
-def _print_summary(summary: dict[str, Any]) -> None:
-    print()
-    for line in format_precision_summary(summary):
-        print(line)
+def _print_run_stats(n_registry: int, trades: pl.DataFrame) -> None:
+    fired = trades.filter(pl.col("precision_fire"))
+    print(f"   Registry episodes: {n_registry}")
+    print(f"   Trades frame: {trades.height}")
+    print(f"   Fires: {fired.height}")
+    if fired.height == 0:
+        return
+    print("\nFires by direction / exit:")
+    print(
+        fired.group_by(["horizon_direction", "exit_reason"])
+        .len()
+        .sort(["horizon_direction", "len"], descending=[False, True])
+    )
 
 
-def _log_summary_mlflow(summary: dict[str, Any]) -> None:
-    for key, val in flatten_precision_summary_metrics(summary).items():
-        mlflow.log_metric(key, val)
+def _log_run_stats(trades: pl.DataFrame) -> None:
+    fired = trades.filter(pl.col("precision_fire"))
+    n, n_fire = trades.height, fired.height
+    mlflow.log_metric("episodes", n)
+    mlflow.log_metric("fires", n_fire)
+    mlflow.log_metric("fire_rate", n_fire / n if n else 0.0)
+    if n_fire == 0:
+        return
+    mean_gross = float(fired["gross_ret"].mean())
+    mlflow.log_metric("mean_gross_ret", mean_gross)
+    mlflow.log_metric("mean_net_ret", mean_gross - ROUND_TRIP_COST)
+    for direction in ("long", "short"):
+        sleeve = fired.filter(pl.col("horizon_direction") == direction)
+        mlflow.log_metric(f"{direction}_fires", sleeve.height)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -314,37 +287,6 @@ if __name__ == "__main__":
         default=None,
         help="Optional Horizon_Pipeline MLflow run id (default: match train_period / latest)",
     )
-    parser.add_argument(
-        "--top-k",
-        type=int,
-        default=TOP_K,
-        help=f"Horizon registry top-K (default Phase 1: {TOP_K}; ablate with 8)",
-    )
-    parser.add_argument(
-        "--no-conviction-gate",
-        action="store_true",
-        help="Disable bar×sleeve edge_score median gate (ablation)",
-    )
-    parser.add_argument(
-        "--no-chase",
-        action="store_true",
-        help="Phase 2 experiment: skip fresh regime-flip fires "
-        "(ranks ≤ --no-chase-rank-max)",
-    )
-    parser.add_argument(
-        "--no-chase-rank-max",
-        type=int,
-        default=NO_CHASE_RANK_MAX,
-        help=(
-            f"Max horizon_rank for no-chase "
-            f"(default {NO_CHASE_RANK_MAX} = ranks 1–2; use 5 for pooled)"
-        ),
-    )
-    parser.add_argument(
-        "--skip-rank-1-2",
-        action="store_true",
-        help="Phase 2 #10 experiment: hard-skip horizon ranks 1–2",
-    )
 
     args = parser.parse_args()
 
@@ -367,9 +309,4 @@ if __name__ == "__main__":
         direction=args.direction,
         regime_run_id=args.regime_run_id,
         horizon_run_id=args.horizon_run_id,
-        top_k=args.top_k,
-        conviction_gate=not args.no_conviction_gate,
-        no_chase=args.no_chase,
-        no_chase_rank_max=args.no_chase_rank_max,
-        skip_rank_1_2=args.skip_rank_1_2,
     )
