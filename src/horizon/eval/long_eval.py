@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
-from src.horizon.eval.common import APPLY_L1_LONG, MetricResult, k_for
+from src.horizon.eval.constants import APPLY_L1_LONG, MetricResult, k_for
 from src.labels.triple_barrier import ROUND_TRIP_COST
 
 # Report-first L2 floor: emit Top-K only when mean Top-K score ≥ 1× round-trip cost.
@@ -75,7 +75,7 @@ def l2_emission_diagnostics(panel: pl.DataFrame, direction: str) -> list[MetricR
             MetricResult("L2cov", direction, None, None, None, 0, None, "empty"),
         ]
 
-    from src.horizon.eval.common import per_bar_ic, per_bar_topk_stats
+    from src.horizon.eval.bar_stats import per_bar_ic, per_bar_topk_stats
 
     k = k_for(direction)
     per_bar = (

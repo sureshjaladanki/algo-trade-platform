@@ -5,7 +5,7 @@
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-10  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md), [cascade-strategy-overview.md](cascade-strategy-overview.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)  
+**Depends on:** [regime-tier1-verdict.md](regime-tier1-verdict.md), [cascade-strategy-overview.md](cascade-strategy-overview.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md)  
 **Status:** **REVISE → build harness** (philosophy + primary metrics locked; gates hardened before ship)
 
 ---
@@ -31,7 +31,7 @@
 
 ## Why this eval exists
 
-WS0/WS1 ([cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)) showed Tier 3 selectivity cannot clear 30 bps while admitted fires have `tb_tp_rate` only ~7–12%. Optimizing Precision alone on a toxic admitted book is a category error. Tier-level Regime evals answer: *does the gate admit bars where a directional 60m path is even economically plausible?*
+WS0/WS1 ([cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md)) showed Tier 3 selectivity cannot clear 30 bps while admitted fires have `tb_tp_rate` only ~7–12%. Optimizing Precision alone on a toxic admitted book is a category error. Tier-level Regime evals answer: *does the gate admit bars where a directional 60m path is even economically plausible?*
 
 ---
 
@@ -295,5 +295,5 @@ Second wave: D1, D3, D4, D6, I2, I3, I6.
 | [regime-tier1-verdict.md](regime-tier1-verdict.md) | Locked features / states |
 | [cascade-strategy-overview.md](cascade-strategy-overview.md) | Cascade contracts |
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | H=4, cost floors, MIS clocks |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate to Regime |
+| [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md) | Why escalate to Regime |
 | [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Locked Tier 2 features / hyperparams |

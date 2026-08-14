@@ -6,7 +6,7 @@ import datetime as dt
 
 import polars as pl
 
-from src.horizon.eval.common import (
+from src.horizon.eval.constants import (
     APPLY_S1_SHORT,
     CIRCUIT_RANGE_EPS,
     H_BARS,
@@ -36,8 +36,8 @@ def s1_activation_note(
             "S1", direction, 0.0, None, None, panel.height, None, "off"
         )
 
-    # Local import avoids cycle: common ↔ short_eval.
-    from src.horizon.eval.common import annotate_hygiene_flags, eligible_expr
+    # Local import avoids cycle: panel ↔ short_eval (via prepare_eval_panel).
+    from src.horizon.eval.panel import annotate_hygiene_flags, eligible_expr
 
     base = annotate_hygiene_flags(scored)
     if "time_only" not in base.columns:
@@ -66,7 +66,7 @@ def _slice_point_metrics(
     prefix: str = "H7",
 ) -> list[MetricResult]:
     """Point-only H1/H2/H5 on a panel slice — diagnostic, no CI ship claims."""
-    from src.horizon.eval.common import per_bar_ic, per_bar_topk_stats
+    from src.horizon.eval.bar_stats import per_bar_ic, per_bar_topk_stats
 
     k = k_for(direction)
     n = panel.height

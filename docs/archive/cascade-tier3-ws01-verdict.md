@@ -3,7 +3,7 @@
 **Market:** NSE India, Nifty 100, intraday MIS cash  
 **Date:** 2026-08-09  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [cascade-selectivity-tweak-plan.md](archive/cascade-selectivity-tweak-plan.md), [cascade-strategy-overview.md](cascade-strategy-overview.md), [precision-tier3-verdict.md](precision-tier3-verdict.md)  
+**Depends on:** [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md), [cascade-strategy-overview.md](../cascade-strategy-overview.md), [precision-tier3-verdict.md](../precision-tier3-verdict.md)  
 **Frozen rules baseline:** Phase 1 only — `TOP_K=5` + shared median conviction gate. No-chase / #10 stay **NO-LOCK** / CLI-only.  
 **Status:** **WS0 / WS1 CLOSED as interpreted (Fold A).** Diagnostic code removed from Precision pipeline after one-shot measurement. Next focus = **Horizon / Regime** (not more Precision knobs).
 
@@ -136,8 +136,8 @@ Re-run Fold B Phase 1 vs no-chase pooled only if needed to close WS0 cross-fold;
 
 | Doc | Role |
 |---|---|
-| [cascade-selectivity-tweak-plan.md](archive/cascade-selectivity-tweak-plan.md) | Phase 0–2 evidence + locks |
-| [precision-tier3-verdict.md](precision-tier3-verdict.md) | Rules + staged meta contract |
-| [cascade-strategy-overview.md](cascade-strategy-overview.md) | Narrow-downward cascade |
-| [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Next escalation owner (ranking / IC) |
-| [regime-tier1-verdict.md](regime-tier1-verdict.md) | Next escalation owner (sleeve purity) |
+| [cascade-selectivity-tweak-plan.md](cascade-selectivity-tweak-plan.md) | Phase 0–2 evidence + locks |
+| [precision-tier3-verdict.md](../precision-tier3-verdict.md) | Rules + staged meta contract |
+| [cascade-strategy-overview.md](../cascade-strategy-overview.md) | Narrow-downward cascade |
+| [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) | Next escalation owner (ranking / IC) |
+| [regime-tier1-verdict.md](../regime-tier1-verdict.md) | Next escalation owner (sleeve purity) |

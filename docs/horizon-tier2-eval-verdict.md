@@ -5,7 +5,7 @@
 **Judges:** Gemini Flash, Claude Sonnet  
 **Date:** 2026-08-11  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md), [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md)  
+**Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md), [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md), [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md)  
 **Status:** **REVISE → harness shipped** (philosophy + primary metrics locked; run A+B baselines next)
 
 ---
@@ -32,7 +32,7 @@
 
 ## Why this eval exists
 
-WS0/WS1 ([cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)) showed admitted fires with `tb_tp_rate` only ~7–12%, and **rank 1–2 worse than rank 3–5**. Optimizing Precision alone on that book is a category error. Tier 1 Regime search is **CLOSED** ([A0 stop memo](archive/regime-tier1-stop-memo.md)). This harness answers, at Horizon alone: *does the model's ordering of names carry real skill, and does that skill invert near the top of the ranking?*
+WS0/WS1 ([cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md)) showed admitted fires with `tb_tp_rate` only ~7–12%, and **rank 1–2 worse than rank 3–5**. Optimizing Precision alone on that book is a category error. Tier 1 Regime search is **CLOSED** ([A0 stop memo](archive/regime-tier1-stop-memo.md)). This harness answers, at Horizon alone: *does the model's ordering of names carry real skill, and does that skill invert near the top of the ranking?*
 
 ---
 
@@ -313,6 +313,6 @@ Second wave: H4, H6–H9, episode-block robustness, K-sweep, expiry/circuit slic
 | [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Locked features / hyperparams this eval judges |
 | [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md) | Sibling harness pattern (I5 → H5) |
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | Frozen TB geometry for H5 |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate (rank inversion; low `tb_tp_rate`) |
+| [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md) | Why escalate (rank inversion; low `tb_tp_rate`) |
 | [precision-tier3-verdict.md](precision-tier3-verdict.md) | Downstream consumer — do not confound |
 | [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md) | Regime CLOSED; Horizon is active escalation |

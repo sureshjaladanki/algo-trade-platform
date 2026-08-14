@@ -4,8 +4,8 @@
 **Scope:** Third barrier (time) + TP/SL design for path-dependent labels on top of Tier 2  
 **Judges:** Gemini Flash, Claude Sonnet (v1); v2 amend via [horizon-tier2-v2-verdict.md](horizon-tier2-v2-verdict.md)  
 **Date:** 2026-07-31 · **v2 amend:** 2026-08-12  
-**Friction lock:** **0.30% (30 bps) round-trip** (brokerage + STT + fees + slippage)  
-**Depends on:** [Tier 1](regime-tier1-verdict.md), [Tier 2 v1](horizon-tier2-verdict.md), [Tier 2 path pivot v2](horizon-tier2-v2-verdict.md)
+**Friction lock:** **0.20% (20 bps) round-trip** working — see [rt-cost-realism-re-derivation-charter.md](archive/rt-cost-realism-re-derivation-charter.md); archive stress 30 bps  
+**Depends on:** [Tier 1](regime-tier1-verdict.md), [Tier 2 v1](horizon-tier2-verdict.md), [Tier 2 path pivot v2](horizon-tier2-v2-verdict.md), [cost charter](archive/rt-cost-realism-re-derivation-charter.md)
 
 ---
 
@@ -19,12 +19,38 @@
 | Vol-based timeout | **Reject as primary** — do not vary `H` by stock/sector vol |
 | Where vol goes | **Horizontal barriers** — TOD absolute `rv_15_mean`-scaled TP & SL (not daily ATR; not intensity ratio) |
 | Sector-conditioned `H` | **None** (stock TOD rv already absorbs sector vol) |
-| Cost `c` | **0.30%** enters barrier floors **and** net-of-cost labels |
-| TP/SL floors | **Unchanged** — Long ≥90 / ≥45 bps; Short ≥75 / ≥45 bps |
-| Vol multiples | **Frozen this charter** — no soft reopen when expanding `H` |
-| Build posture | v1 ACCEPT hard timeout + vol TP/SL; **v2 amends vertical H only** |
+| Cost `c` (**v3**) | **0.20%** working enters barrier floors **and** net-of-cost labels (**friction-realism input — not an economics-clearing / ship threshold**); **0.30%** archive companion |
+| TP/SL floors (**v3**) | Long ≥60 / ≥30 bps; Short ≥50 / ≥30 bps (`3× / 2.5× / 1.5×` of 20) — Long TP **50 bps** measured on TP-floor T1 and **not merged** (see [stop-memo](archive/horizon-tp-floor-recalibration-stop-memo.md)) |
+| Vol multiples | **Frozen** — no soft reopen |
+| Build posture | v1 ACCEPT; v2 amends H; **v3 amends `c` + absolute floors only** |
 
-**Direct answer (current):** Prefer a **hard 90m timeout** so economic TP floors remain reachable at upper-quartile path travel. Use volatility to size **TP/SL width**, not duration. Factor **0.3%** into both barrier geometry and labels. Do **not** lower TP to P50.
+**Direct answer (current):** Prefer a **hard 90m timeout** so economic TP floors remain reachable at upper-quartile path travel. Use volatility to size **TP/SL width**, not duration. Factor **0.20%** into both barrier geometry and labels. Do **not** lower TP to P50; do **not** invent new multiples.
+
+---
+
+## v3 amend (2026-08-13) — working `c = 20` bps
+
+**Authority:** [rt-cost-realism-re-derivation-charter.md](archive/rt-cost-realism-re-derivation-charter.md) dual-judge sign-off (Gemini ACCEPT / Claude ACCEPT WITH REVISIONS).  
+**Why:** v2 fixed `c=30` and searched the model; Step 0 statutory+broker (~5–6 bps) + liquid/mid slippage pad supports **20** as working identity; multiples stay `3 / 2.5 / 1.5`.  
+**Code:** `src/labels/triple_barrier.py` — `ROUND_TRIP_COST = 0.0020`; `ARCHIVE_ROUND_TRIP_COST = 0.0030`.
+
+| Item | v2 (historical under 30) | **v3 current lock** |
+|---|---|---|
+| Working `c` / dead zone | 0.30% / ±30 bps | **0.20% / ±20 bps** |
+| Archive stress `c` | (was the only `c`) | **0.30%** companion (peek-1 dual readout) |
+| Long TP / SL floors | ≥90 / ≥45 bps | **≥60 / ≥30 bps** |
+| Short TP / SL floors | ≥75 / ≥45 bps | **≥50 / ≥30 bps** |
+| Floor formula | `3×c / 2.5×c / 1.5×c` | **Unchanged multiples** |
+| Vol multiples | `2.5/1.0` Long; `2.0/0.9` Short | **Unchanged** |
+| Primary `H_max` | 6 bars / 90m | **Unchanged** |
+| MIS entry cutoffs | 13:45 / 13:30 | **Unchanged** |
+
+**Explicit non-changes (forbid soft reopen):**
+
+- Do **not** change multiples or vertical H inside this amend.  
+- Do **not** promote 10 bps without a fresh dual-judge ladder step.  
+- Do **not** claim Horizon-path PASS / cascade-ready from the `c` change alone.  
+- Peek-1 PASS under 20 does **not** clear Step 0’s thin-tail band (24–31 bps).
 
 ---
 

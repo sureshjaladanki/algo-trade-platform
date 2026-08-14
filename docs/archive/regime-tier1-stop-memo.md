@@ -51,7 +51,7 @@ Prior cycle (v1.1): emission-add search **CLOSED** (O5 / `adr_15` / HL/CO all FA
 ## Escalate (active work)
 
 1. **Horizon (Tier 2)** — path quality / selection under the soft Regime overlay; do not wait on further Regime redesign.  
-2. **Precision (Tier 3)** — timing / monetization only after Horizon path quality improves (see also [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md)).  
+2. **Precision (Tier 3)** — timing / monetization only after Horizon path quality improves (see also [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)).  
 3. Regime code stays runnable for cascade admission labels; **do not** open a new Regime revision cycle without an explicit new dual-judge charter.
 
 Pointers: [horizon-tier2-verdict.md](../horizon-tier2-verdict.md), [precision-tier3-verdict.md](../precision-tier3-verdict.md).

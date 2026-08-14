@@ -5,7 +5,7 @@
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
 **Depends on:** [cascade-strategy-overview.md](../cascade-strategy-overview.md), [precision-tier3-verdict.md](../precision-tier3-verdict.md), [horizon-tier2-verdict.md](../horizon-tier2-verdict.md), [triple-barrier-verdict.md](../triple-barrier-verdict.md)  
 **Judges:** Gemini Flash, Claude Sonnet  
-**Status:** Phase 0–2 **closed as scoped** (#8–#10 measured); Phase 3 **outside Tier 3**; WS0/WS1 **closed (Fold A)** — see [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md); escalate Horizon/Regime  
+**Status:** Phase 0–2 **closed as scoped** (#8–#10 measured); Phase 3 **outside Tier 3**; WS0/WS1 **closed (Fold A)** — see [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md); escalate Horizon/Regime  
 **Evidence runs (baseline rules, pre–Phase 1):**
 
 | Fold | Train → Test | Precision run | Horizon IC (L / S) |
@@ -395,7 +395,7 @@ Short sleeve: keep daily ∈ `{SUPPORTIVE, AMBIGUOUS}`; still subject to TOP_K=5
 ## Next build step (Tier 3 cascade — both judges)
 
 **Phase 3 portfolio/risk is outside Tier 3.** Phase 0–2 rules cycle closed as scoped (absolute ≥0 unmet).  
-**WS0/WS1 Fold A verdict:** [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) — escalate Horizon/Regime; skip WS2; demote meta headline.
+**WS0/WS1 Fold A verdict:** [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) — escalate Horizon/Regime; skip WS2; demote meta headline.
 
 1. **Decompose A-Short pooled +0.3** — **DONE (Fold A):** not top-decile artifact on A; morning-skewed; need B for durability.  
 2. **Written no-chase / #10 non-promotion** — **LOCKED**; Phase 1 base remains sole default.  
@@ -482,4 +482,4 @@ Phase 0–2 are closed as scoped: Phase 1 base remains the sole production defau
 | [precision-tier3-verdict.md](../precision-tier3-verdict.md) | Entry / exit / size v1 |
 | [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) | Score sign / ranking |
 | [triple-barrier-verdict.md](../triple-barrier-verdict.md) | Cost & barrier locks |
-| [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) | WS0/WS1 Fold A verdict — escalate Horizon/Regime |
+| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | WS0/WS1 Fold A verdict — escalate Horizon/Regime |

@@ -1,8 +1,8 @@
 # 3-Tier Cascading Algo Strategy — Overview
 
 **Market:** NSE India, Nifty 100 universe, intraday equities (MIS cash)  
-**Date:** 2026-08-05  
-**Friction lock:** **0.30%** round-trip cost  
+**Date:** 2026-08-05 · **friction amend:** 2026-08-13  
+**Friction lock:** **0.20%** round-trip working (`c*`); archive stress **0.30%** — see [rt-cost-realism-re-derivation-charter.md](archive/rt-cost-realism-re-derivation-charter.md) 
 
 This document is the **high-level map** of how Regime → Horizon → Precision work together. Feature lists, hyperparameters, and judge debates live in the tier verdicts linked below.
 
@@ -80,7 +80,7 @@ Daily is a **pre-open risk gate** (rules, not LLM). Intraday HMM routes **style 
 
 ### 2. Horizon picks the names
 
-Given an open momentum sleeve, Tier 2 does **not** re-forecast the market. It ranks Nifty 100 stocks by predicted **excess return vs Nifty** over **60 minutes** (`H = 4` × 15m bars).
+Given an open momentum sleeve, Tier 2 does **not** re-forecast the market. It ranks Nifty 100 stocks by predicted **net path EV** over **90 minutes** (`H = 6` × 15m bars).
 
 | Sleeve | Model | Activation | Inference |
 |---|---|---|---|
@@ -93,14 +93,14 @@ Shared relative-strength core; Short adds breakdown / bounce-risk / squeeze-awar
 
 ### 3. Triple-barrier defines path economics
 
-On top of Horizon’s rank target, path labels fix **where** a trade should win, lose, or time out — and bake in **0.30%** cost:
+On top of Horizon’s rank target, path labels fix **where** a trade should win, lose, or time out — and bake in **0.20%** working cost:
 
 | Barrier | Lock |
 |---|---|
-| Vertical (time) | Hard **60m** (`H = 4`); MIS-safe entry cutoffs |
-| Horizontal TP/SL | TOD `rv_15_mean`-scaled + cost floors (Long TP ≥ **90 bps**) |
+| Vertical (time) | Hard **90m** (`H = 6`); MIS-safe entry cutoffs |
+| Horizontal TP/SL | TOD `rv_15_mean`-scaled + cost floors (Long TP ≥ **60 bps**) |
 | Eligibility | Skip if vol-based TP cannot clear the cost floor |
-| Labels | Path excess vs Nifty **minus 0.30%**; dead zone ±30 bps |
+| Labels | Path excess vs Nifty **minus 0.20%**; dead zone ±20 bps |
 
 These widths and flags are **passed down** to Precision as frozen exit geometry — Tier 3 does not reinvent them.
 
@@ -126,7 +126,7 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 1. **Narrow downward** — each tier filters; none expands or reverses the tier above.  
 2. **Separate Long and Short** — NSE cash MIS is asymmetric (no overnight short breathe, afternoon cover/squeeze). Do not sign-flip one model.  
 3. **No LLM in the live gate** — rules / HMM / LightGBM / rules. LLMs were judged unfit for primary gates (latency, cost, non-reproducible history).  
-4. **Cost is first-order** — 30 bps enters barrier floors, eligibility, and net labels — not only end-of-day PnL haircuts.  
+4. **Cost is first-order** — 20 bps working (30 bps archive) enters barrier floors, eligibility, and net labels — not only end-of-day PnL haircuts.  
 5. **MIS and clock** — auction bleed excluded; TOD-normalize vol/return features; hard flatten before broker square-off.  
 6. **Point-in-time universe** — historical Nifty 100 membership, never today’s list applied retroactively.  
 7. **Auditability** — Regime and Precision v1 are deterministic; Horizon is a ranker with purged validation; Precision exits match the labels Horizon/TB assumed.
@@ -149,7 +149,7 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 
 - Mean-reversion under `CHOP` (separate sleeve)  
 - Trailing stops, L2/order-book features, news/NLP  
-- Vol- or sector-scaled hold times (hard `H=4` only)  
+- Vol- or sector-scaled hold times (hard `H=6` primary; `H=4` diagnostic only)  
 - Overnight holds / positional book  
 - Using Precision or Horizon to second-guess Regime direction  
 
@@ -163,9 +163,9 @@ v1 is **rules-first**. An optional LightGBM **take/skip** meta-filter (trained o
 | [regime-tier1-verdict.md](regime-tier1-verdict.md) | Daily rules + intraday HMM features / states |
 | [regime-tier1-eval-verdict.md](regime-tier1-eval-verdict.md) | Tier 1 Regime eval harness (Daily + Intraday) |
 | [horizon-tier2-verdict.md](horizon-tier2-verdict.md) | Long/Short LightGBM features, hyperparams, training |
-| [triple-barrier-verdict.md](triple-barrier-verdict.md) | Vertical `H`, ATR TP/SL, 0.30% cost |
+| [triple-barrier-verdict.md](triple-barrier-verdict.md) | Vertical `H`, ATR TP/SL, 0.20% working cost |
 | [precision-tier3-verdict.md](precision-tier3-verdict.md) | 1m timing rules, Long/Short Precision features, exits |
 | [cascade-selectivity-tweak-plan.md](archive/cascade-selectivity-tweak-plan.md) | Post-v1 selectivity / PnL tweak cycle (TOP_K, conviction gate, Long asymmetry) |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | WS0/WS1 Fold A path-audit verdict — escalate Horizon/Regime |
+| [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md) | WS0/WS1 Fold A path-audit verdict — escalate Horizon/Regime |
 
 Judges for the tier verdicts: **Gemini Flash** and **Claude Sonnet**.

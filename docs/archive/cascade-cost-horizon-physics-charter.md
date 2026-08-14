@@ -2,10 +2,10 @@
 
 **Market:** NSE India, Nifty 100 universe, intraday MIS cash  
 **Scope:** Fresh dual-judge lock on friction realism, 60m vs 90m, TP ceilings, and cascade structural soundness — **after** Horizon Tier-2 v2 path-EV STOP  
-**Status:** **ACCEPT WITH REVISIONS** (dual-judge locked) — open **narrow cost charter only**; Horizon feature/label search stays closed  
+**Status:** **ACCEPT WITH REVISIONS** (dual-judge locked) — cost charter opened and **STOPPED** ([stop-memo](rt-cost-realism-re-derivation-stop-memo.md)); Horizon feature/label search stays closed  
 **Judges:** [Claude Sonnet](cfae50bb-0c8e-4623-8160-952667de4d52), [Gemini Flash](a2d95c56-e066-4694-8b57-b676b08c9601)  
 **Date:** 2026-08-13  
-**Depends on:** [horizon-tier2-v2-verdict.md](horizon-tier2-v2-verdict.md) (v2 STOP), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)  
+**Depends on:** [horizon-tier2-v2-verdict.md](../horizon-tier2-v2-verdict.md) (v2 STOP), [triple-barrier-verdict.md](../triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md)  
 **Does not reopen:** Regime search, Precision WS2, Horizon v2 feature/label peeks (5/5 spent)
 
 ---
@@ -184,8 +184,9 @@ Read: H=6 enabled the first dual-fold path-density lift; it did **not** close ec
 
 | Doc | Role |
 |---|---|
-| [rt-cost-realism-re-derivation-charter.md](rt-cost-realism-re-derivation-charter.md) | **Operational next charter** — Step 0 / peeks / floors |
-| [horizon-tier2-v2-verdict.md](horizon-tier2-v2-verdict.md) | Path-EV charter STOP — why cost is next |
-| [triple-barrier-verdict.md](triple-barrier-verdict.md) | TB geometry; amend only after `c` lock |
+| [rt-cost-realism-re-derivation-charter.md](rt-cost-realism-re-derivation-charter.md) | Operational cost charter — **STOPPED** |
+| [rt-cost-realism-re-derivation-stop-memo.md](rt-cost-realism-re-derivation-stop-memo.md) | Cost charter STOP — `c*=20` kept; economics not cleared |
+| [horizon-tier2-v2-verdict.md](../horizon-tier2-v2-verdict.md) | Path-EV charter STOP — why cost is next |
+| [triple-barrier-verdict.md](../triple-barrier-verdict.md) | TB geometry; amend only after `c` lock |
 | [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why upstream path density matters |
-| [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md) | Regime CLOSED |
+| [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md) | Regime CLOSED |

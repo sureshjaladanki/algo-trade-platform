@@ -11,7 +11,7 @@ from sklearn.isotonic import IsotonicRegression
 from src.utils.eval_common import H_BARS
 
 # Locked after v2 path-EV charter stop (peek 5/5): path-room off both sleeves;
-# Long omits stock_r_15; Short keeps stock_r_15. See horizon-tier2-v2-verdict.md.
+# Long omits stock_r_15; Short keeps stock_r_15. See docs/horizon-tier2-v2-verdict.md.
 LONG_FEATURES = [
     "rel_ret_15_vs_nifty",
     "rel_ret_60_vs_nifty",
@@ -32,6 +32,17 @@ LONG_FEATURES = [
     "vol_regime_ratio",
     "index_vwap_dist",
 ]
+
+# Path-density L1 — causal same-clock mean of prior-session MFE / Long TP floor.
+# STOP-MEMO rejected merge: flag-gated only (--l1-travel-adequacy); never default.
+L1_TRAVEL_FEATURE = "tod_mfe_frac_60"
+L1_TRAVEL_LOOKBACK_DAYS = 60
+
+# Short travel-separation S1b candidates (pre-registered; off defaults until peek).
+SHORT_S1B_C1 = "tod_mfe_frac_50_short"
+SHORT_S1B_C2 = "unfinished_downside_z"
+SHORT_S1B_CANDIDATES = (SHORT_S1B_C1, SHORT_S1B_C2)
+SHORT_S1B_LOOKBACK_DAYS = 60
 
 SHORT_FEATURES = [
     "rel_ret_15_vs_nifty",
@@ -277,3 +288,37 @@ def _purge_tail_bars(df: pl.DataFrame, embargo_bars: int) -> pl.DataFrame:
     return df.filter(
         (pl.col("date_only") < last_date) | pl.col("date").is_in(keep_times)
     )
+
+
+def features_for_direction(
+    direction: str,
+    *,
+    l1_travel_adequacy: bool = False,
+    short_s1b_feature: str | None = None,
+) -> list[str]:
+    """
+    Locked sleeve feature list with optional single-variable peek flags.
+
+    ``l1_travel_adequacy`` appends ``tod_mfe_frac_60`` on Long only — Short
+    ignores the flag. Path-density STOP: rejected for default merge; flag-gated
+    replay only.
+
+    ``short_s1b_feature`` appends exactly one of {C1, C2} on Short only —
+    short-travel charter S1b; off defaults until authorized peek.
+    """
+    if direction == "long":
+        feats = list(LONG_FEATURES)
+        if l1_travel_adequacy and L1_TRAVEL_FEATURE not in feats:
+            feats.append(L1_TRAVEL_FEATURE)
+        return feats
+    if direction == "short":
+        feats = list(SHORT_FEATURES)
+        if short_s1b_feature is not None:
+            if short_s1b_feature not in SHORT_S1B_CANDIDATES:
+                raise ValueError(
+                    f"short_s1b_feature must be one of {SHORT_S1B_CANDIDATES}"
+                )
+            if short_s1b_feature not in feats:
+                feats.append(short_s1b_feature)
+        return feats
+    raise ValueError("direction must be 'long' or 'short'")

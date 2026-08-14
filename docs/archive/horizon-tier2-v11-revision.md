@@ -6,7 +6,7 @@
 **Stop memos:** [horizon-tier2-short-stop-memo.md](horizon-tier2-short-stop-memo.md), [horizon-tier2-long-stop-memo.md](horizon-tier2-long-stop-memo.md)  
 **Judges:** [Gemini Flash](e982525b-460f-4f93-ab3d-697138b790ba), [Claude Sonnet](af622bc8-c824-4e30-8832-25ddf9e2c7c1)  
 **Date:** 2026-08-11  
-**Depends on:** [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) (locked v1 features/hyperparams — do not edit for this cycle), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md), [triple-barrier-verdict.md](../triple-barrier-verdict.md), [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)  
+**Depends on:** [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) (locked v1 features/hyperparams — do not edit for this cycle), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md), [triple-barrier-verdict.md](../triple-barrier-verdict.md), [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md)  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
 **Harness:** `python -m src.experiments.eval_horizon`
 
@@ -96,7 +96,7 @@ Short remains ~½ Long bars with shorter episodes — locked Short regularizatio
 
 ## Link to cascade WS0/WS1 (why this revision exists)
 
-From [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) (Fold A Precision book):
+From [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) (Fold A Precision book):
 
 | WS finding | Horizon A+B echo |
 |---|---|
@@ -353,7 +353,7 @@ Cascade / Precision contract only — **never feeds Horizon H1–H5 gates**.
 |---|---|
 | [horizon-tier2-verdict.md](../horizon-tier2-verdict.md) | Locked v1 features / hyperparams |
 | [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md) | Gate taxonomy this revision obeys |
-| [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) | Why escalate — low TB+1 + rank inversion |
+| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate — low TB+1 + rank inversion |
 | [triple-barrier-verdict.md](../triple-barrier-verdict.md) | Frozen TB geometry for H5 |
 | [precision-tier3-verdict.md](../precision-tier3-verdict.md) | Downstream consumer — B1 contract only |
 | [regime-tier1-stop-memo.md](regime-tier1-stop-memo.md) | Regime CLOSED |

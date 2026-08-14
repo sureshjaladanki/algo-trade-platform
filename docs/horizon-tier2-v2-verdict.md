@@ -6,7 +6,7 @@
 **Judges:** [Gemini Flash](41001860-7bb4-4fb9-9d1a-89f097d6a8d8), [Claude Sonnet](c88b3b0b-d573-4aab-826d-07d815dca8ff)  
 **Date:** 2026-08-12  
 **Friction lock:** **0.30% (30 bps)** round-trip — do not re-derive  
-**Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [horizon-tier2-v11-revision.md](archive/horizon-tier2-v11-revision.md), [horizon-tier2-v11-long-stop-memo.md](archive/horizon-tier2-v11-long-stop-memo.md), [horizon-tier2-v11-short-stop-memo.md](archive/horizon-tier2-v11-short-stop-memo.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md), [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md)  
+**Depends on:** [horizon-tier2-verdict.md](horizon-tier2-verdict.md) (v1 freeze), [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md), [horizon-tier2-v11-revision.md](archive/horizon-tier2-v11-revision.md), [horizon-tier2-v11-long-stop-memo.md](archive/horizon-tier2-v11-long-stop-memo.md), [horizon-tier2-v11-short-stop-memo.md](archive/horizon-tier2-v11-short-stop-memo.md), [triple-barrier-verdict.md](triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md), [regime-tier1-stop-memo.md](archive/regime-tier1-stop-memo.md)  
 **Does not reopen:** Regime search, Precision WS2, v1.1 hygiene levers (L1/L2/S1)
 
 ---
@@ -552,4 +552,4 @@ Fresh dual-judge charter with new peek budget if pursuing Horizon further (e.g. 
 | [horizon-tier2-eval-verdict.md](horizon-tier2-eval-verdict.md) | Metric taxonomy |
 | [triple-barrier-verdict.md](triple-barrier-verdict.md) | TB geometry — **v2 amend locked**: primary `H=6`, floors unchanged |
 | [horizon-path-room-h10-note.md](archive/horizon-path-room-h10-note.md) | Step 4 path-room circularity / H10 audit lock |
-| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why escalate upstream |
+| [cascade-tier3-ws01-verdict.md](archive/cascade-tier3-ws01-verdict.md) | Why escalate upstream |

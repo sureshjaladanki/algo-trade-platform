@@ -125,20 +125,22 @@ def fit_horizon_gbm(
     df: pl.DataFrame,
     direction: str,
     cv_kwargs: Dict[str, Any] | None = None,
+    features: list[str] | None = None,
 ) -> tuple[GBMHorizonModel | None, Dict[str, Any]]:
     """
     Train a single Horizon path-EV model (Long or Short) on cascade-valid sleeves.
 
     Primary label: net path EV ``tb_excess_ret_*`` (R_path − R_nifty − c).
     Feature lists and Long ``episode_balanced`` are the locked v2 stop defaults.
+    Pass ``features`` to override (path-density L1 single-variable peek).
 
     Returns (model, fit_stats). `fit_stats` holds CV ICs and sleeve diagnostics for
     the caller to log (e.g. via log_horizon_mlflow); fit itself does not touch MLflow.
     """
     cfg = _sleeve_config(direction)
-    features = list(cfg.features)
+    feat_list = list(features) if features is not None else list(cfg.features)
     # drop_nulls alone is not enough: float NaNs survive and blow up LGBM y-checks.
-    drop_cols = features + ["path_ev_y"]
+    drop_cols = feat_list + ["path_ev_y"]
     sleeve_df = (
         df.filter(_fit_sleeve_mask(cfg) & pl.col(cfg.eligible_col))
         .with_columns(_path_ev_target(cfg))
@@ -192,7 +194,7 @@ def fit_horizon_gbm(
             y_train=fold_train["path_ev_y"],
             X_val=fold_val,
             y_val=fold_val["path_ev_y"],
-            features=features,
+            features=feat_list,
             train_weight=(
                 episode_balanced_weights(fold_train) if cfg.episode_balanced else None
             ),
@@ -225,7 +227,7 @@ def fit_horizon_gbm(
         "calendar_sessions": len(calendar_dates),
         "target": cfg.target_col,
         "episode_balanced": cfg.episode_balanced,
-        "n_features": len(features),
+        "n_features": len(feat_list),
     }
     return models[-1], fit_stats
 

@@ -568,4 +568,4 @@ Index long/short means and S−H gate (ew100 same qualitative FAIL):
 | [regime-tier1-verdict.md](../regime-tier1-verdict.md) | Locked v1 — merge target only when locked |
 | [regime-tier1-eval-verdict.md](../regime-tier1-eval-verdict.md) | Eval harness / gates |
 | [cascade-strategy-overview.md](../cascade-strategy-overview.md) | Cascade contracts |
-| [cascade-tier3-ws01-verdict.md](../cascade-tier3-ws01-verdict.md) | Why Regime was escalated |
+| [cascade-tier3-ws01-verdict.md](cascade-tier3-ws01-verdict.md) | Why Regime was escalated |

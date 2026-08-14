@@ -8,8 +8,20 @@ from pathlib import Path
 
 import polars as pl
 
-from src.horizon.eval import N_BOOT, evaluate_horizon, format_report, k_for
-from src.horizon.eval.common import annotate_hygiene_flags
+from src.horizon.eval import (
+    N_BOOT,
+    annotate_hygiene_flags,
+    evaluate_horizon,
+    format_report,
+    k_for,
+)
+from src.horizon.horizon_model import (
+    L1_TRAVEL_FEATURE,
+    L1_TRAVEL_LOOKBACK_DAYS,
+    SHORT_S1B_CANDIDATES,
+    features_for_direction,
+)
+from src.horizon.eval.short_travel import attach_short_s1b_candidates
 from src.pipelines.build_horizon_features import (
     build_horizon_features,
     load_horizon_data,
@@ -25,6 +37,39 @@ from src.utils.date import filter_by_period, parse_period_range
 from src.utils.mlflow_loader import load_hmm_model
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+# TODO: If ``tod_mfe_frac_60`` is ever dual-judge locked into default LONG_FEATURES,
+# move this into ``build_horizon_features`` (post-TB) instead of eval-only wrap.
+def _attach_tod_mfe_frac(
+    horizon_df: pl.DataFrame,
+    lookback_days: int = L1_TRAVEL_LOOKBACK_DAYS,
+) -> pl.DataFrame:
+    """Rejected L1 replay: causal same-clock mean of prior Long MFE / TP floor."""
+    if L1_TRAVEL_FEATURE in horizon_df.columns:
+        return horizon_df
+    if "mfe_frac_long" not in horizon_df.columns:
+        raise ValueError("_attach_tod_mfe_frac requires mfe_frac_long")
+
+    out = horizon_df
+    if "date_only" not in out.columns:
+        out = out.with_columns(date_only=pl.col("date").dt.date())
+    if "time_only" not in out.columns:
+        out = out.with_columns(time_only=pl.col("date").dt.time())
+
+    min_periods = max(10, lookback_days // 4)
+    return (
+        out.sort(["symbol", "time_only", "date_only"])
+        .with_columns(
+            **{
+                L1_TRAVEL_FEATURE: pl.col("mfe_frac_long")
+                .shift(1)
+                .rolling_mean(window_size=lookback_days, min_samples=min_periods)
+                .over(["symbol", "time_only"])
+            }
+        )
+        .sort(["symbol", "date"])
+    )
 
 
 def main() -> None:
@@ -49,6 +94,24 @@ def main() -> None:
         type=str,
         default=None,
         help="Optional Regime_Pipeline MLflow run id (default: match train_period / latest)",
+    )
+    parser.add_argument(
+        "--l1-travel-adequacy",
+        action="store_true",
+        help=(
+            "Replay rejected path-density L1: attach tod_mfe_frac_60 and append "
+            "to Long features only (flag-gated; not a default / ship feature)."
+        ),
+    )
+    parser.add_argument(
+        "--short-s1b",
+        type=str,
+        default=None,
+        choices=list(SHORT_S1B_CANDIDATES),
+        help=(
+            "Short travel S1b peek: attach candidate and append to Short features "
+            f"only (one of {list(SHORT_S1B_CANDIDATES)}; off defaults)."
+        ),
     )
     parser.add_argument("--n-boot", type=int, default=N_BOOT)
     parser.add_argument("--seed", type=int, default=42)
@@ -117,6 +180,13 @@ def main() -> None:
         intraday_regime_df=intraday_regime,
         regime_df=regime_df,
     )
+    if args.l1_travel_adequacy and args.short_s1b:
+        print("Error: --l1-travel-adequacy and --short-s1b are mutually exclusive peeks.")
+        sys.exit(1)
+    if args.l1_travel_adequacy:
+        horizon_df = _attach_tod_mfe_frac(horizon_df)
+    if args.short_s1b:
+        horizon_df = attach_short_s1b_candidates(horizon_df)
 
     train_df = filter_by_period(
         horizon_df, train_start, train_end, datetime_col="date"
@@ -132,14 +202,22 @@ def main() -> None:
     print(
         "Fitting Horizon path-EV models on train "
         f"(K_long={k_for('long')} K_short={k_for('short')}; "
+        f"l1_travel={args.l1_travel_adequacy}; "
+        f"short_s1b={args.short_s1b}; "
         "gates use holdout only — trainer CV IC is not a ship gate)..."
     )
     scored_parts: list[pl.DataFrame] = []
     for direction in directions:
-        print(f"\n   Fitting {direction}...")
+        feats = features_for_direction(
+            direction,
+            l1_travel_adequacy=args.l1_travel_adequacy,
+            short_s1b_feature=args.short_s1b,
+        )
+        print(f"\n   Fitting {direction} (n_features={len(feats)})...")
         model, fit_stats = fit_horizon_gbm(
             train_df,
             direction=direction,
+            features=feats,
         )
         if model is None:
             print(f"   Warning: no {direction} model — skipping sleeve.")

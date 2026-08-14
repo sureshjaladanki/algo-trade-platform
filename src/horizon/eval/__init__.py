@@ -5,27 +5,27 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
-from src.horizon.eval.common import (
-    N_BOOT,
-    MetricResult,
-    annotate_hygiene_flags,
-    format_report,
-    h1_spearman_ic,
-    h2_topk_spread,
-    h3_rank_monotonicity,
+from src.horizon.eval.bar_stats import per_bar_topk_stats
+from src.horizon.eval.constants import N_BOOT, MetricResult, format_report, k_for
+from src.horizon.eval.diagnostics import (
+    adv_tercile_topk_diagnostics,
+    h4_archive_cost_netted_spread,
     h4_cost_netted_spread,
-    h5_stock_tb_bridge,
     h6_coverage,
     h7_hygiene_diagnostics,
     h9_calibration_diagnostics,
     h9_k_sweep,
+)
+from src.horizon.eval.gates import (
+    h1_spearman_ic,
+    h2_topk_spread,
+    h3_rank_monotonicity,
+    h5_stock_tb_bridge,
     h10_null_leakage,
-    k_for,
-    per_bar_topk_stats,
-    prepare_eval_panel,
     universe_parity_precondition,
 )
 from src.horizon.eval.long_eval import l1_activation_note, l2_emission_diagnostics
+from src.horizon.eval.panel import annotate_hygiene_flags, prepare_eval_panel
 from src.horizon.eval.short_eval import s1_activation_note, s2_tod_diagnostics
 
 __all__ = [
@@ -79,7 +79,9 @@ def evaluate_direction(
     metrics.append(h3_rank_monotonicity(bar_stats, direction, n_boot, rng))
     metrics.append(h2_topk_spread(bar_stats, direction, n_boot, rng))
     metrics.append(h4_cost_netted_spread(bar_stats, direction))
+    metrics.append(h4_archive_cost_netted_spread(bar_stats, direction))
     metrics.extend(h5_stock_tb_bridge(bar_stats, direction, n_boot, rng))
+    metrics.extend(adv_tercile_topk_diagnostics(panel, direction))
     metrics.extend(h9_calibration_diagnostics(panel, direction))
     metrics.extend(h9_k_sweep(panel, direction))
     metrics.extend(s2_tod_diagnostics(panel, direction))
