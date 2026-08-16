@@ -166,7 +166,7 @@ def main():
         print(f"   Scored {sleeve} rows: {scored_sleeve.height}")
 
     scored = pl.concat(scored_dfs, how="diagonal")
-
+    print(f"   Scored TB+1 rows: {scored.height}")
     print("9. Loading 1m + building Precision features...")
     stock_1m, nifty_1m = load_precision_data(
         data_dir=GOLDEN,
