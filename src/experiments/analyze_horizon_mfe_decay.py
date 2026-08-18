@@ -1,4 +1,4 @@
-"""MFE-decay Step 0 diagnostic — peak bar + giveback + exit-clock (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. MFE-decay Step 0 diagnostic — peak bar + giveback + exit-clock (no peek)."""
 
 from __future__ import annotations
 

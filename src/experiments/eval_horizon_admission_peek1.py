@@ -1,4 +1,4 @@
-"""Admission Peek 1 — Long conviction floor only (single-variable)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Admission Peek 1 — Long conviction floor only (single-variable)."""
 
 from __future__ import annotations
 

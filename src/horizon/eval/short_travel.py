@@ -1,4 +1,7 @@
-"""Short travel / ranking Step 0 — Top−Rest MFE, anti-selection, gated C1/C2 ρ."""
+"""AUDIT-ONLY (fresh M0 quarantine) — Short travel Step 0.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

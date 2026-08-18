@@ -1,4 +1,4 @@
-"""Short travel / ranking Step 0 diagnostic — Top−Rest + gated C1/C2 (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Short travel / ranking Step 0 diagnostic — Top−Rest + gated C1/C2 (no peek)."""
 
 from __future__ import annotations
 

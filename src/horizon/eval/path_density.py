@@ -1,4 +1,7 @@
-"""Path-density Step 0 — Top-K vs Rest MFE + TB exit-type (report-only)."""
+"""AUDIT-ONLY (fresh M0 quarantine) — path-density Step 0.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

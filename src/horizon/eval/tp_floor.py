@@ -1,4 +1,7 @@
-"""TP-floor Step 0 — absolute MFE crossing @ 50 vs 60 bps (report-only)."""
+"""AUDIT-ONLY (fresh M0 quarantine) — TP-floor Step 0.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

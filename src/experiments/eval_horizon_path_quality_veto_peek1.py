@@ -1,4 +1,4 @@
-"""Path-quality veto Peek 1 — Long P(SL) worst-20% eligible cut."""
+"""AUDIT-ONLY — path-quality veto Peek 1. See docs/archive/horizon-fresh-quarantine-index.md."""
 
 from __future__ import annotations
 

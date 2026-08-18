@@ -1,4 +1,7 @@
-"""Path-quality veto Step 0 / Peek 1 — P(SL) relative admit overlay."""
+"""AUDIT-ONLY (fresh M0 quarantine) — path-quality veto Step 0 / Peek 1.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

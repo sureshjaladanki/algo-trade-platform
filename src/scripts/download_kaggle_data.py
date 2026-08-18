@@ -18,16 +18,16 @@ matching CSVs into ``data/GOLDEN/<YAML_SYMBOL>.csv``.
 
 Usage
 -----
-    python src/scripts/download_kaggle_data.py                       # stocks (default)
-    python src/scripts/download_kaggle_data.py --mode indices        # VIX + sectoral indices
-    python src/scripts/download_kaggle_data.py --skip-existing         # only missing CSVs (default)
-    python src/scripts/download_kaggle_data.py --force-symbols "^CNXMETAL,^CNXENERGY"
-    python src/scripts/download_kaggle_data.py --keep-archive        # retain the zip
-    python src/scripts/download_kaggle_data.py --force               # re-download archive
+    poetry run python -m src.scripts.download_kaggle_data                       # stocks (default)
+    poetry run python -m src.scripts.download_kaggle_data --mode indices        # VIX + sectoral indices
+    poetry run python -m src.scripts.download_kaggle_data --skip-existing         # only missing CSVs (default)
+    poetry run python -m src.scripts.download_kaggle_data --force-symbols "^CNXMETAL,^CNXENERGY"
+    poetry run python -m src.scripts.download_kaggle_data --keep-archive        # retain the zip
+    poetry run python -m src.scripts.download_kaggle_data --force               # re-download archive
 
 One-time Kaggle credential setup
 --------------------------------
-1. ``pip install kaggle`` (already in requirements.txt)
+1. ``poetry install`` (``kaggle`` is a declared Poetry dependency)
 2. Visit https://www.kaggle.com/settings/account and click
    "Create New API Token".
 3. Either set ``KAGGLE_API_TOKEN`` in the repo-root ``.env`` (recommended,
@@ -103,7 +103,7 @@ def _load_dotenv() -> None:
     except ImportError:
         print(
             "Warning: 'python-dotenv' not installed; .env will be ignored. "
-            "Install with: pip install python-dotenv",
+            "Install with: poetry install",
             file=sys.stderr,
         )
         return
@@ -221,7 +221,7 @@ def download_archive(dataset: str, cache_dir: Path, force: bool = False) -> Path
         from kaggle.api.kaggle_api_extended import KaggleApi
     except ImportError as e:
         raise SystemExit(
-            "The 'kaggle' package is not installed. Run: pip install kaggle"
+            "The 'kaggle' package is not installed. Run: poetry install"
         ) from e
 
     api = KaggleApi()

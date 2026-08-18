@@ -1,4 +1,4 @@
-"""Short capacity / regularization Phase 1 + authorized peeks (U1/U2/R1)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Short capacity / regularization Phase 1 + authorized peeks (U1/U2/R1)."""
 
 from __future__ import annotations
 

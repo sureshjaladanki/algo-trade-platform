@@ -1,4 +1,4 @@
-"""Path-density Step 0 diagnostic — MFE + exit-type Top-K vs Rest (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Path-density Step 0 diagnostic — MFE + exit-type Top-K vs Rest (no peek)."""
 
 from __future__ import annotations
 

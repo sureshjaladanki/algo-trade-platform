@@ -2,11 +2,11 @@
 
 **Market:** NSE India, Nifty 100 universe, intraday MIS cash  
 **Scope:** Falsify whether Tier 3 **1m entry-timing / exit-management** on a **frozen** Long Top-K registry can recover the measured **~12–19 bps** Horizon H4 deficit under locked `c*=20` / `H=6` / floors — without rewriting Horizon gates or geometry  
-**Status:** **DRAFT — unblocked for dual-judge** — Path-quality veto [stop-memo](../archive/horizon-path-quality-veto-stop-memo.md) left Top-K=5 unchanged; re-anchor Step 0 to production Top-K=5  
-**Authority (prior):** Path-density STOP next-workstream ([Claude](f9256c28-1e53-43be-acc3-cc3e9f6349e1), [Gemini Flash](5515a43a-2941-42c3-9ad2-9d31d4ecca71)); Gemini recommended Precision bridge; owner then preferred Claude exit/MFE track. Exit / TP-floor / Short-architecture ledgers **CLOSED** with Long H4 still negative. **Owner reopen** of Gemini’s Precision track as a **falsification charter** — not a silent bailout.  
-**Sequencing (2026-08-15):** Dual-judge on Admission ([Claude](b0d3653b-e13a-4ac3-a063-6977413114ab), [Gemini](c9fb9c9f-49db-4a10-8496-ab4939d22cf7)) — **Admission runs first**; do not spend Precision peeks on a soon-obsolete Top-K=5 book. Re-anchor Step 0 to the locked admitted registry after Admission stop-memo.  
+**Status:** **DRAFT — unblocked for dual-judge** — EV-net rebuild [stop-memo](../archive/horizon-ev-net-rebuild-stop-memo.md) hard-stopped @ 0/3 with Top-K=5 unchanged; re-anchor Step 0 to production Top-K=5  
+**Authority (prior):** Path-density STOP next-workstream ([Claude](f9256c28-1e53-43be-acc3-cc3e9f6349e1), [Gemini Flash](5515a43a-2941-42c3-9ad2-9d31d4ecca71)); Gemini recommended Precision bridge; owner then preferred Claude exit/MFE track. Exit / TP-floor / Short-architecture / Admission / path-quality veto / EV-net ledgers **CLOSED** with Long H4 still negative. **Owner reopen** of Gemini’s Precision track as a **falsification charter** — not a silent bailout.  
+**Sequencing (2026-08-16):** Admission + path-quality veto + EV-net rebuild all closed without changing the Long Top-K=5 registry — Precision Step 0 may dual-judge against production Top-K=5.  
 **Judges (this charter):** *pending dual-judge*  
-**Date:** 2026-08-14 · **sequencing amend:** 2026-08-15  
+**Date:** 2026-08-14 · **sequencing amend:** 2026-08-16  
 **Depends on:** [horizon-tier2-admission-charter.md](../archive/horizon-tier2-admission-charter.md), [horizon-path-density-stop-memo.md](../archive/horizon-path-density-stop-memo.md), [horizon-exit-mfe-decay-stop-memo.md](../archive/horizon-exit-mfe-decay-stop-memo.md), [horizon-tp-floor-recalibration-stop-memo.md](../archive/horizon-tp-floor-recalibration-stop-memo.md), [horizon-short-architecture-stop-memo.md](../archive/horizon-short-architecture-stop-memo.md), [precision-tier3-verdict.md](../precision-tier3-verdict.md), [precision-tier3-eval-verdict.md](../precision-tier3-eval-verdict.md), [horizon-tier2-eval-verdict.md](../horizon-tier2-eval-verdict.md), [triple-barrier-verdict.md](../triple-barrier-verdict.md), [cascade-tier3-ws01-verdict.md](../archive/cascade-tier3-ws01-verdict.md), [cascade-strategy-overview.md](../cascade-strategy-overview.md), [rt-cost-realism-re-derivation-stop-memo.md](../archive/rt-cost-realism-re-derivation-stop-memo.md)  
 **Does not reopen:** Cost ladder · Regime · Horizon features / path-room / L1 / E1 / E2 / Long TP50 · Short architecture / B1 · primary `H=6` · floors / vol multiples · Precision fills inside Horizon H5 · cascade-ready claims from Precision alone · Admission peek ladder (owned by Admission charter)
 
@@ -23,11 +23,11 @@
 | Sleeve posture | **Long-first** (deficit + Long H5 dual-fold PASS under cost/path-density). Short = companion report-only; Short sleeve stays **disabled** pending separate authority; **no B1 activate** |
 | Peek budget | **Max 2** Long Fold A+B Precision peeks after mandatory Step 0 Phase-1 baseline |
 | Friction / floors / H | **Frozen** — `c*=20` / archive 30; floors 60/50/30; `H=6`; multiples unchanged |
-| Build posture | **DRAFT — ready for dual-judge** — veto Admission closed with Top-K=5 unchanged ([stop-memo](../archive/horizon-path-quality-veto-stop-memo.md)) |
+| Build posture | **DRAFT — ready for dual-judge** — EV-net hard-stop left Top-K=5 unchanged ([stop-memo](../archive/horizon-ev-net-rebuild-stop-memo.md)) |
 
 **One-line:** Ask whether Precision 1m entry-timing / exit-management can bridge the measured ~12–19 bps Long Horizon H4 deficit on a frozen Top-K registry — or stop and lock that execution cannot salvage an underwater Horizon book.
 
-**Hold note:** Path-quality veto closed with Top-K=5 unchanged — Precision Step 0 may dual-judge against production Top-K=5.
+**Hold note:** EV-net rebuild STOP @ 0/3 left production Top-K=5 unchanged — Precision Step 0 may dual-judge against that registry.
 
 **Gemini source quote (path-density STOP):**
 

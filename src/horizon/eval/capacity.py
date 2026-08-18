@@ -1,4 +1,7 @@
-"""Short capacity / regularization Phase 1 — leaf-floor vs mass (0 peeks)."""
+"""AUDIT-ONLY (fresh M0 quarantine) — Short capacity Phase 1.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

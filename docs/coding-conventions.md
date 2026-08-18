@@ -60,6 +60,8 @@ Prefer domain vocabulary already used in the cascade / regime / horizon / precis
 
 ## Respect repository conventions
 
+Tooling, Poetry vs pip, and how to run Python: [repo-conventions.md](repo-conventions.md).
+
 Match the surrounding code before introducing a new style.
 
 - Follow existing package layout under `src/` (`features`, `labels`, `regime`, `pipelines`, `utils`, …).

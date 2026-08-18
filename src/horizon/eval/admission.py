@@ -1,4 +1,8 @@
-"""Horizon admission Step 0 — rank-tier / score floors / veto-head (report-only)."""
+"""AUDIT-ONLY (fresh M0 quarantine) — Horizon admission Step 0.
+
+See docs/archive/horizon-fresh-quarantine-index.md. Do not grow peeks on
+production Top-K under fresh naming. Live gates remain in eval/__init__.py.
+"""
 
 from __future__ import annotations
 

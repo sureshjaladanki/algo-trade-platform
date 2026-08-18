@@ -1,4 +1,4 @@
-"""Admission Step 0 diagnostic — rank-tier / score floors / veto-head (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Admission Step 0 diagnostic — rank-tier / score floors / veto-head (no peek)."""
 
 from __future__ import annotations
 

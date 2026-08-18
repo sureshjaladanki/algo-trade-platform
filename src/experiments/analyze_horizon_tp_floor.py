@@ -1,4 +1,4 @@
-"""TP-floor Step 0 diagnostic — absolute MFE crossing @ 50 vs 60 bps (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. TP-floor Step 0 diagnostic — absolute MFE crossing @ 50 vs 60 bps (no peek)."""
 
 from __future__ import annotations
 

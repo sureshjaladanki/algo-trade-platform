@@ -13,10 +13,10 @@ This module provides the macro-gating layer for intraday and swing trading strat
 - `docs/regime-tier1-verdict.md`: Detailed architecture decisions and feature selections by independent judges.
 
 ## Setup
-Built with Python 3.12 and Poetry.
+Built with Python 3.12 and Poetry. Conventions: [docs/repo-conventions.md](docs/repo-conventions.md), [docs/coding-conventions.md](docs/coding-conventions.md).
 
 ```bash
-poetry install
+poetry install --with dev
 ```
 
 ## Tools

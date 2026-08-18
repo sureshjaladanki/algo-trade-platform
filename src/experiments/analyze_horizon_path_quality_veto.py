@@ -1,4 +1,4 @@
-"""Path-quality veto Step 0 — reject-mass / H5 / veto separation (no peek)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Path-quality veto Step 0 — reject-mass / H5 / veto separation (no peek)."""
 
 from __future__ import annotations
 

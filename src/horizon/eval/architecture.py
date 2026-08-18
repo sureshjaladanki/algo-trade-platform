@@ -1,4 +1,7 @@
-"""Short architecture Phase 1 — complementarity / listwise / coarse-universe (0 peeks)."""
+"""AUDIT-ONLY (fresh M0 quarantine) — Short architecture Phase 1.
+
+See docs/archive/horizon-fresh-quarantine-index.md.
+"""
 
 from __future__ import annotations
 

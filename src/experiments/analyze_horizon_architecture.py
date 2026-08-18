@@ -1,4 +1,4 @@
-"""Short architecture Phase 1 — train/val diagnosis (0 peeks)."""
+"""AUDIT-ONLY (fresh M0 quarantine). See docs/archive/horizon-fresh-quarantine-index.md. Short architecture Phase 1 — train/val diagnosis (0 peeks)."""
 
 from __future__ import annotations
 
