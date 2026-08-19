@@ -17,3 +17,26 @@ INDEX_FUTURES_ROUND_TRIP_LOW_BPS = 10
 INDEX_FUTURES_ROUND_TRIP_HIGH_BPS = 12
 INDEX_FUTURES_ROUND_TRIP_LOW = INDEX_FUTURES_ROUND_TRIP_LOW_BPS / BPS
 INDEX_FUTURES_ROUND_TRIP_HIGH = INDEX_FUTURES_ROUND_TRIP_HIGH_BPS / BPS
+
+# Research OS (inherited-learnings). Locked before F1.
+DISASTER_CLIP_BPS = 500
+N_BOOT = 500
+BOOT_SEED = 7
+PURGE_CALENDAR_DAYS = 5
+MIN_FOLD_EVENTS = 2
+
+# F1 windows, session close to session close. T = first session the PIT
+# difference appears. Announcement dates are not in the membership ledger.
+F1_AUTHORITY_SESSIONS = 20  # T-20 close → T close
+F1_REVERSAL_SESSIONS = 20  # T close → T+20 close (F1c)
+F1_COMPANION_PRE_SESSIONS = 20  # T-40 close → T-20 close
+
+# Blueprint Appendix A sketch. Charter MDE uses this; peek also prints sample σ.
+PRIOR_EVENT_SIGMA_BPS = 600.0
+
+FAMILY_NIFTY_50 = "nifty_50"
+
+# NSE Indices Nifty-50 inclusion: 6-month avg FF mcap vs smallest incumbent.
+INCLUSION_FF_BUFFER = 1.5
+IMPACT_COST_MAX_PCT = 0.50
+MCWB_MIN_MONTHS = 5
