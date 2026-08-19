@@ -1,0 +1,30 @@
+---
+description: Repo conventions — Poetry over pip; how to install, add, and run Python
+alwaysApply: true
+---
+
+# Repo conventions
+
+Follow `docs/repo-conventions.md`. Follow `docs/coding-conventions.md` for code style.
+
+## Poetry, not pip
+
+This repo is Poetry-managed (`pyproject.toml` + `poetry.lock`). There is no `requirements.txt`.
+
+```powershell
+# ❌ BAD
+pip install pytest
+python -m src.events.constants
+
+# ✅ GOOD
+poetry add --group dev pytest
+poetry run python -m src.events.constants
+poetry run pytest
+```
+
+- Add runtime deps with `poetry add <pkg>`; dev deps with `poetry add --group dev <pkg>`.
+- After adding, keep `pyproject.toml` and `poetry.lock` in sync and commit both.
+- Run everything through `poetry run …` (python, pytest, ruff, pre-commit).
+- Never `pip install` into `.venv` to unblock an import. If a package is missing, add it with Poetry.
+- Prefer `poetry run python -m package.module` over invoking a `.py` path.
+- Do not add HMM, LightGBM, MLflow, or Kaggle unless a milestone actually imports them.
