@@ -3,12 +3,26 @@ import datetime as dt
 import polars as pl
 import pytest
 
-from src.events.residual import residual_bps, window_residual_bps
+from src.events.residual import (
+    first_session_strictly_after,
+    residual_bps,
+    window_residual_bps,
+)
 
 
 def test_residual_is_stock_minus_nifty() -> None:
     # stock +10%, nifty +5% → +500 bps
     assert residual_bps(100.0, 110.0, 200.0, 210.0) == pytest.approx(500.0)
+
+
+def test_first_session_strictly_after_skips_the_announcement_day() -> None:
+    calendar = [dt.date(2020, 2, 20), dt.date(2020, 2, 21), dt.date(2020, 2, 24)]
+    assert first_session_strictly_after(calendar, dt.date(2020, 2, 20)) == dt.date(
+        2020, 2, 21
+    )
+    assert first_session_strictly_after(calendar, dt.date(2020, 2, 22)) == dt.date(
+        2020, 2, 24
+    )
 
 
 def test_window_residual_skips_missing_close() -> None:

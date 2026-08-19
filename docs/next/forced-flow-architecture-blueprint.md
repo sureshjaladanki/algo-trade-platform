@@ -1,8 +1,9 @@
 # Retail India desk — Architecture Blueprint
 
 **Market:** NSE India. The product is **not** Nifty-100 cash MIS, remaining-session straddles, same-session fade, or a home-built factor sort.  
-**Status:** **BLUEPRINT Rev 2** — clean re-derivation after Horizon Successor STOP. Rev 1's three-book structure is **superseded** (§0.3). Not a dual-judge charter. Not a merge authority. Production cascade stays frozen.  
-**Date:** 2026-08-18  
+**Status:** **BLUEPRINT Rev 3** — F0/F1/C2 measured. Public reconstitution residual **closed** (economic FAIL). Predicted-basket leftover **STOP** (+205 bps vs 300 hurdle). Ranking retained. Book G is the research primary. Rev 2's "well powered" sketch is **falsified** (§0.5). Not a dual-judge charter. Not a merge authority. Production cascade stays frozen.  
+**Date:** 2026-08-19  
+**Review:** [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md)  
 **Depends on (facts, not reopen):** [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md), [horizon-successor-closed.md](../archive/horizon-successor-closed.md), [cascade-closed.md](../archive/cascade-closed.md), [fresh-closed.md](../archive/fresh-closed.md), [inherited-learnings.md](../archive/inherited-learnings.md)
 
 **Implementation map:** [forced-flow-execution-plan.md](forced-flow-execution-plan.md)
@@ -11,7 +12,7 @@
 
 ## One-line
 
-For Indian retail, the **tax wrapper and the capacity floor** decide what is viable before any alpha question. Both point away from home-built factor sorts and toward **forced-flow corporate events**: large effects, small capacity, low frequency, and no cheaper packaged substitute.
+For Indian retail, the **tax wrapper and the inference budget** decide what is viable before any alpha question. Low-frequency reconstitution leftovers cannot clear 45 bps. Ranking of Next 50 is a research asset. The research primary is **earnings drift (Book G)**, which has both a large candidate effect and a large event count.
 
 ---
 
@@ -48,7 +49,9 @@ The cascade optimized alpha and treated cost as a haircut. That is backwards. Fo
 
 That last row is the one the Rev 1 design missed, and it is decisive — see §0.3.
 
-**2. Friction (April 2026 lock).** Finance Act 2026 raised derivatives STT effective 1 April 2026 and left cash untouched.
+**2. Event count (inference budget).** A book with tens of decisions a year cannot establish an edge at any effect size below several hundred basis points. MDE ≈ 2.8 σ / √n. At n=27 and σ=600 bps that is **323 bps**. If the product needs ~300 bps gross to clear 45 bps and 20.8% at a 25% active weight, the harness is sized to see a product and will not see a 50 bps leftover. Low frequency solves friction and creates an unsolvable inference problem. The viable zone is hundreds to thousands of events a year with effects well above 45 bps.
+
+**3. Friction (April 2026 lock).** Finance Act 2026 raised derivatives STT effective 1 April 2026 and left cash untouched.
 
 | Instrument | Statutory core | Working round trip |
 |---|---|---|
@@ -60,9 +63,9 @@ That last row is the one the Rev 1 design missed, and it is decisive — see §0
 
 Policy has raised derivatives STT twice in eighteen months and cut weekly index expiries to one per exchange (NSE Nifty on Tuesday; Bank Nifty is monthly only). A retail edge built on many small derivative tickets is fighting the tax code deliberately.
 
-**3. Capacity — and this one cuts in retail's favour.** A ₹25L–₹1Cr book can enter positions no fund can. Any effect that survives *because* it is too small to arbitrage at institutional size is a retail asset. Any effect available at scale is already packaged, cheaper, by someone else.
+**4. Capacity.** A ₹25L–₹1Cr cash book in Next 50 names is a rounding error against ADV. Capacity is not the binding constraint on this desk. It starts to bind above roughly **₹1Cr**. Effects that survive only because funds cannot hold them remain a retail asset; effects available at scale are already packaged.
 
-**4. Alpha.** Only now does the signal matter.
+**5. Alpha.** Only now does the signal matter.
 
 ### 0.3 Why Rev 1's momentum book is withdrawn
 
@@ -94,71 +97,95 @@ This is the inverse of the cascade in every dimension that mattered.
 
 | Dimension | Cascade | This desk |
 |---|---|---|
-| Effect size | 5–8 bps | 100–400+ bps |
-| Friction share of effect | 100%+ | 10–30% |
-| Decisions per year | Thousands | Tens |
-| Statistical power | MDE ≈ effect | MDE well under effect |
-| Capacity | Institutional-competitive | Too small for funds |
+| Effect size | 5–8 bps | Public Nifty 50 window measured at **+26 to +52 bps** (additions) |
+| Friction share of effect | 100%+ | 45 bps ≥ leftover on the public window |
+| Decisions per year | Thousands | **Tens — a liability.** MDE 323 bps at n=27 |
+| Statistical power | MDE ≈ effect | **MDE ≥ required product** on Book F public legs |
+| Capacity | Institutional-competitive | Not binding below ~₹1Cr |
 | Live system | Feed, HMM, two rankers, 1m Precision | Calendar and a daily batch job |
+
+### 0.5 What Book F taught
+
+Measured 2026-08-19. Pack: [forced-flow-status.md](forced-flow-status.md). Review: [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md).
+
+The cascade died because friction ≥ effect at thousands of decisions. Book F died the mirror death: **MDE ≥ effect at tens of decisions.**
+
+net bps = 0.792 × (gross − 45)
+
+Two cycles a year, 25% of the book per cycle, targeting ~1%/yr: **net ~200 bps so gross ≈300 bps per event.** F1 MDE was 323 bps. The harness was sized to see a product and did not. Addition centres of +26 bps (T−20→T) and +52 bps (announcement→T) cannot clear delivery. **C1 (public window) is closed: INCONCLUSIVE on existence, FAIL on economics.**
+
+T−20 sits inside the announcement window (NSE ≥ four weeks' notice). F1-effective was a subset of F1a.
+
+The T−40→T−20 companion on *actual* additions printed +538 bps (look-ahead; locked). Combined with +52 bps post-announcement, most of that move is pre-PR. Ranking (F3-SKILL) PASS: Next 50 6-month FF mcap top-k 66.7% vs 4.1% naive. The ex-ante basket on that private window (C2 / F3-RESIDUAL) printed **+205 bps vs a 300 bps hurdle — STOP**.
+
+**Lock:** a gate whose MDE exceeds the pre-registered economic hurdle is not a valid existence gate. Either do not run it, or pre-register INCONCLUSIVE → STOP for capital.
 
 ---
 
 ## 1. Product architecture
 
-**One research book. One passive core. Everything else is deferred.**
+**One research primary. Ranking retained. No Book F residual capital.**
 
 ```
 Passive core (capital, not research)
   Broad index and/or a momentum index fund
   Held > 12 months for 12.5% LTCG
-  This is the benchmark every active rupee must beat AFTER tax
+  After-tax benchmark
 
-Book F — FORCED FLOW (research primary)
-  F1  Index reconstitution: predict, then position
-  F2  F&O universe entry and exit
-  Delivery, days to weeks, event-dated
-
-Book G — EARNINGS DRIFT (second, gated on data)
+Book G — EARNINGS DRIFT (research primary)
   Announcement-dated residual, 1 to 5 sessions
-  Runs only if the calendar is free
+  G0 from free sources; thousands of events on the existing 100-name panel
+
+Book F — FORCED FLOW (ranking retained; residual capital closed)
+  C2  Predicted Next 50 top-3 — STOP (+205 vs 300)
+  C1  Public announcement→effective — CLOSED
+  C3  Post-effective fade — additions closed; deletion companion locked
+  C4  F&O list changes — deferred
 ```
 
 Regime stays a frozen pre-open veto if a live book ever wants a hard flat. Precision is not a book. There is no intraday sleeve, no HMM router, no index overlay.
 
-### 1.1 Book F — Forced flow (primary)
+### 1.1 Book F — Forced flow (ranking retained; residual capital closed)
 
-**Hypothesis.** Indian passive assets have grown large enough that index reconstitution forces mechanical, date-certain buying and selling. NSE publishes membership changes weeks before they take effect, and the tracking funds must transact near the close on the effective date. Positioning ahead of that flow, and fading its reversal afterwards, is a capacity-limited effect that institutions cannot fully arbitrage and no packaged product harvests.
+**Hypothesis.** NSE reconstitution forces mechanical buying. The *public* window (announcement → effective close) is professionally crowded: trackers print at T, arb desks use single-stock futures at 10–14 bps. A retail cash book at 45 bps plus 20.8% is the worst-positioned participant there. The *private* window is cut-off → announcement, holding a probabilistic Next 50 basket at a size no fund can put in a tracking-error budget. Ranking skill is verified. The residual on an ex-ante basket is **STOP**: +205 bps against a 300 bps hurdle.
 
-**Why this is the right first test, on this desk's own rules:**
+**What was measured (do not re-peek):**
 
-- **The kill-switch is in-repo.** Point-in-time index membership already exists in the repository, so historical change dates are derivable without buying anything. This satisfies the rule that a first test must fire on existing data within two machine-days.
-- **It is well powered.** With an effect plausibly in the hundreds of basis points against event volatility near 600 bps, a few hundred events give a detectable effect far below the effect. Every prior programme failed the opposite way.
-- **Friction is a rounding error.** 45 bps against a 200 bps candidate move is 20%, not 300%.
-- **The prediction step is a legitimate quantitative problem.** NSE's selection rules are largely mechanical — free-float market capitalisation ranking with eligibility filters — so candidate additions and deletions can be ranked *before* announcement from data already held. That is where the durable edge sits, because the post-announcement trade is public information.
+- **C1** public residual INCONCLUSIVE on existence, **FAIL on economics.** Closed.
+- **F3-SKILL** Next 50 6-month FF mcap top-k **PASS** (66.7% vs 4.1% naive).
+- **C3** additions fade INCONCLUSIVE. Deletion bounce prior-σ PASS at sample-scale INCONCLUSIVE — locked companion. Next 50 offset muddles deletions (a name leaving Nifty 50 usually enters Next 50).
+- T−40→T−20 on *actual* additions is look-ahead. Locked.
 
-**Construction:**
+**Construction (C-numbers; gates keep F-numbers):**
 
-1. **F1a — post-announcement.** On the announcement date, take a delivery position in additions and the opposite in deletions where shortable, exiting into the effective-date close. Report-only if it is fully public; it establishes whether the flow effect still exists at all.
-2. **F1b — pre-announcement (the actual product).** Replicate the ranking rules, hold the top candidate additions ahead of the announcement window, and exit on announcement. Position sizing scaled by predicted inclusion probability.
-3. **F1c — reversal.** Fade the post-effective-date reversion in additions. Documented globally; must be measured here, not assumed.
-4. **F2 — F&O list changes.** Entry to and exit from the derivatives-eligible universe changes who can trade a name and how it is hedged. Same harness, separate event pool.
+| ID | Construction | Status |
+|---|---|---|
+| **C1** | Post-announcement, actual names, exit T | **CLOSED** |
+| **C2** | Ex-ante top-3 Next 50, first session of Feb/Aug → session after PR, equal weight. Charter: [f3-residual-charter.md](f3-residual-charter.md). Memo: [f3-residual.md](../archive/f3-residual.md) | **STOP** — +205 bps vs 300 hurdle |
+| **C3** | T→T+20 fade | Additions closed; deletion companion locked |
+| **C4** | F&O list entry/exit | **Deferred.** C2 did not GO |
+
+C2 used **equal weight, fixed k = 3**. Probability-weighted sizing is forbidden.
 
 **Gates:**
 
-| ID | Gate | Rule | If FAIL |
-|---|---|---|---|
-| **F0** | Event pool exists | Reconstitute historical change dates from point-in-time membership. Publish event counts by year and index family | Cannot build the pool in-repo → the whole programme's premise fails; stop before spending on data |
-| **F1** | Effect exists, gross | Announcement-to-effective residual vs Nifty, pooled across folds, cost-free CI lower bound above zero, MDE published first | The Indian index effect has already decayed. Stop Book F. |
-| **F2** | Net of friction and tax | Same at **45 bps** and then at **20.8%** short-term tax, against an after-tax passive hold | Effect existed, edge did not |
-| **F3** | Predictability | Out-of-sample ranking of candidate additions beats a naive rank. Publish hit rate and the realized-vs-required skill line | No pre-announcement product; F1a alone is public information |
-| **F4** | Decay | Effect by year. A monotone decline toward zero as passive assets grew is a **stop**, not a smoothing problem | The trade is being arbitraged away; do not fit it harder |
-| **F5** | Capacity and reality | Circuit limits, delivery availability, borrow for the short leg, lot sizes, worst-case impact on the effective-date close | Untradeable at retail size in the names that carry the effect |
+| ID | Gate | Status |
+|---|---|---|
+| **F0** | Event pool | **Done.** 68 events, 43 tradable |
+| **F1** | Public residual | **Closed.** INCONCLUSIVE existence, economic FAIL |
+| **F2-NET** | 45 bps then 20.8% vs after-tax passive | **Closed-not-applicable.** C1 and C2 both closed |
+| **F3-SKILL** | OOS rank vs naive | **PASS** |
+| **F3-RESIDUAL** | C2 basket vs Next 50 ranks 21–50 | **STOP** (+205 vs 300). Book F capital closed |
+| **F4** | Decay | Folded into F3-RESIDUAL as 2015–19 vs 2020–25. Not a standalone peek |
+| **F5** | Tradability | Not opened |
 
-**Rejects:** trading the index rebalance intraday; using options to express it; adding a GBDT before F1 passes; expanding to every global index family to manufacture sample size.
+**Rejects:** re-running any peeked F1 or C2 window; promoting locked companions; GBDT/meta-label; foreign index families for sample size; PIT F&O list or full-NSE panel to rescue C2; options; probability-weighted sizing.
 
-### 1.2 Book G — Earnings drift (second)
+### 1.2 Book G — Earnings drift (research primary)
 
-**Hypothesis.** Results announcements produce residual moves of 100 to 400-plus basis points, so 45 bps of friction is a rounding error rather than the whole trade.
+**Hypothesis.** Results announcements produce residual moves of 100 to 400-plus basis points, so 45 bps of friction is a rounding error rather than the whole trade. On the existing 100-name panel, ~44 quarters give on the order of **thousands** of events. MDE at n≈4,400 and σ=600 is ~25 bps — the only book on this desk where power sits below the candidate effect.
+
+F1 and C2 have verdicts. **G0 is unblocked.**
 
 **Construction:** enter on the first close that provably contains the announcement, direction from the residual against Nifty, hold one to five sessions, disaster losses clipped rather than dropped. Skip the event when the overnight gap has already repriced it.
 
@@ -173,7 +200,7 @@ Language models may build and clean the calendar. They may not pick the side.
 
 ### 1.3 The passive core
 
-Not a research project. Broad index exposure, and optionally a momentum index fund, held beyond twelve months. It exists to (a) hold the capital that Book F cannot deploy, since a low-frequency event book is idle most of the time, and (b) serve as the **after-tax benchmark** every active rupee is measured against.
+Not a research project. Broad index exposure, and optionally a momentum index fund, held beyond twelve months. It exists to (a) hold the capital that active books cannot deploy, and (b) serve as the **after-tax benchmark** every active rupee is measured against.
 
 **Lock:** no gate in this document is passed by beating a pre-tax index line. The comparator is an after-tax passive hold.
 
@@ -195,11 +222,11 @@ Not a research project. Broad index exposure, and optionally a momentum index fu
 
 | Use | Verdict |
 |---|---|
-| Ranking candidate index additions from mechanical eligibility rules | **Yes — the primary modelling job.** Structured, sizeable sample, verifiable out of sample |
+| Ranking candidate index additions from mechanical eligibility rules | **Done (F3-SKILL PASS).** Do not fit a richer ranker. C2 is STOP |
 | Quantile range head for sizing and skip decisions | Yes |
-| Language models to assemble and clean event and results calendars | Yes, as data preparation |
+| Language models to assemble and clean event and results calendars | Yes, as data preparation — G0 |
 | Conformal intervals on event outcomes for position sizing | Yes, after a gate passes |
-| A meta-label model layered on Book F before F1 passes | No |
+| A meta-label model layered on Book F | No |
 | Transformers on bars, headline sentiment as a side, any live language-model gate | No |
 
 The discipline is unchanged: state required skill against the measured ceiling before fitting anything.
@@ -225,15 +252,19 @@ The honest consequence of an event-driven, low-frequency book is that **most of 
 
 ## 5. Capital and expectations
 
-Book F fires on the order of tens of events a year, and cannot hold the whole book. Sizing must be stated honestly against the passive core.
+Active books cannot hold the whole book. Sizing is after-tax against the passive core.
+
+net bps = 0.792 × (gross − 45)
+
+C2 economic hurdle was **300 bps gross** per cycle-basket. The peek printed +205. Capital on this construction is closed.
 
 | Capital | Structure |
 |---|---|
 | Under ₹25L | Passive core only. The fixed operational cost of a desk does not scale down. |
-| ₹25L–₹1Cr | Passive core, plus Book F at a capped active weight, plus Book G if its calendar is free. |
-| ₹1Cr+ | Same, larger per-event size, subject to F5 impact limits. Capacity, not ambition, sets the ceiling. |
+| ₹25L–₹1Cr | Passive core, plus Book G if its calendar is free. No C2 residual. |
+| ₹1Cr+ | Same, larger per-event size, subject to F5. Capacity starts to bind here. |
 
-If Book F clears its gates with, say, 200 bps net per event across 20 deployable events a year at a 25% active weight, that contributes roughly **1% a year over the passive core** — a real but modest number for one decision every few weeks. **Stating that before the peek is the point.** If the honest arithmetic cannot reach a number worth the operational risk, the correct answer is the passive core alone, and that is an allowed and respectable outcome.
+If the honest arithmetic cannot reach a number worth the operational risk, the correct answer is the passive core alone, and that is an allowed and respectable outcome.
 
 ---
 
@@ -249,7 +280,9 @@ If Book F clears its gates with, say, 200 bps net per event across 20 deployable
 | Instrument | Cash delivery. No options. No futures without a passing book and a written case |
 | Tight stops | Forbidden as silent risk control on thin drift. Event books use disaster clips and position caps |
 | Data acquisition | Earned by a cheap in-repo pass. Never the critical path of a first test |
-| Gate validity | Passable by a correct model, inputs can carry the effect, MDE published, statistic matches the claim |
+| Gate validity | Passable by a correct model, inputs can carry the effect, MDE published, statistic matches the claim. **If MDE exceeds the pre-registered economic hurdle, either do not run the gate or pre-register INCONCLUSIVE → STOP** |
+| Residual charters | Every residual charter prints the economic hurdle beside the MDE, before the peek |
+| C1 public window | Permanently closed. Do not re-run F1 / F1a / F1c additions |
 | Live language models in a gate | Forbidden |
 | Cascade-ready claims | Forbidden from this document |
 
@@ -259,11 +292,11 @@ If Book F clears its gates with, say, 200 bps net per event across 20 deployable
 
 | Path | Sentence |
 |---|---|
-| **PASS (F)** | The index-flow effect exists in the Indian sample, survives 45 bps and 20.8% tax against an after-tax passive hold, has not decayed to zero as passive assets grew, and candidate additions are predictable out of sample. |
-| **FAIL (F)** | F1 or F2 fails, or F4 shows monotone decay — the effect has been arbitraged away. Stop. Do not fit it harder or widen to foreign index families. |
+| **PASS (F)** | Not reached. Ranking already PASS. C2 did not GO. |
+| **FAIL (F)** | C1 closed on economics. C2 STOP. Do not fit it harder or widen to foreign index families. |
 | **PASS (G)** | Earnings residual at T+3 clears cost and tax, and not only in the already-repriced tail. |
-| **FAIL (G)** | Stop the event book. Do not substitute headline sentiment. |
-| **FAIL (programme)** | Both fail on passable harnesses. The desk is then a passive core with an audit log — a correct outcome, arrived at in weeks instead of quarters. |
+| **FAIL (G)** | Stop the earnings book. Do not substitute headline sentiment. |
+| **FAIL (programme)** | C2 stopped. If G fails on a passable harness, the desk is then a passive core with an audit log — a correct outcome. |
 
 ---
 
@@ -278,6 +311,10 @@ Dual-judge scoring and merge authority; remounting any closed ledger; the Precis
 | Doc | Relationship |
 |---|---|
 | [forced-flow-execution-plan.md](forced-flow-execution-plan.md) | Milestone map for this blueprint |
+| [forced-flow-status.md](forced-flow-status.md) | Measured pack, 2026-08-19 |
+| [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md) | Rev 3 unblock |
+| [f3-residual-charter.md](f3-residual-charter.md) | C2 peek, written before the run |
+| [f3-residual.md](../archive/f3-residual.md) | C2 STOP memo |
 | [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md) | Working-set freeze: successor stopped, cascade frozen, momentum book withdrawn |
 | [horizon-successor-closed.md](../archive/horizon-successor-closed.md) | Prior product hunt is over; range head is sizing only |
 | [cascade-closed.md](../archive/cascade-closed.md) | Frozen production map, summarized; not a build plan |
@@ -296,7 +333,7 @@ This document contains **no new measurement**. No code was run to produce it.
 | Statutory rates, expiry structure, tax sections (§0.2) | NSE, the Income-tax Act, broker circulars, verified while writing | **Verified.** Re-check at each Finance Act. |
 | Momentum estimates, turnover, drawdown, liquid-slice finding (§0.3) | External studies on other samples and universes | **Cited, not reproduced.** They inform the decision to *decline* that book, which is the conservative direction. |
 | The constraint ladder, the withdrawal of the factor and overlay books, Book F's design and ordering, the platform reduction (§0.2–§4) | This blueprint | **Mine, and arguable.** The gates exist so it can be wrong cheaply. |
-| Event-size, power, and capital sketches | Extrapolated | **Sketches.** Not results. F0 and F1 replace them with counts. |
+| Event-size, power, and capital sketches | Rev 2 Appendix A | **Falsified by F0/F1.** "Well powered" and "hundreds of events" do not hold. Required gross ≈300 bps; MDE was 323 at n=27. |
 
 ---
 
@@ -307,5 +344,6 @@ This document contains **no new measurement**. No code was run to produce it.
 | \(c\) | Instrument round trip: 45 bps delivery, 10–12 bps index futures, 20 bps cash MIS archive |
 | \(\delta\) | Conditional drift over the book's hold |
 | \(\sigma\) | Volatility of the traded object over that hold |
-| F0–F5, G0–G3 | Gates in §1 |
+| F0–F5, G0–G3 | Gates in §1. F2 is **F2-NET** (costs/tax). F&O list changes are **C4**, not F2 |
+| C1–C4 | Book F constructions. C1 closed; C2 STOP; C3 locked companion; C4 deferred |
 | Range head | Remaining-session range forecast — sizing only, never side |

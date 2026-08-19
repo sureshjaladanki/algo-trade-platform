@@ -24,6 +24,16 @@ def first_session_on_or_after(
     return None
 
 
+def first_session_strictly_after(
+    calendar: list[dt.date],
+    day: dt.date,
+) -> dt.date | None:
+    for session in sorted(calendar):
+        if session > day:
+            return session
+    return None
+
+
 def offset_date(
     calendar: list[dt.date],
     index: dict[dt.date, int],

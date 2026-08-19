@@ -1,9 +1,10 @@
 # Retail India desk — Execution Plan
 
-**Authority:** Implements [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) Rev 2  
-**Status:** **ACTIVE** — Horizon Successor product hunt is **STOPPED**. Production cascade frozen. Rev 1's momentum and overlay milestones are **withdrawn** (blueprint §0.3).  
-**Date:** 2026-08-18  
-**Constraint:** Delivery **45 bps** round trip, short-term gains **20.8%**, benchmarked against an **after-tax** passive hold.
+**Authority:** Implements [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) **Rev 3**  
+**Status:** **ACTIVE** — Book F capital closed (C1 economic FAIL; C2 STOP). Ranking retained. Book G is the research primary. Horizon Successor **STOPPED**. Production cascade frozen.  
+**Date:** 2026-08-19  
+**Constraint:** Delivery **45 bps** round trip, short-term gains **20.8%**, benchmarked against an **after-tax** passive hold.  
+**Review:** [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md). **Pack:** [forced-flow-status.md](forced-flow-status.md).
 
 ---
 
@@ -12,7 +13,7 @@
 A milestone map, not a peek charter. Each milestone states why it exists, what to build, what ends it, and what stops it. Peek budgets belong in a follow-on charter derived from a pass.
 
 - Production Regime → Horizon → Precision stays **frozen**. That tree is not on this branch.
-- Rebuild pooled session-block CI + fold sign test, the real purge filter, and the disaster clip from [inherited-learnings.md](../archive/inherited-learnings.md) under `src/events/` when F1 needs them. Do not import a cascade package.
+- Pooled session-block CI, fold sign test, purge filter, and disaster clip live under `src/events/` (F1 used them). Reuse for F3-RESIDUAL and G1. Do not import a cascade package.
 - The range head is a sizing/skip tool after a passing book, not a research track. Rebuild it only if Book F/G asks.
 - No vendor data anywhere in this plan.
 
@@ -32,9 +33,9 @@ A milestone map, not a peek charter. Each milestone states why it exists, what t
 
 ### Global STOP language
 
-If **F1** fails, or **F4** shows the effect decaying monotonically toward zero, stop Book F. Do not widen to foreign index families or fit the residual harder.  
-If **G0** shows the results calendar needs a paid vendor, defer Book G rather than buying data.  
-If Book F and Book G both fail on passable harnesses, the desk is a passive core plus an audit log. Record it and stop.
+If **F3-RESIDUAL** STOPs (including INCONCLUSIVE→STOP) **and** Book G fails on a passable harness, the desk is a passive core plus an audit log. Record it and stop.  
+C1 (announcement→effective) is already closed. Do not re-open it. Do not widen to foreign index families or fit the residual harder.  
+If **G0** shows the results calendar needs a paid vendor, defer Book G rather than buying data.
 
 Before invoking FAIL: the gate must be passable by a correct model, the inputs must be able to carry the effect, the MDE must be published, the pipeline must be wired, the statistic must match the claim, and the hurdle must be the instrument's own.
 
@@ -42,19 +43,20 @@ Before invoking FAIL: the gate must be passable by a correct model, the inputs m
 
 ## Milestone map
 
-| ID | Name | Primary outcome | Hard stop if… |
+| ID | Name | Status | Hard stop if… |
 |---|---|---|---|
-| **P0** | Posture and cost lock | Successor frozen in the working set; delivery and tax constants; daily panel | Cost or tax constants disputed after gates start |
-| **F0** | Event pool | Historical index membership changes reconstructed, counted by year and family | The pool cannot be built from in-repo membership |
-| **F1** | Effect exists | Announcement-to-effective residual vs Nifty, cost-free | No effect, or MDE exceeds it |
-| **F2** | Net of friction and tax | 45 bps then 20.8%, against an after-tax passive hold | Effect existed, edge did not |
-| **F3** | Predictability | Out-of-sample ranking of candidate additions | Only the public post-announcement trade works |
-| **F4** | Decay | Effect by year against passive-asset growth | Monotone decline toward zero |
-| **F5** | Tradability | Circuits, borrow, lots, effective-date impact | Untradeable at retail size where the effect lives |
-| **G0–G3** | Earnings drift | Calendar, then gross, net, and gap-restricted | Calendar needs a vendor, or drift fails |
-| **L0** | Operating loop | Dated instruction list, audit record, reconciliation | Any drift toward tick feeds or intraday logic |
+| **P0** | Posture and cost lock | **Done** | Cost or tax constants disputed after gates start |
+| **F0** | Event pool | **Done** | 68 events, 43 tradable |
+| **F1** | Public residual (C1) | **Closed** | INCONCLUSIVE existence, economic FAIL. Do not re-run |
+| **F2-NET** | 45 bps then 20.8% | **Closed-N/A** | C1 and C2 both closed |
+| **F3-SKILL** | Next 50 FF rank | **PASS** | 66.7% vs 4.1% naive |
+| **F3-RESIDUAL** | C2 predicted top-3 basket | **STOP** | Point +205 < 300 hurdle. Capital closed |
+| **F4** | Decay | **Folded** into F3-RESIDUAL era split | Not a standalone peek at n≈22 |
+| **F5** | Tradability | **Not opened** | C2 was STOP |
+| **G0–G3** | Earnings drift | **G0 open now** | Calendar needs a vendor, or drift fails |
+| **L0** | Operating loop | Not opened | Any drift toward tick feeds or intraday logic |
 
-**P0 → F0 → F1 is the critical path.** Book G runs only in parallel if its calendar turns out to be free. There is no third book.
+**Critical path:** **G0 → G1 → G2 → G3.** Book G is the main line. Book F capital is closed. Do not start L0 before F2-NET on a passing book.
 
 ---
 
@@ -121,103 +123,83 @@ The global index effect has decayed markedly in developed markets as it became w
 
 A three-way verdict with the effect size, interval, MDE, and event count printed together.
 
-### Stop
+### Verdict (2026-08-19)
 
-FAIL, or MDE at or above the effect. In the latter case the verdict is inconclusive and the repair is more event history from the existing panel — never a data purchase, and never a re-run with a different window after seeing the result.
+**Closed.** Additions +26.3 bps (T−20→T) and +51.8 bps (announce→T) against MDE 323.5 bps. INCONCLUSIVE on existence. Economic FAIL: the centre cannot clear 45 bps delivery, and MDE ≈ the ~300 bps gross hurdle, so a product-sized effect would have been seen.
+
+**Windows permanently closed:** T−20→T, announcement→T, T→T+20 additions. Do not re-run with a new estimator, clip, or universe. T−40→T−20 actual-addition companion and F1c deletion companion stay locked.
+
+T−20 sits inside the announcement window. F1-effective was a subset of F1a.
 
 ---
 
-## F2 — Net of friction and tax
+## F2-NET — Net of friction and tax
 
 ### Why
 
 An event book realises gains inside twelve months, so the passive core's 12.5% deferred rate is the comparator, not a pre-tax index line.
 
+**F2 keeps this meaning.** Blueprint F&O list changes are construction **C4**, not F2.
+
 ### Build
 
-Charge 45 bps round trip per event leg, then 20.8% on realized gains, and compare against the after-tax passive series from P0. Publish the per-event net in basis points and the annual contribution implied by the F0 event count at a stated active weight.
+Charge 45 bps round trip per event leg, then 20.8% on realized gains, and compare against the after-tax passive series from P0. Publish the per-event net in basis points and the annual contribution implied by event count at a stated active weight.
 
-### Exit
+### Status
 
-Net lower bound above zero against the after-tax benchmark, plus that annual contribution figure.
+**Closed-not-applicable.** C1 closed on economics. C2 STOP. F2-NET does not re-open on reconstitution.
 
 ### Stop
 
-FAIL, or an annual contribution too small to justify the operational risk. The second case is a legitimate stop even when the statistics pass, and it should be judged against the number written down in the blueprint before the peek.
+FAIL, or an annual contribution too small to justify the operational risk.
 
 ---
 
-## F3 — Predictability
+## F3-SKILL — Predictability (done)
+
+### Verdict
+
+**PASS.** NSE MCWB Next 50 6-month average FF mcap; top-k hit rate 66.7% CI [47.8%, 85.5%] vs naive 4.1%; mean rank 2.67; n=24 scored. 2015–19 76.9%; 2020–25 54.5%. Charter: [f1b-charter.md](f1b-charter.md). Memo: [f1b-pre-announcement.md](../archive/f1b-pre-announcement.md).
+
+Do not fit a richer ranker. C2 equal-weight peek is done (STOP). The F1b memo's "do not open a pre-announcement residual until F1a/F2" is **superseded**.
+
+---
+
+## F3-RESIDUAL — C2 predicted basket (done)
 
 ### Why
 
-Trading after the announcement is public information. The durable version of this book predicts membership changes from the published, largely mechanical eligibility rules before they are announced.
+Ranking is an input. The product is a hold of *predicted* names from a PIT-safe entry to the session after the PR. That window had never been measured with an ex-ante label.
 
-### Build
+### Verdict (2026-08-19)
 
-1. Replicate the ranking rules — free-float market capitalisation and eligibility filters — as of each pre-announcement cut-off, using only data available then.
-2. Rank candidates and evaluate out of sample: hit rate, rank correlation with actual changes, and the realized-versus-required skill line.
-3. Only then, size positions by predicted inclusion probability and reprint F2 on the pre-announcement window.
+**STOP.** Authority (top-3 minus Next 50 ranks 21–50) +204.8 bps, CI [54.6, 353.1], n=22, prior MDE 448, hurdle 300, GO bar 450. Both eras positive (+154 / +247). CI lower bound > 0. Point below the economic hurdle. Companion vs Nifty +236.4. Sensitivity (coverage ≥ 2/3) +175.8. Memo: [f3-residual.md](../archive/f3-residual.md).
 
-### Exit
-
-Out-of-sample ranking beats a naive baseline and the pre-announcement window clears F2, or Book F is limited to whatever F1a supports.
-
-### Stop
-
-Do not fit a large model here before the simple rule replication is evaluated. If the rules cannot be replicated from available fields, say so and keep the public version only.
+Book F capital stops. Do not open F2-NET or F5. Ranking (F3-SKILL) retained.
 
 ---
 
 ## F4 — Decay
 
-### Why
-
-A trade that worked in 2015 and not since is a museum piece. This gate exists to catch that before capital is committed, and it is the one most likely to end the book.
-
-### Build
-
-Effect by year, with event counts, plotted against the growth of passive assets tracking the affected indices. Pre-register what counts as decay before looking.
-
-### Exit
-
-No monotone decline toward zero, or a clear stop.
-
-### Stop
-
-Do not smooth, pool, or reweight the sample to hide a downward trend. That is the geometry sweep in a slower costume.
+Folded into F3-RESIDUAL as 2015–19 vs 2020–25. A standalone peek at n≈22 is not a valid gate.
 
 ---
 
 ## F5 — Tradability
 
-### Why
-
-Effects concentrate in exactly the names that are hardest to trade: small additions, circuit-limited moves, and deletions that cannot be shorted in cash.
-
-### Build
-
-Apply circuit-limit exclusions, delivery availability, lot and rounding constraints, and borrow availability for any short leg. Estimate impact for a retail-sized order at the effective-date close. Reprint F2 on the tradable subset.
-
-### Exit
-
-The tradable subset still clears F2, or the book stops with the reason recorded.
-
-### Stop
-
-Do not drop the tradability mask to recover a result. If the effect lives only where it cannot be traded, that is the finding.
+Not opened. F3-RESIDUAL was STOP.
 
 ---
 
-## G0–G3 — Earnings drift
+## G0–G3 — Earnings drift (research primary)
 
 ### Why
 
-The second-best use of the same harness, and the only other place where the move plausibly dwarfs friction.
+The only book on this desk where MDE sits below the candidate effect. Existing 100-name panel × ~44 quarters ≈ thousands of events; MDE ≈ 25 bps at σ=600 vs 100–400 bps candidate moves. F1 and C2 have verdicts. **G0 is unblocked.**
 
 ### Build
 
-1. **G0:** assemble announcement dates from free sources. If that fails, defer the book. Book F is unaffected.
+1. **G0 (open now, three-day cap):** assemble results dates from free NSE corporate-announcement archives. If not free in three days, defer per the existing rule. Do not buy a vendor. The 100-name panel is the universe — no expansion.
 2. **G1:** residual against Nifty, entry at the first close provably containing the announcement, T+3 as authority with T+1 and T+5 as companions, cost-free, disaster clipped.
 3. **G2:** 45 bps then 20.8% tax against the after-tax benchmark.
 4. **G3:** restricted to events whose overnight gap sits below a pre-registered percentile.
@@ -253,22 +235,18 @@ If the build starts adding a tick feed, an event bus, or intraday logic, stop th
 
 | Elapsed | Work |
 |---|---|
-| Days 1–2 | P0 constants, panel, after-tax benchmark, freeze note |
-| Days 3–4 | F0 event pool and counts; decide which sub-gates are supportable |
-| Days 5–6 | F1 charter and peek, additions and deletions separately |
-| Day 7 | F2 net of friction and tax, with the annual contribution figure |
-| Days 8–10 | F3 rule replication and out-of-sample ranking |
-| Days 11–12 | F4 decay, F5 tradability |
-| Parallel | G0 calendar hunt; G1–G3 only if free |
-| After a pass | L0 shadow run, then fractional live size |
+| Days 1–3 | G0 calendar hunt |
+| Days 4+ | G1 if the calendar is free; else the desk is a passive core plus ranking research and the audit log |
+| After a C2 GO | — not reached |
+| After a G2 pass | L0 shadow run, then fractional live size |
 
-Do not start L0 before F2. Do not open Book G before F1 has a verdict.
+Do not start L0 before F2-NET on a passing book. P0–F3-RESIDUAL are done; do not repeat them.
 
 ---
 
 ## Forbidden in this plan
 
-Any closed ledger; factor sorts; index or single-stock futures; options; intraday logic of any kind; buying an event or results calendar; widening to foreign index families for sample size; fitting a model before the mechanical rule replication in F3; treating an inconclusive verdict as a pass; sample-era friction; cascade-ready claims.
+Any closed ledger; factor sorts; index or single-stock futures; options; intraday logic of any kind; buying an event or results calendar; widening to foreign index families for sample size; fitting a model on Book F; treating an inconclusive F1 residual as a pass; sample-era friction; cascade-ready claims; re-running any peeked F1 or C2 window with a new estimator; promoting either locked companion; building the PIT F&O list or a full-NSE panel to rescue C2; any standalone F4 peek.
 
 ---
 
@@ -276,7 +254,10 @@ Any closed ledger; factor sorts; index or single-stock futures; options; intrada
 
 | Path | Role |
 |---|---|
-| `src/events/` | Event pool construction, ranking rules, cost and tax constants — created at P0 |
+| `src/events/` | Event pool, ranking, residual, stats — created at P0 |
+| `docs/next/forced-flow-status.md` | Measured pack |
+| `docs/archive/forced-flow-architect-review.md` | Unblock review |
+| `docs/next/f3-residual-charter.md` | C2, written before peek |
 | `docs/archive/` | One memo per gate verdict, written after the peek |
 | `logs/` | Fold outputs, following existing convention |
 
@@ -288,7 +269,11 @@ Peeks live under `src/events/` and `src/experiments/` if needed. There is no `sr
 
 | Doc | Role |
 |---|---|
-| [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) | Authority |
+| [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) | Authority, Rev 3 |
+| [forced-flow-status.md](forced-flow-status.md) | Measured pack |
+| [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md) | Unblock review |
+| [f3-residual-charter.md](f3-residual-charter.md) | C2, written before peek |
+| [f3-residual.md](../archive/f3-residual.md) | C2 STOP memo |
 | [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md) | Working-set freeze |
 | [horizon-successor-closed.md](../archive/horizon-successor-closed.md) | Prior programme stop |
 | [cascade-closed.md](../archive/cascade-closed.md) | Frozen production map, summarized |

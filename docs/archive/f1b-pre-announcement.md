@@ -28,4 +28,6 @@ from both files at their cut-offs (not a ticker-alias miss).
 
 ## Book F
 
-Out-of-sample top-k rank beats naive. That is F3 skill, not F2. Do not open a pre-announcement residual until F1a/F2 is passable.
+Out-of-sample top-k rank beats naive. That is F3-SKILL, not F2-NET.
+
+**Superseded (Rev 3):** the previous sentence blocking a pre-announcement residual until F1a/F2 is withdrawn. See [f3-residual-charter.md](../next/f3-residual-charter.md).

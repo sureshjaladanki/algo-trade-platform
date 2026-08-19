@@ -34,3 +34,21 @@ def test_disaster_clip_is_500_bps() -> None:
 
 def test_prior_event_sigma_is_600_bps() -> None:
     assert PRIOR_EVENT_SIGMA_BPS == 600.0
+
+
+def test_f3r_locks() -> None:
+    from src.events.constants import (
+        F3R_CONTROL_RANK_HI,
+        F3R_CONTROL_RANK_LO,
+        F3R_GO_BPS,
+        F3R_K,
+        F3R_PRIOR_SIGMA_BPS,
+        F3R_STOP_BPS,
+    )
+
+    assert F3R_K == 3
+    assert F3R_CONTROL_RANK_LO == 21
+    assert F3R_CONTROL_RANK_HI == 50
+    assert F3R_PRIOR_SIGMA_BPS == 750.0
+    assert F3R_GO_BPS == 450.0
+    assert F3R_STOP_BPS == 300.0

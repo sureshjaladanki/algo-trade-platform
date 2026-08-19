@@ -34,6 +34,18 @@ F1_COMPANION_PRE_SESSIONS = 20  # T-40 close → T-20 close
 # Blueprint Appendix A sketch. Charter MDE uses this; peek also prints sample σ.
 PRIOR_EVENT_SIGMA_BPS = 600.0
 
+# F3-RESIDUAL / C2 (charter locks). Not used by F1.
+F3R_K = 3
+F3R_CONTROL_RANK_LO = 21
+F3R_CONTROL_RANK_HI = 50
+F3R_PRIOR_SIGMA_BPS = 750.0
+F3R_GO_BPS = 450.0
+F3R_STOP_BPS = 300.0
+F3R_MIN_COVERAGE = 2.0 / 3.0
+F3R_START_YEAR = 2015
+F3R_END_YEAR = 2025
+F3R_ERA_SPLIT_YEAR = 2020
+
 FAMILY_NIFTY_50 = "nifty_50"
 
 # NSE Indices Nifty-50 inclusion: 6-month avg FF mcap vs smallest incumbent.
