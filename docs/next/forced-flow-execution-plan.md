@@ -1,7 +1,7 @@
 # Retail India desk — Execution Plan
 
 **Authority:** Implements [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) **Rev 3**  
-**Status:** **ACTIVE** — Book F capital closed (C1 economic FAIL; C2 STOP). Ranking retained. Book G is the research primary. Horizon Successor **STOPPED**. Production cascade frozen.  
+**Status:** **STOPPED** — Book F capital closed (C1 economic FAIL; C2 STOP). Ranking retained. **G0 PASS. G1 PASS** (+33.5 bps). **G2 INCONCLUSIVE / economic FAIL** (gross 33.5 < 45). G3 not opened. Book G closed. Desk is a passive core plus an audit log. Horizon Successor **STOPPED**. Production cascade frozen.  
 **Date:** 2026-08-19  
 **Constraint:** Delivery **45 bps** round trip, short-term gains **20.8%**, benchmarked against an **after-tax** passive hold.  
 **Review:** [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md). **Pack:** [forced-flow-status.md](forced-flow-status.md).
@@ -33,9 +33,9 @@ A milestone map, not a peek charter. Each milestone states why it exists, what t
 
 ### Global STOP language
 
-If **F3-RESIDUAL** STOPs (including INCONCLUSIVE→STOP) **and** Book G fails on a passable harness, the desk is a passive core plus an audit log. Record it and stop.  
+**Invoked.** F3-RESIDUAL STOPPED and Book G failed on a passable harness (G1 n=3543, MDE 28.2; G2 gross 33.5 < 45). The desk is a passive core plus an audit log. Recorded. Stop.  
 C1 (announcement→effective) is already closed. Do not re-open it. Do not widen to foreign index families or fit the residual harder.  
-If **G0** shows the results calendar needs a paid vendor, defer Book G rather than buying data.
+G0 is **PASS**. G1 is **PASS**. G2 is closed. Do not buy a vendor to fill 2025 Integrated Filing. Do not promote G1's T+5 companion.
 
 Before invoking FAIL: the gate must be passable by a correct model, the inputs must be able to carry the effect, the MDE must be published, the pipeline must be wired, the statistic must match the claim, and the hurdle must be the instrument's own.
 
@@ -53,10 +53,10 @@ Before invoking FAIL: the gate must be passable by a correct model, the inputs m
 | **F3-RESIDUAL** | C2 predicted top-3 basket | **STOP** | Point +205 < 300 hurdle. Capital closed |
 | **F4** | Decay | **Folded** into F3-RESIDUAL era split | Not a standalone peek at n≈22 |
 | **F5** | Tradability | **Not opened** | C2 was STOP |
-| **G0–G3** | Earnings drift | **G0 open now** | Calendar needs a vendor, or drift fails |
-| **L0** | Operating loop | Not opened | Any drift toward tick feeds or intraday logic |
+| **G0–G3** | Earnings drift | **Closed** | G1 PASS; G2 INCONCLUSIVE / economic FAIL. G3 not opened |
+| **L0** | Operating loop | Not opened | No passing book remains |
 
-**Critical path:** **G0 → G1 → G2 → G3.** Book G is the main line. Book F capital is closed. Do not start L0 before F2-NET on a passing book.
+**Critical path:** closed. G0 PASS, G1 PASS, G2 INCONCLUSIVE / economic FAIL. G3 not opened. Book F capital is closed. Do not start L0.
 
 ---
 
@@ -195,18 +195,18 @@ Not opened. F3-RESIDUAL was STOP.
 
 ### Why
 
-The only book on this desk where MDE sits below the candidate effect. Existing 100-name panel × ~44 quarters ≈ thousands of events; MDE ≈ 25 bps at σ=600 vs 100–400 bps candidate moves. F1 and C2 have verdicts. **G0 is unblocked.**
+The only book on this desk where MDE sat below the candidate effect. G0 assembled 3,586 quarterly filings on 95 of 100 GOLDEN names. G1 n=3,543, MDE 28.2 bps. **G0 PASS. G1 PASS** (+33.5 bps, CI [22.6, 45.8]). **G2 INCONCLUSIVE / economic FAIL** (net −9.1; gross 33.5 < 45). G3 not opened. Book G is closed.
 
 ### Build
 
-1. **G0 (open now, three-day cap):** assemble results dates from free NSE corporate-announcement archives. If not free in three days, defer per the existing rule. Do not buy a vendor. The 100-name panel is the universe — no expansion.
-2. **G1:** residual against Nifty, entry at the first close provably containing the announcement, T+3 as authority with T+1 and T+5 as companions, cost-free, disaster clipped.
-3. **G2:** 45 bps then 20.8% tax against the after-tax benchmark.
-4. **G3:** restricted to events whose overnight gap sits below a pre-registered percentile.
+1. **G0 (closed PASS):** free NSE `corporates-financial-results` JSON, GOLDEN panel only. Charter: [g0-charter.md](g0-charter.md). Memo: [g0-calendar.md](../archive/g0-calendar.md). Do not re-hunt; do not buy a vendor for 2025.
+2. **G1 (closed PASS):** T+3 +33.5 bps, CI [22.6, 45.8], n=3543, MDE 28.2, fold 11/11. Charter: [g1-charter.md](g1-charter.md). Memo: [g1-earnings-drift.md](../archive/g1-earnings-drift.md). T+5 companion is not authority.
+3. **G2 (closed INCONCLUSIVE / economic FAIL):** net −9.1 bps, CI [−17.8, 0.6]. Gross 33.5 < 45 delivery. Charter: [g2-charter.md](g2-charter.md). Memo: [g2-net.md](../archive/g2-net.md).
+4. **G3:** not opened. Charter: [g3-charter.md](g3-charter.md).
 
 ### Stop
 
-G1 FAIL stops the book. If G3 shows the edge exists only where the gap already repriced the news, there is no trade. Do not add guidance or sentiment models in the same milestone.
+G1 PASSed; G2 did not. Do not promote T+5. Do not add guidance or sentiment. G3 stays closed.
 
 ---
 
@@ -235,18 +235,18 @@ If the build starts adding a tick feed, an event bus, or intraday logic, stop th
 
 | Elapsed | Work |
 |---|---|
-| Days 1–3 | G0 calendar hunt |
-| Days 4+ | G1 if the calendar is free; else the desk is a passive core plus ranking research and the audit log |
+| Done | G1 PASS; G2 INCONCLUSIVE / economic FAIL; G3 not opened |
+| After G1 PASS | G2 ran; Book G stopped |
 | After a C2 GO | — not reached |
-| After a G2 pass | L0 shadow run, then fractional live size |
+| After a G2 pass | — not reached. L0 stays closed |
 
-Do not start L0 before F2-NET on a passing book. P0–F3-RESIDUAL are done; do not repeat them.
+Do not start L0. P0–G2 are done; do not repeat them. Do not promote G1 T+5.
 
 ---
 
 ## Forbidden in this plan
 
-Any closed ledger; factor sorts; index or single-stock futures; options; intraday logic of any kind; buying an event or results calendar; widening to foreign index families for sample size; fitting a model on Book F; treating an inconclusive F1 residual as a pass; sample-era friction; cascade-ready claims; re-running any peeked F1 or C2 window with a new estimator; promoting either locked companion; building the PIT F&O list or a full-NSE panel to rescue C2; any standalone F4 peek.
+Any closed ledger; factor sorts; index or single-stock futures; options; intraday logic of any kind; buying an event or results calendar; widening to foreign index families for sample size; fitting a model on Book F; treating an inconclusive F1 residual as a pass; sample-era friction; cascade-ready claims; re-running any peeked F1, C2, G1, or G2 window with a new estimator; promoting either locked F1 companion or G1 T+5; building the PIT F&O list or a full-NSE panel to rescue C2; any standalone F4 peek; buying a vendor to fill 2025 Integrated Filing; opening G3 or L0.
 
 ---
 
@@ -258,6 +258,10 @@ Any closed ledger; factor sorts; index or single-stock futures; options; intrada
 | `docs/next/forced-flow-status.md` | Measured pack |
 | `docs/archive/forced-flow-architect-review.md` | Unblock review |
 | `docs/next/f3-residual-charter.md` | C2, written before peek |
+| `docs/next/g0-charter.md` | G0, written before the hunt |
+| `docs/next/g1-charter.md` | G1, written before the peek |
+| `docs/next/g2-charter.md` | G2, written before the G1 peek |
+| `docs/next/g3-charter.md` | G3, written before the G1 peek; not opened |
 | `docs/archive/` | One memo per gate verdict, written after the peek |
 | `logs/` | Fold outputs, following existing convention |
 
@@ -274,6 +278,13 @@ Peeks live under `src/events/` and `src/experiments/` if needed. There is no `sr
 | [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md) | Unblock review |
 | [f3-residual-charter.md](f3-residual-charter.md) | C2, written before peek |
 | [f3-residual.md](../archive/f3-residual.md) | C2 STOP memo |
+| [g0-charter.md](g0-charter.md) | G0, written before the hunt |
+| [g0-calendar.md](../archive/g0-calendar.md) | G0 PASS memo |
+| [g1-charter.md](g1-charter.md) | G1, written before the peek |
+| [g1-earnings-drift.md](../archive/g1-earnings-drift.md) | G1 PASS memo |
+| [g2-charter.md](g2-charter.md) | G2, written before the G1 peek |
+| [g2-net.md](../archive/g2-net.md) | G2 INCONCLUSIVE / economic FAIL |
+| [g3-charter.md](g3-charter.md) | G3, written before the G1 peek; gate not opened |
 | [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md) | Working-set freeze |
 | [horizon-successor-closed.md](../archive/horizon-successor-closed.md) | Prior programme stop |
 | [cascade-closed.md](../archive/cascade-closed.md) | Frozen production map, summarized |

@@ -1,7 +1,7 @@
 # Retail India desk — Architecture Blueprint
 
 **Market:** NSE India. The product is **not** Nifty-100 cash MIS, remaining-session straddles, same-session fade, or a home-built factor sort.  
-**Status:** **BLUEPRINT Rev 3** — F0/F1/C2 measured. Public reconstitution residual **closed** (economic FAIL). Predicted-basket leftover **STOP** (+205 bps vs 300 hurdle). Ranking retained. Book G is the research primary. Rev 2's "well powered" sketch is **falsified** (§0.5). Not a dual-judge charter. Not a merge authority. Production cascade stays frozen.  
+**Status:** **BLUEPRINT Rev 3** — F0/F1/C2 measured. Public reconstitution residual **closed** (economic FAIL). Predicted-basket leftover **STOP** (+205 bps vs 300 hurdle). Ranking retained. **G0 PASS. G1 PASS** (+33.5 bps). **G2 INCONCLUSIVE / economic FAIL** (gross 33.5 < 45). G3 not opened. Book G closed. Desk is a passive core plus an audit log. Rev 2's "well powered" sketch is **falsified** (§0.5). Not a dual-judge charter. Not a merge authority. Production cascade stays frozen.  
 **Date:** 2026-08-19  
 **Review:** [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md)  
 **Depends on (facts, not reopen):** [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md), [horizon-successor-closed.md](../archive/horizon-successor-closed.md), [cascade-closed.md](../archive/cascade-closed.md), [fresh-closed.md](../archive/fresh-closed.md), [inherited-learnings.md](../archive/inherited-learnings.md)
@@ -12,7 +12,7 @@
 
 ## One-line
 
-For Indian retail, the **tax wrapper and the inference budget** decide what is viable before any alpha question. Low-frequency reconstitution leftovers cannot clear 45 bps. Ranking of Next 50 is a research asset. The research primary is **earnings drift (Book G)**, which has both a large candidate effect and a large event count.
+For Indian retail, the **tax wrapper and the inference budget** decide what is viable before any alpha question. Low-frequency reconstitution leftovers cannot clear 45 bps. Ranking of Next 50 is a research asset. Earnings drift exists at T+3 (+33.5 bps) and **does not clear 45 bps delivery**. The desk is a passive core.
 
 ---
 
@@ -124,7 +124,7 @@ The T−40→T−20 companion on *actual* additions printed +538 bps (look-ahead
 
 ## 1. Product architecture
 
-**One research primary. Ranking retained. No Book F residual capital.**
+**One research primary, now closed. Ranking retained. No Book F residual capital. No Book G residual capital.**
 
 ```
 Passive core (capital, not research)
@@ -132,9 +132,11 @@ Passive core (capital, not research)
   Held > 12 months for 12.5% LTCG
   After-tax benchmark
 
-Book G — EARNINGS DRIFT (research primary)
-  Announcement-dated residual, 1 to 5 sessions
-  G0 from free sources; thousands of events on the existing 100-name panel
+Book G — EARNINGS DRIFT (closed)
+  G0 PASS — 3,586 quarterly filings
+  G1 PASS — T+3 +33.5 bps, n=3543, MDE 28.2
+  G2 INCONCLUSIVE / economic FAIL — net −9.1; gross 33.5 < 45
+  G3 not opened
 
 Book F — FORCED FLOW (ranking retained; residual capital closed)
   C2  Predicted Next 50 top-3 — STOP (+205 vs 300)
@@ -181,20 +183,20 @@ C2 used **equal weight, fixed k = 3**. Probability-weighted sizing is forbidden.
 
 **Rejects:** re-running any peeked F1 or C2 window; promoting locked companions; GBDT/meta-label; foreign index families for sample size; PIT F&O list or full-NSE panel to rescue C2; options; probability-weighted sizing.
 
-### 1.2 Book G — Earnings drift (research primary)
+### 1.2 Book G — Earnings drift (closed)
 
-**Hypothesis.** Results announcements produce residual moves of 100 to 400-plus basis points, so 45 bps of friction is a rounding error rather than the whole trade. On the existing 100-name panel, ~44 quarters give on the order of **thousands** of events. MDE at n≈4,400 and σ=600 is ~25 bps — the only book on this desk where power sits below the candidate effect.
+**Hypothesis.** Results announcements produce residual moves of 100 to 400-plus basis points, so 45 bps of friction is a rounding error rather than the whole trade. On the existing 100-name panel, ~44 quarters give on the order of **thousands** of events. MDE at n≈3,543 and σ=600 is 28 bps — the only book on this desk where power sat below the candidate effect.
 
-F1 and C2 have verdicts. **G0 is unblocked.**
+F1 and C2 have verdicts. **G0 PASS.** **G1 PASS** (+33.5 bps). **G2 INCONCLUSIVE / economic FAIL.** G3 not opened. Working sample 2015 through early 2025. Do not buy a vendor to fill 2025. Do not promote T+5.
 
-**Construction:** enter on the first close that provably contains the announcement, direction from the residual against Nifty, hold one to five sessions, disaster losses clipped rather than dropped. Skip the event when the overnight gap has already repriced it.
+**Construction (measured):** enter on the first close that provably contains the announcement, direction = sign of T−1→T residual vs Nifty, hold T→T+3, disaster losses clipped rather than dropped.
 
-| ID | Gate | Rule | If FAIL |
+| ID | Gate | Rule | Verdict |
 |---|---|---|---|
-| **G0** | Calendar | Announcement dates assembled from free sources | Needs a paid vendor → **defer Book G entirely**. Do not put data acquisition on the critical path of a first test. |
-| **G1** | Drift, gross | T+3 residual authority, T+1 and T+5 companions, cost-free | Stop. Do not scan other event types in the same peek. |
-| **G2** | Net | 45 bps then 20.8% tax | Edge below friction |
-| **G3** | Gap-already-in | Restricted to events with a small overnight gap | If only the repriced tail works, there is no trade |
+| **G0** | Calendar | 3,586 first-broadcast quarterly filings on 95 of 100 GOLDEN names | **PASS.** Closed. |
+| **G1** | Drift, gross | T+3 residual authority, T+1 and T+5 companions, cost-free | **PASS** +33.5 bps, CI [22.6, 45.8], n=3543. T+5 companion +47.2 — do not promote. |
+| **G2** | Net | 45 bps then 20.8% tax | **INCONCLUSIVE / economic FAIL.** Net −9.1, CI [−17.8, 0.6]. Gross 33.5 < 45. |
+| **G3** | Gap-already-in | Restricted to events with a small overnight gap | **Not opened.** |
 
 Language models may build and clean the calendar. They may not pick the side.
 
@@ -261,8 +263,8 @@ C2 economic hurdle was **300 bps gross** per cycle-basket. The peek printed +205
 | Capital | Structure |
 |---|---|
 | Under ₹25L | Passive core only. The fixed operational cost of a desk does not scale down. |
-| ₹25L–₹1Cr | Passive core, plus Book G if its calendar is free. No C2 residual. |
-| ₹1Cr+ | Same, larger per-event size, subject to F5. Capacity starts to bind here. |
+| ₹25L–₹1Cr | Passive core only. Book G did not clear delivery. No C2 residual. |
+| ₹1Cr+ | Passive core only. |
 
 If the honest arithmetic cannot reach a number worth the operational risk, the correct answer is the passive core alone, and that is an allowed and respectable outcome.
 
@@ -283,6 +285,7 @@ If the honest arithmetic cannot reach a number worth the operational risk, the c
 | Gate validity | Passable by a correct model, inputs can carry the effect, MDE published, statistic matches the claim. **If MDE exceeds the pre-registered economic hurdle, either do not run the gate or pre-register INCONCLUSIVE → STOP** |
 | Residual charters | Every residual charter prints the economic hurdle beside the MDE, before the peek |
 | C1 public window | Permanently closed. Do not re-run F1 / F1a / F1c additions |
+| G1 / G2 | Permanently closed. Do not re-run. Do not promote T+5. Do not open G3 |
 | Live language models in a gate | Forbidden |
 | Cascade-ready claims | Forbidden from this document |
 
@@ -294,9 +297,9 @@ If the honest arithmetic cannot reach a number worth the operational risk, the c
 |---|---|
 | **PASS (F)** | Not reached. Ranking already PASS. C2 did not GO. |
 | **FAIL (F)** | C1 closed on economics. C2 STOP. Do not fit it harder or widen to foreign index families. |
-| **PASS (G)** | Earnings residual at T+3 clears cost and tax, and not only in the already-repriced tail. |
-| **FAIL (G)** | Stop the earnings book. Do not substitute headline sentiment. |
-| **FAIL (programme)** | C2 stopped. If G fails on a passable harness, the desk is then a passive core with an audit log — a correct outcome. |
+| **PASS (G)** | Not reached. G1 existed; G2 did not clear 45 bps. |
+| **FAIL (G)** | G2 INCONCLUSIVE / economic FAIL. Stop the earnings book. Do not substitute headline sentiment. Do not promote T+5. |
+| **FAIL (programme)** | **Invoked.** C2 stopped. G failed on a passable harness. The desk is a passive core with an audit log. |
 
 ---
 
@@ -315,6 +318,13 @@ Dual-judge scoring and merge authority; remounting any closed ledger; the Precis
 | [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md) | Rev 3 unblock |
 | [f3-residual-charter.md](f3-residual-charter.md) | C2 peek, written before the run |
 | [f3-residual.md](../archive/f3-residual.md) | C2 STOP memo |
+| [g0-charter.md](g0-charter.md) | G0, written before the hunt |
+| [g0-calendar.md](../archive/g0-calendar.md) | G0 PASS memo |
+| [g1-charter.md](g1-charter.md) | G1, written before the peek |
+| [g1-earnings-drift.md](../archive/g1-earnings-drift.md) | G1 PASS memo |
+| [g2-charter.md](g2-charter.md) | G2, written before the G1 peek |
+| [g2-net.md](../archive/g2-net.md) | G2 INCONCLUSIVE / economic FAIL |
+| [g3-charter.md](g3-charter.md) | G3, written before the G1 peek; not opened |
 | [forced-flow-freeze-note.md](../archive/forced-flow-freeze-note.md) | Working-set freeze: successor stopped, cascade frozen, momentum book withdrawn |
 | [horizon-successor-closed.md](../archive/horizon-successor-closed.md) | Prior product hunt is over; range head is sizing only |
 | [cascade-closed.md](../archive/cascade-closed.md) | Frozen production map, summarized; not a build plan |

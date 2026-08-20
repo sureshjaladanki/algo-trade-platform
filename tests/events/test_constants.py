@@ -36,6 +36,22 @@ def test_prior_event_sigma_is_600_bps() -> None:
     assert PRIOR_EVENT_SIGMA_BPS == 600.0
 
 
+def test_g1_locks() -> None:
+    from src.events.constants import (
+        G1_AUTHORITY_SESSIONS,
+        G1_FAR_SESSIONS,
+        G1_NEAR_SESSIONS,
+        G3_GAP_PERCENTILE,
+        NSE_EQUITY_CLOSE,
+    )
+
+    assert G1_AUTHORITY_SESSIONS == 3
+    assert G1_NEAR_SESSIONS == 1
+    assert G1_FAR_SESSIONS == 5
+    assert NSE_EQUITY_CLOSE.hour == 15 and NSE_EQUITY_CLOSE.minute == 30
+    assert G3_GAP_PERCENTILE == 50.0
+
+
 def test_f3r_locks() -> None:
     from src.events.constants import (
         F3R_CONTROL_RANK_HI,

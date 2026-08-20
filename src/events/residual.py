@@ -34,6 +34,27 @@ def first_session_strictly_after(
     return None
 
 
+def first_close_containing(
+    calendar: list[dt.date],
+    event_at: dt.datetime,
+    close_time: dt.time,
+    index: dict[dt.date, int] | None = None,
+) -> dt.date | None:
+    """First session close that is known to contain the broadcast.
+
+    Date-only stamps (midnight) cannot prove the same-day close contained
+    the filing; those map to the first session strictly after the date.
+    Filings at or after ``close_time`` map the same way.
+    """
+    day = event_at.date()
+    if event_at.time() == dt.time.min or event_at.time() >= close_time:
+        return first_session_strictly_after(calendar, day)
+    sessions = index if index is not None else session_index(calendar)
+    if day in sessions:
+        return day
+    return first_session_on_or_after(calendar, day)
+
+
 def offset_date(
     calendar: list[dt.date],
     index: dict[dt.date, int],

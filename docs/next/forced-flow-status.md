@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-19. **Branch:** `forced-flow`.  
 **Authority:** [forced-flow-architecture-blueprint.md](forced-flow-architecture-blueprint.md) Rev 3, [forced-flow-execution-plan.md](forced-flow-execution-plan.md).  
-**Question for review:** answered. C2 / F3-RESIDUAL is **STOP** (+205 bps vs 300 hurdle). Book F capital closed. Ranking retained. Next spend: G0. See [forced-flow-architect-review.md](../archive/forced-flow-architect-review.md), [f3-residual.md](../archive/f3-residual.md).
+**Question for review:** answered. C2 STOP. G0 **PASS**. G1 **PASS** (+33.5 bps). G2 **INCONCLUSIVE / economic FAIL** (gross 33.5 < 45). G3 not opened. Next spend: none. Desk is a passive core plus an audit log. See [g1-earnings-drift.md](../archive/g1-earnings-drift.md), [g2-net.md](../archive/g2-net.md).
 
 This is a status pack, not a peek charter. Numbers below are already measured. Windows are not to be moved after seeing them.
 
@@ -10,7 +10,7 @@ This is a status pack, not a peek charter. Numbers below are already measured. W
 
 ## Programme posture
 
-Retail India desk, cash delivery only. Passive core is the after-tax benchmark. Book G (earnings drift) is the research primary. Book F ranking skill is retained; C1 public residual and C2 predicted-basket residual are both closed. Production cascade and Horizon Successor stay frozen.
+Retail India desk, cash delivery only. Passive core is the after-tax benchmark. Book G is **closed** (G1 PASS, G2 economic FAIL). Book F ranking skill is retained; C1 public residual and C2 predicted-basket residual are both closed. Production cascade and Horizon Successor stay frozen.
 
 | Lock | Value |
 |---|---|
@@ -38,8 +38,8 @@ Retail India desk, cash delivery only. Passive core is the after-tax benchmark. 
 | **F3-RESIDUAL** | Hold predicted top-3 to PR | Done | **STOP** +205 vs 300 hurdle |
 | **F4** | Decay | Folded into C2 eras | No standalone peek |
 | **F5** | Tradability | Not opened | C2 was STOP |
-| **G0–G3** | Earnings drift | **G0 open** | Primary research line |
-| **L0** | Operating loop | Not opened | After F2-NET on a passing book |
+| **G0–G3** | Earnings drift | **Closed** | G0 PASS; G1 PASS +33.5; G2 INCONCLUSIVE / economic FAIL; G3 not opened |
+| **L0** | Operating loop | Not opened | No passing book remains |
 
 ---
 
@@ -149,6 +149,63 @@ Year prints (authority bps): 2015 +183, 2016 +266, 2017 +201, 2018 +437, 2019 �
 
 ---
 
+## G0 — Results calendar (closed PASS)
+
+Free NSE `corporates-financial-results` JSON, GOLDEN 100-name panel, quarterly only. First broadcast per `(symbol, period_end)`. Charter: [g0-charter.md](g0-charter.md). Memo: [g0-calendar.md](../archive/g0-calendar.md). Not a residual peek.
+
+| | |
+|---|---|
+| Names with ≥1 filing | **95 / 100** |
+| Events after first-broadcast dedup | **3,586** |
+| Span | 2015-01-15 17:12:03 .. 2025-02-17 22:32:13 |
+| G1 MDE at this n, σ=600 | **28.1 bps** |
+| Missing | ENRIN.NS, HDFCLIFE.NS, SBILIFE.NS, TATACAP.NS, TMCV.NS |
+| 2025 events | 95 (thin — Integrated Filing) |
+
+Working sample for G1 is 2015 through early 2025. Do not buy a vendor to fill 2025.
+
+---
+
+## G1 — Earnings drift, gross (closed PASS)
+
+Charter: [g1-charter.md](g1-charter.md). Memo: [g1-earnings-drift.md](../archive/g1-earnings-drift.md). Module `src/events/g1.py`.
+
+T = first session close that contains the NSE timestamp (15:30 cutoff). Side = sign of T−1 close → T close residual vs Nifty. Authority = T close → T+3 close. Cost-free. Disaster clip −500. Overnight skip is G3, not this gate.
+
+| Sleeve | n | Prior MDE | Point | 95% CI | Sample σ | Eras | Verdict |
+|---|---|---|---|---|---|---|---|
+| Authority T+3 | 3543 | 28.2 | **+33.5** | [+22.6, +45.8] | 321.2 | +27.5 / +38.7 | **PASS** |
+| Companion T+1 | 3543 | 28.2 | +10.0 | [+3.1, +17.6] | 202.7 | +4.8 / +14.4 | INCONCLUSIVE |
+| Companion T+5 | 3543 | 28.2 | +47.2 | [+34.1, +59.7] | 384.8 | +42.5 / +51.1 | PASS — **do not promote** |
+
+Fold sign 11/11. Both era halves positive. CI lower bound > 0. Point 33.5 > MDE 28.2. Sessions clustered: 1033 unique T dates.
+
+Year prints (authority bps): 2015 +62, 2016 +32, 2017 +4, 2018 +5, 2019 +40, 2020 +57, 2021 +63, 2022 +36, 2023 +20, 2024 +26, 2025 +12.
+
+**Do not** move authority to T+5 after seeing it.
+
+---
+
+## G2 — Net of delivery and STCG (closed)
+
+Charter: [g2-charter.md](g2-charter.md). Memo: [g2-net.md](../archive/g2-net.md). Module `src/events/g2.py`.
+
+net = 0.792 × (gross − 45) on the clipped G1 T+3 residual.
+
+| Sleeve | n | Prior MDE | Point | 95% CI | Sample σ | Eras | Verdict |
+|---|---|---|---|---|---|---|---|
+| T+3 net | 3543 | 28.2 | **−9.1** | [−17.8, +0.6] | 254.4 | −13.9 / −5.0 | **INCONCLUSIVE** |
+
+G1 gross 33.5 < 45 delivery → **economic FAIL**. Fold sign 3/11. Sample MDE 12.0 ≥ 9.1. G3 not opened.
+
+---
+
+## G3 — Gap already in (not opened)
+
+Charter: [g3-charter.md](g3-charter.md) was written before the G1 peek. G2 did not PASS. Do not open G3.
+
+---
+
 ## Naming (Rev 3)
 
 Gates keep F-numbers. Constructions are C1–C4.
@@ -159,6 +216,10 @@ Gates keep F-numbers. Constructions are C1–C4.
 | **C4** | F&O list entry/exit (deferred; was colliding with F2) |
 | **F3-SKILL** | Ranking hit rate — **PASS** |
 | **F3-RESIDUAL** | C2 predicted basket, cut-off → session after PR — **STOP** (+205 vs 300) |
+| **G0** | Free NSE quarterly results calendar — **PASS** (3,586 events, 95 names) |
+| **G1** | T+3 residual vs Nifty — **PASS** (+33.5 bps, n=3543) |
+| **G2** | 45 bps then 20.8% — **INCONCLUSIVE / economic FAIL** (net −9.1; gross 33.5 < 45) |
+| **G3** | Small overnight-gap sleeve — **not opened** |
 
 ---
 
@@ -176,12 +237,16 @@ Gates keep F-numbers. Constructions are C1–C4.
 - Start L0 before F2-NET on a passing book
 - Treat F3-RESIDUAL STOP (or INCONCLUSIVE) as anything other than closed Book F capital
 - Re-run C2 with a new control, coverage rule, or estimator
+- Run G1 without a written-before-peek charter
+- Buy a vendor to fill 2025 Integrated Filing, or expand the GOLDEN panel for Book G
+- Re-run G1 or G2 with a new estimator, clip, or window
+- Promote G1 T+5 (or T+1) after seeing the companion
+- Open G3 or L0
 
 ---
 
 ## Next spend (Rev 3)
 
-1. **G0** — free NSE corporate-announcement archives, existing 100-name panel, three-day cap. Book G is the research primary.
-2. Book F is ranking research only. No further residual capital on reconstitution.
+None. Global STOP is invoked: F3-RESIDUAL STOPPED and Book G failed on a passable harness. The desk is a **passive core plus an audit log**.
 
-C1 and C2 are closed. Ranking is retained. G remains the only open research line.
+C1 and C2 are closed. Ranking is retained. G0 and G1 are closed PASS. G2 closed the earnings book. G3 was not opened.

@@ -1,5 +1,7 @@
 """Book F / G cost and tax constants. Locked before any peek (execution plan P0)."""
 
+import datetime as dt
+
 BPS = 10_000.0
 
 # Cash delivery, working round trip (blueprint §0.2).
@@ -45,6 +47,16 @@ F3R_MIN_COVERAGE = 2.0 / 3.0
 F3R_START_YEAR = 2015
 F3R_END_YEAR = 2025
 F3R_ERA_SPLIT_YEAR = 2020
+
+# G1–G3 earnings drift. Locks written into the G charters before the peek.
+G1_AUTHORITY_SESSIONS = 3
+G1_NEAR_SESSIONS = 1
+G1_FAR_SESSIONS = 5
+G1_ERA_SPLIT_YEAR = 2020
+# Official NSE equity close. Filings at or after this stamp are not in that close.
+NSE_EQUITY_CLOSE = dt.time(15, 30)
+G2_ACTIVE_WEIGHT = 0.25
+G3_GAP_PERCENTILE = 50.0
 
 FAMILY_NIFTY_50 = "nifty_50"
 

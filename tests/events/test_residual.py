@@ -1,3 +1,5 @@
+# Naive IST stamps, matching NSE session close.
+# ruff: noqa: DTZ001
 import datetime as dt
 
 import polars as pl
@@ -38,3 +40,26 @@ def test_window_residual_skips_missing_close() -> None:
         window_residual_bps(panel, "FOO.NS", dt.date(2020, 1, 1), dt.date(2020, 1, 2))
         is None
     )
+
+
+def test_first_close_containing_maps_after_hours_to_next_session() -> None:
+    from src.events.constants import NSE_EQUITY_CLOSE
+    from src.events.residual import first_close_containing
+
+    calendar = [dt.date(2020, 1, 2), dt.date(2020, 1, 3), dt.date(2020, 1, 6)]
+    same_day = first_close_containing(
+        calendar, dt.datetime(2020, 1, 2, 14, 0), NSE_EQUITY_CLOSE
+    )
+    after_hours = first_close_containing(
+        calendar, dt.datetime(2020, 1, 2, 16, 0), NSE_EQUITY_CLOSE
+    )
+    date_only = first_close_containing(
+        calendar, dt.datetime(2020, 1, 2, 0, 0), NSE_EQUITY_CLOSE
+    )
+    weekend = first_close_containing(
+        calendar, dt.datetime(2020, 1, 4, 12, 0), NSE_EQUITY_CLOSE
+    )
+    assert same_day == dt.date(2020, 1, 2)
+    assert after_hours == dt.date(2020, 1, 3)
+    assert date_only == dt.date(2020, 1, 3)
+    assert weekend == dt.date(2020, 1, 6)
