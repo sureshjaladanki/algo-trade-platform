@@ -1,0 +1,31 @@
+{
+  // Repo-level agent permissions. Concatenated with ~/.cursor/permissions.json if that file exists.
+  // A non-empty terminalAllowlist currently forces Allowlist run mode (Auto-review unavailable).
+  "mcpAllowlist": [
+    "*:WebSearch"
+  ],
+  "terminalAllowlist": [
+    "git status",
+    "git diff",
+    "git log",
+    "git show",
+    "Get-ChildItem *",
+    "poetry run pytest",
+    "poetry run ruff",
+    "poetry run python",
+    "poetry run pre-commit"
+  ],
+  "autoRun": {
+    "allow_instructions": [
+      "Read-only git inspections (status, diff, log, show) in this repo are fine.",
+      "poetry run pytest, poetry run ruff, poetry run python, and poetry run pre-commit are fine.",
+      "Web search for public documentation and current facts is fine."
+    ],
+    "block_instructions": [
+      "Ask before git push, git reset --hard, git rebase, or anything that changes remotes.",
+      "Ask before pip install or creating a second venv; this repo is Poetry-managed.",
+      "Ask before poetry add, poetry lock, or other dependency changes unless the user requested them.",
+      "Ask before deleting files or writing outside the workspace."
+    ]
+  }
+}

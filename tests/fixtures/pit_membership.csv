@@ -1,0 +1,6 @@
+symbol,start_date,end_date,event
+AAPL,2005-01-03,,listed
+MSFT,2005-01-03,,listed
+SIVB,2008-01-02,2023-03-10,delisted
+ABNB,2020-12-10,,ipo
+VTI,2005-01-03,,listed

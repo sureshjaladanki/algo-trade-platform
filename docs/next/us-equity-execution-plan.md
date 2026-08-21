@@ -44,10 +44,10 @@ Milestones run in sequence. A book's milestones may not begin before P0, U0, and
 
 | ID | Name | Status | Hard stop if… |
 |---|---|---|---|
-| **P0** | Posture and cost lock | Not started | Modelled costs cannot be pinned within 3 bps / 0.3% of premium against real broker fills |
-| **U0** | Universe and point-in-time panel | Not started | Delisted coverage is unavailable at acceptable cost → equity single-name books close |
-| **H0** | Hurdle and inference design | Not started | Every candidate book's MDE exceeds 0.5 × its hypothesized effect → programme stops at H0 |
-| **C1** | Book C — tax and location accounting proof | Not started | After-tax excess vs static VTI < 25 bps/yr → harvest module dropped, location/bands kept |
+| **P0** | Posture and cost lock | Software green; 200 broker fills outstanding | Modelled costs cannot be pinned within 3 bps / 0.3% of premium against real broker fills |
+| **U0** | Universe and point-in-time panel | Fixture panel + tests green; Polygon dump outstanding | Delisted coverage is unavailable at acceptable cost → equity single-name books close |
+| **H0** | Hurdle and inference design | **Complete** | Every candidate book's MDE exceeds 0.5 × its hypothesized effect → programme stops at H0 |
+| **C1** | Book C — tax and location accounting proof | **Complete** (35.5 bps/yr, 0 washes, representative lots) | After-tax excess vs static VTI < 25 bps/yr → harvest module dropped, location/bands kept |
 | **C2** | Book C — shadow year | Not started | Realized after-tax excess < 15 bps or any wash-sale violation reaches a filing |
 | **A1** | Book A — VRP existence | Not started | Mean implied-minus-realized in the 20–25 delta bucket ≤ modelled round-trip cost |
 | **A2** | Book A — economics and ETF benchmark | Not started | After-tax sleeve fails to beat PUTW-equivalent by 75 bps/yr, or sleeve Sharpe < 0.4, or sleeve max DD > 25% of sleeve notional |

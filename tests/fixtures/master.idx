@@ -1,0 +1,8 @@
+Description:           Master Index of EDGAR Dissemination Feed
+Last Data Received:    February 1, 2024
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+
+CIK|Company Name|Form Type|Date Filed|Filename
+--------------------------------------------------------------------------------
+0000320193|Apple Inc.|8-K|2024-02-01|edgar/data/320193/0000320193-24-000001.txt
+0000789019|MICROSOFT CORP|10-Q|2024-01-30|edgar/data/789019/0001193125-24-000002.txt
