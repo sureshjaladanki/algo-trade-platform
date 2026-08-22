@@ -1,0 +1,10 @@
+Description:           Master Index of EDGAR Dissemination Feed
+Last Data Received:    March 10, 2023
+Anonymous FTP:         ftp://ftp.sec.gov/edgar/
+
+CIK|Company Name|Form Type|Date Filed|Filename
+--------------------------------------------------------------------------------
+0000000100|Dead Midcap Inc.|25|2023-03-10|edgar/data/100/0000000100-23-000001.txt
+0000000200|Gone Corp.|15-12B|2018-06-01|edgar/data/200/0000000200-18-000001.txt
+0000000300|Fund Vehicle|15-15D|2019-01-15|edgar/data/300/0000000300-19-000001.txt
+0000000400|Still Listed Inc.|8-K|2020-05-01|edgar/data/400/0000000400-20-000001.txt

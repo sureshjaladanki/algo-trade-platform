@@ -7,9 +7,11 @@ Polygon spend; a hit is permission to buy a delisted PIT panel, not a pass.
 from __future__ import annotations
 
 import csv
+import json
 import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -18,8 +20,11 @@ from pathlib import Path
 from src.costs import WORKING_TABLE, ProductBucket
 from src.edgar import (
     Filing,
+    delisting_filings,
     eight_k_filings,
+    load_master_range,
     load_or_fetch_company_tickers,
+    load_or_fetch_item_202,
     load_or_fetch_master_idx,
 )
 from src.harness import Declaration
@@ -39,6 +44,13 @@ SP500_CSV = (
 SP400_RAW = (
     "https://en.wikipedia.org/w/index.php?title=List_of_S%26P_400_companies&action=raw"
 )
+SP600_RAW = (
+    "https://en.wikipedia.org/w/index.php?title=List_of_S%26P_600_companies&action=raw"
+)
+WIKI_API = "https://en.wikipedia.org/w/api.php"
+B0_LISTED_MEAN_BPS = 80.9
+W_KILL = 1.0 - KILL_BPS / B0_LISTED_MEAN_BPS
+TOP_ADV_N = 1_500
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 UNIVERSE_CACHE = REPO_ROOT / "data" / "raw" / "universe"
 YAHOO_PAUSE_SEC = 0.15
@@ -55,6 +67,18 @@ def screen_declaration(n: int) -> Declaration:
     return Declaration(
         book_id="B",
         spec_id="B.public-listed-pead",
+        n=n,
+        sigma=PEAD_SIGMA,
+        hypothesized_effect=PEAD_HYPOTHESIZED,
+        clustering_haircut=PEAD_CLUSTER,
+        unit="bps_per_event",
+    )
+
+
+def item_202_declaration(n: int) -> Declaration:
+    return Declaration(
+        book_id="B",
+        spec_id="B.item-202-listed-bound",
         n=n,
         sigma=PEAD_SIGMA,
         hypothesized_effect=PEAD_HYPOTHESIZED,
@@ -313,3 +337,204 @@ def load_public_events() -> list[Event]:
         universe=set(prices),
         prices=prices,
     )
+
+
+def load_or_fetch_sp600(path: Path | None = None) -> list[str]:
+    cache = path or (UNIVERSE_CACHE / "sp600.wiki")
+    if cache.exists():
+        text = cache.read_text(encoding="utf-8")
+    else:
+        text = _http_text(SP600_RAW, user_agent=USER_AGENT)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(text, encoding="utf-8")
+    return parse_wiki_tickers(text)
+
+
+def listed_candidate_symbols() -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    loaders = (load_or_fetch_sp500, load_or_fetch_sp400, load_or_fetch_sp600)
+    for loader in loaders:
+        try:
+            batch = loader()
+        except (OSError, urllib.error.URLError, TypeError, KeyError, ValueError):
+            continue
+        for symbol in batch:
+            if symbol in seen:
+                continue
+            seen.add(symbol)
+            names.append(symbol)
+    print(f"listed candidates: {len(names)}", flush=True)
+    return names
+
+
+def recent_adv_usd(bars: list[DailyBar], *, days: int = ADV_DAYS) -> float:
+    window = bars[-days:]
+    return sum(bar.close * bar.volume for bar in window) / len(window)
+
+
+def load_liquid_universe() -> tuple[set[str], dict[str, list[DailyBar]]]:
+    symbols = listed_candidate_symbols()
+    prices = load_prices(set(symbols))
+    ranked: list[tuple[float, str]] = []
+    for symbol, bars in prices.items():
+        if len(bars) < ADV_DAYS:
+            continue
+        adv = recent_adv_usd(bars)
+        if adv < ADV_MID_USD:
+            continue
+        ranked.append((adv, symbol))
+    ranked.sort(reverse=True)
+    top = ranked[:TOP_ADV_N]
+    universe = {symbol for _, symbol in top}
+    print(f"liquid universe ADV>${ADV_MID_USD / 1e6:.0f}M: {len(universe)}", flush=True)
+    return universe, {symbol: prices[symbol] for symbol in universe}
+
+
+def _wiki_revision_text(title: str, asof: date) -> str:
+    query = urllib.parse.urlencode(
+        {
+            "action": "query",
+            "format": "json",
+            "prop": "revisions",
+            "titles": title,
+            "rvlimit": "1",
+            "rvstart": asof.isoformat() + "T00:00:00Z",
+            "rvdir": "older",
+            "rvprop": "content",
+            "rvslots": "main",
+        }
+    )
+    payload = json.loads(_http_text(f"{WIKI_API}?{query}", user_agent=USER_AGENT))
+    pages = payload["query"]["pages"]
+    page = next(iter(pages.values()))
+    revision = page["revisions"][0]
+    if "slots" in revision:
+        return revision["slots"]["main"]["*"]
+    return revision["*"]
+
+
+def load_or_fetch_sp400_history(path: Path | None = None) -> set[str]:
+    cache = path or (UNIVERSE_CACHE / "sp400_history.txt")
+    if cache.exists():
+        return {line.strip() for line in cache.read_text(encoding="utf-8").splitlines() if line.strip()}
+    names = set(load_or_fetch_sp400())
+    for year in range(2010, 2027, 2):
+        try:
+            text = _wiki_revision_text("List of S&P 400 companies", date(year, 1, 1))
+        except (OSError, urllib.error.URLError, KeyError, TypeError, ValueError):
+            continue
+        found = parse_wiki_tickers(text)
+        if len(found) >= 200:
+            names.update(found)
+        time.sleep(0.2)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text("\n".join(sorted(names)) + "\n", encoding="utf-8")
+    return names
+
+
+def missing_share(*, n_listed: int, n_missing: int) -> float:
+    """w = N_missing / (N_listed + N_missing)."""
+    denom = n_listed + n_missing
+    if denom == 0:
+        raise ValueError("empty listed and missing sets")
+    return n_missing / denom
+
+
+def zero_drift_bound(*, listed_mean_bps: float, w: float) -> float:
+    return (1.0 - w) * listed_mean_bps
+
+
+def yahoo_missing(symbols: set[str]) -> set[str]:
+    from src.yahoo import cache_path
+
+    missing: set[str] = set()
+    for symbol in sorted(symbols):
+        if cache_path(symbol).exists():
+            continue
+        try:
+            load_or_fetch(symbol, start=SCREEN_START)
+        except (OSError, urllib.error.URLError, TypeError, KeyError, ValueError):
+            missing.add(symbol)
+            print(f"Yahoo missing {symbol}", flush=True)
+            continue
+        time.sleep(YAHOO_PAUSE_SEC)
+    return missing
+
+
+@dataclass(frozen=True)
+class BoundScreen:
+    n_mid: int
+    mean_mid_bps: float | None
+    w: float
+    w_membership: float
+    n_listed: int
+    n_missing: int
+    n_left_index: int
+    n_form25: int
+    bound_bps: float
+    w_kill: float
+    item_202_alive: bool
+    b0_informs: bool
+    kill: bool
+
+
+def run_bound_screen(
+    *,
+    events: list[Event],
+    listed: set[str],
+    ever: set[str],
+    delisted: set[str],
+    n_form25: int,
+) -> BoundScreen:
+    mid = mid_cap_events(events)
+    mid_mean = pooled_net_bps(mid) if mid else None
+    n_missing = len(delisted)
+    n_left = len(ever - listed)
+    w = missing_share(n_listed=len(listed), n_missing=n_missing)
+    w_membership = missing_share(n_listed=len(listed), n_missing=n_left) if ever else 0.0
+    bound = zero_drift_bound(listed_mean_bps=mid_mean or 0.0, w=w)
+    dead = mid_mean is None or mid_mean < KILL_BPS
+    return BoundScreen(
+        n_mid=len(mid),
+        mean_mid_bps=mid_mean,
+        w=w,
+        w_membership=w_membership,
+        n_listed=len(listed),
+        n_missing=n_missing,
+        n_left_index=n_left,
+        n_form25=n_form25,
+        bound_bps=bound,
+        w_kill=W_KILL,
+        item_202_alive=not dead,
+        b0_informs=w < W_KILL and not dead and bound >= KILL_BPS,
+        kill=dead,
+    )
+
+
+def load_item_202_events() -> tuple[list[Event], set[str], dict[str, list[DailyBar]]]:
+    universe, prices = load_liquid_universe()
+    hits = load_or_fetch_item_202(start=SCREEN_START, end=datetime.now(tz=UTC).date())
+    cik_to_ticker = {hit.cik: hit.ticker for hit in hits}
+    cik_to_ticker.update(load_or_fetch_company_tickers())
+    filings = [hit.as_filing() for hit in hits]
+    events = build_events(
+        filings=filings,
+        cik_to_ticker=cik_to_ticker,
+        universe=universe,
+        prices=prices,
+    )
+    return events, universe, prices
+
+
+def load_delist_identifiers() -> tuple[set[str], int, set[str]]:
+    listed = set(load_or_fetch_sp400())
+    ever = load_or_fetch_sp400_history()
+    left = ever - listed
+    print(f"S&P 400 ever {len(ever)} current {len(listed)} left {len(left)}", flush=True)
+    yahoo_gone = yahoo_missing(left)
+    master = load_master_range(SCREEN_START, datetime.now(tz=UTC).date())
+    form25 = delisting_filings(master)
+    n_form25 = len({filing.cik for filing in form25})
+    print(f"Form 25/15 unique CIKs: {n_form25}; Yahoo-gone leavers: {len(yahoo_gone)}", flush=True)
+    return listed, n_form25, yahoo_gone

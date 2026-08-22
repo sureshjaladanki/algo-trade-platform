@@ -6,14 +6,19 @@ import pytest
 
 from src.books.pead import (
     KILL_BPS,
+    W_KILL,
     Event,
     build_events,
     expensive_round_trip_bps,
+    item_202_declaration,
+    missing_share,
     parse_constituents_csv,
     parse_wiki_tickers,
     pooled_net_bps,
+    run_bound_screen,
     run_pead_screen,
     screen_declaration,
+    zero_drift_bound,
 )
 from src.costs import WORKING_TABLE, ProductBucket
 from src.edgar import Filing, parse_company_tickers
@@ -152,3 +157,65 @@ def test_pooled_mean() -> None:
     a = Event("A", date(2020, 1, 2), 0.02, 0.01, 30e6, LiquidityBucket.MID_CAP, 100.0)
     b = Event("B", date(2020, 1, 3), 0.02, 0.01, 30e6, LiquidityBucket.MID_CAP, 50.0)
     assert pooled_net_bps([a, b]) == pytest.approx(75.0)
+
+
+def test_zero_drift_bound_and_w_kill() -> None:
+    assert missing_share(n_listed=400, n_missing=400) == pytest.approx(0.5)
+    assert zero_drift_bound(listed_mean_bps=80.9, w=0.506) == pytest.approx(80.9 * (1 - 0.506))
+    assert W_KILL == pytest.approx(1.0 - 40.0 / 80.9)
+    assert zero_drift_bound(listed_mean_bps=80.9, w=W_KILL) == pytest.approx(40.0)
+
+
+def test_bound_screen_kills_on_item_202_mean() -> None:
+    cheap = Event(
+        "MID1",
+        date(2020, 3, 16),
+        0.02,
+        0.005,
+        30_000_000.0,
+        LiquidityBucket.MID_CAP,
+        25.0,
+    )
+    screen = run_bound_screen(
+        events=[cheap],
+        listed={"AAA", "BBB"},
+        ever={"AAA", "BBB", "DEAD"},
+        delisted={"DEAD"},
+        n_form25=12,
+    )
+    assert screen.kill is True
+    assert screen.item_202_alive is False
+    assert screen.w == pytest.approx(1 / 3)
+    assert screen.n_form25 == 12
+    assert screen.b0_informs is False
+
+
+def test_bound_screen_alive_when_item_202_clears_and_w_small() -> None:
+    rich = Event(
+        "MID1",
+        date(2020, 3, 16),
+        0.02,
+        0.02,
+        30_000_000.0,
+        LiquidityBucket.MID_CAP,
+        80.0,
+    )
+    screen = run_bound_screen(
+        events=[rich],
+        listed={"A", "B", "C", "D"},
+        ever={"A", "B", "C", "D", "X"},
+        delisted={"X"},
+        n_form25=1,
+    )
+    assert screen.kill is False
+    assert screen.item_202_alive is True
+    assert screen.w == pytest.approx(0.2)
+    assert screen.bound_bps == pytest.approx(64.0)
+    assert screen.b0_informs is True
+
+
+def test_item_202_declaration_clears_mde_at_b0_n() -> None:
+    decl = item_202_declaration(12_000)
+    assert decl.spec_id == "B.item-202-listed-bound"
+    assert decl.clears_gate
+

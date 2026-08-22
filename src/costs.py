@@ -34,6 +34,7 @@ OCC_PER_CONTRACT = 0.02
 BROKER_PER_CONTRACT = 0.65
 ORF_INDEX_PER_CONTRACT = 0.08
 TAF_OPTIONS_PER_CONTRACT = 0.00279
+SPX_MULTIPLIER = 100.0
 
 MES_TICK_USD = 1.25
 MES_FEES_ROUND_TURN_USD = 1.20
@@ -139,6 +140,60 @@ def option_fees_round_trip_usd(contracts: int) -> float:
     )
     sell_taf = contracts * TAF_OPTIONS_PER_CONTRACT
     return 2.0 * per_side + sell_taf
+
+
+@dataclass(frozen=True)
+class SpreadRoundTrip:
+    """All-in cost of a two-leg vertical, open and close, as a fraction of credit."""
+
+    credit: float
+    credit_usd: float
+    quoted_spread_both_legs: float
+    quoted_pct_of_credit: float
+    fees_usd: float
+    all_in_usd: float
+    all_in_pct_of_credit: float
+    retained_fraction: float
+
+
+def vertical_spread_round_trip(
+    *,
+    short_bid: float,
+    short_ask: float,
+    long_bid: float,
+    long_ask: float,
+    contracts: int = 1,
+    multiplier: float = SPX_MULTIPLIER,
+) -> SpreadRoundTrip:
+    """Round-trip a credit vertical: pay the full quoted spread on both legs plus fees.
+
+    Open: sell the short leg, buy the long. Close: buy the short, sell the long.
+    That is one full bid–ask on each leg. Fees are two option series, each open+close.
+    """
+    if short_ask < short_bid or long_ask < long_bid:
+        raise ValueError("ask must be >= bid")
+    if contracts <= 0:
+        raise ValueError("contracts must be > 0")
+    short_mid = (short_bid + short_ask) / 2.0
+    long_mid = (long_bid + long_ask) / 2.0
+    credit = short_mid - long_mid
+    if credit <= 0:
+        raise ValueError("spread credit must be > 0")
+    credit_usd = credit * multiplier * contracts
+    quoted = (short_ask - short_bid) + (long_ask - long_bid)
+    quoted_usd = quoted * multiplier * contracts
+    fees = 2.0 * option_fees_round_trip_usd(contracts)
+    all_in = quoted_usd + fees
+    return SpreadRoundTrip(
+        credit=credit,
+        credit_usd=credit_usd,
+        quoted_spread_both_legs=quoted,
+        quoted_pct_of_credit=100.0 * quoted / credit,
+        fees_usd=fees,
+        all_in_usd=all_in,
+        all_in_pct_of_credit=100.0 * all_in / credit_usd,
+        retained_fraction=1.0 - all_in / credit_usd,
+    )
 
 
 def futures_round_turn_usd(bucket: ProductBucket) -> float:
