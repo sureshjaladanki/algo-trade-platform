@@ -66,6 +66,7 @@ from src.books.vrp_spread import (
 from src.harness import MdeGateError, TrialLedger, print_mde, reset, run_declared
 from src.optionsdx import OptionsDxDumpMissing, load_put_panel
 from src.theta import ThetaUnavailable, list_expirations, puts_on_date
+from src.tiingo import EOD_VERIFY_N, TiingoUnavailable, dump_usable_eod, eod_file_count, run_coverage
 from src.vti import fetch_yahoo_bars, load_daily_bars, write_daily_bars
 from src.yahoo import load_or_fetch
 
@@ -414,10 +415,10 @@ def run_book_b05() -> str:
     )
     body = f"""# B0.5 — $0 Item 2.02 bound
 
-**Date:** 2026-08-21
+**Date:** 2026-08-22
 **Spec:** `{decl.spec_id}`
-**Spend:** $0 (EDGAR EFTS Item 2.02 + Form 25/15 + Wikipedia S&P 400 history + Yahoo listed bars)
-**Not B1.** Lock 5: listed-only. A miss closes Book B. A hit does not certify the panel.
+**Spend:** $0 (EDGAR EFTS Item 2.02 + Form 25/15 + Wikipedia S&P 400 history + Yahoo / Tiingo / successor bars)
+**Not B1.** Lock 5: listed-only mean; free stitch shrinks `w`. A miss closes Book B. A hit does not certify the panel.
 
 MDE printed first: n={screen.n_mid}, n_eff={decl.n_effective:g}, MDE={decl.mde:.1f} bps, ratio={decl.mde_ratio:.2f}.
 
@@ -428,7 +429,7 @@ MDE printed first: n={screen.n_mid}, n_eff={decl.n_effective:g}, MDE={decl.mde:.
 | Mean net-of-cost 20-day drift | **{mid_txt} bps** |
 | Kill threshold | {KILL_BPS:.0f} bps |
 | Current S&P 400 (N_listed) | {screen.n_listed} |
-| Yahoo-missing former members (N_missing) | {screen.n_missing} |
+| Yahoo-missing / unrecovered former members (N_missing) | {screen.n_missing} |
 | Left the index (promoted/demoted/delisted) | {screen.n_left_index} |
 | Form 25/15 unique CIKs 2010– | {screen.n_form25} |
 | w = N_missing / (N_listed + N_missing) | **{100 * screen.w:.1f}%** |
@@ -437,7 +438,7 @@ MDE printed first: n={screen.n_mid}, n_eff={decl.n_effective:g}, MDE={decl.mde:.
 | Zero-drift bound (1−w) × Item 2.02 mean | **{screen.bound_bps:.1f} bps** |
 | Gate | **{verdict}** |
 
-Long-only, t+1 start, mid-cap $20–100M ADV, working 25 bps cost. `w` is the delisted share of the S&P 400 cohort (Yahoo does not serve the name). Form 25/15 is the identifier count, including names that were never in the index.
+Long-only, t+1 start, mid-cap $20–100M ADV, working 25 bps cost. `w` is the share of the S&P 400 cohort with no free price tape (Yahoo, Tiingo EOD, or curated successor). Dirty identity (AHL, SIVB, CHK, …) stays in N_missing. Form 25/15 is the identifier count, including names that were never in the index.
 """
     (DOCS / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
     return f"B0.5 {verdict}: mid {mid_txt} bps, w={100 * screen.w:.1f}%"
@@ -737,6 +738,70 @@ Do not run live capital. Lock 7.
     return "A3 not started: 60 IBKR paper sessions after A2"
 
 
+def run_tiingo_coverage() -> str:
+    try:
+        report = run_coverage(verify=True)
+    except TiingoUnavailable as exc:
+        return f"Tiingo blocked: {exc}"
+    usable = report.n_recovered + report.n_otc_history
+    samples = [hit for hit in report.hits if hit.n_bars > 0 or hit.eod_error]
+    sample_rows = "\n".join(
+        f"| {hit.symbol} | {hit.status} | {hit.exchange} | {hit.start} | {hit.end} | "
+        f"{hit.n_bars or hit.eod_error} | {hit.first} | {hit.last} |"
+        for hit in samples
+    )
+    absent = ", ".join(hit.symbol for hit in report.hits if hit.status == "absent")
+    body = f"""# Tiingo $0 coverage — Yahoo-missing S&P 400
+
+**Date:** 2026-08-22
+**Spend:** $0 (Tiingo Starter, 500 unique symbols/mo)
+**Not B1.** Lock 5: ticker-keyed, no licensed index PIT. A hit tightens the B0.5 bound; it does not certify the panel.
+
+| | |
+|---|---|
+| Current S&P 400 | {report.n_listed} |
+| Left the index (ever − current) | {report.n_left} |
+| Yahoo-missing leavers | {report.n_missing} |
+| In Tiingo ticker file | {report.n_in_file} ({100 * report.file_coverage:.1f}%) |
+| Recovered (major exchange, series ended) | {report.n_recovered} |
+| OTC with history back to 2010 | {report.n_otc_history} |
+| Usable (recovered + OTC history) | **{usable} ({100 * report.usable_coverage:.1f}%)** |
+| OTC stub (short history) | {report.n_stub} |
+| Reject (known splice / ticker reuse) | {report.n_reject} |
+| Absent from Tiingo | {report.n_absent} |
+| EOD series on disk | {eod_file_count()} |
+| EOD verified this run | {report.n_eod_ok} ok / {report.n_eod_fail} fail (cap {EOD_VERIFY_N}) |
+
+EOD sample (adj close, cached under `data/raw/tiingo`):
+
+| Symbol | Status | Exchange | File start | File end | Bars / error | First bar | Last bar |
+|---|---|---|---|---|---|---|---|
+{sample_rows}
+
+Absent from Tiingo ticker file: {absent or "none"}.
+
+EOD/file disagreements in the sample are possible (ticker reuse, late starts). Treat usable % as an upper bound until remaining names are dumped. Tiingo Starter allows 50 requests/hour. This is not Norgate: no PERMNO, no licensed S&P 400 PIT, CHK/JAVA/PCS rejected on identity.
+"""
+    (DOCS / "b075-tiingo-coverage.md").write_text(body, encoding="utf-8")
+    return (
+        f"Tiingo coverage: {usable}/{report.n_missing} usable "
+        f"({100 * report.usable_coverage:.1f}%); EOD {report.n_eod_ok} ok"
+    )
+
+
+def run_tiingo_dump() -> str:
+    try:
+        dump = dump_usable_eod()
+    except TiingoUnavailable as exc:
+        return f"Tiingo dump blocked: {exc}"
+    coverage = run_tiingo_coverage()
+    failed = f"; failed {', '.join(dump.failures)}" if dump.failures else ""
+    return (
+        f"{coverage}; dump cached {dump.n_cached}/{dump.n_usable}, "
+        f"fetched {dump.n_fetched}, failed {dump.n_failed}{failed}"
+    )
+
+
 def write_summary(lines: list[str]) -> None:
     body = """# $0 feasibility screens — Books C, A, B
 
@@ -770,7 +835,7 @@ def main(argv: list[str] | None = None) -> None:
         "books",
         nargs="*",
         default=["A0.5", "B0.5"],
-        help="Books to run: C A B A0.5 B0.5 A1 A2 A3 (default next kill-ladders)",
+        help="Books to run: C A B A0.5 B0.5 A1 A2 A3 TIINGO TIINGO-DUMP (default next kill-ladders)",
     )
     args = parser.parse_args(argv)
     wanted = [book.upper() for book in args.books]
@@ -784,6 +849,8 @@ def main(argv: list[str] | None = None) -> None:
         "A1": run_book_a1,
         "A2": run_book_a2,
         "A3": run_book_a3,
+        "TIINGO": run_tiingo_coverage,
+        "TIINGO-DUMP": run_tiingo_dump,
     }
     for book in wanted:
         print(f"=== Book {book} ===")

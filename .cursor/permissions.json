@@ -6,6 +6,7 @@
   ],
   "autoRun": {
     "allow_instructions": [
+      "Viewing files and listing folders within this repo is fine.",
       "Read-only git inspections (status, diff, log, show) in this repo are fine.",
       "poetry run pytest, poetry run ruff, poetry run python, and poetry run pre-commit are fine.",
       "Web search for public documentation and current facts is fine.",

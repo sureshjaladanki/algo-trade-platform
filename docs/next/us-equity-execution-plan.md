@@ -56,7 +56,7 @@ Milestones run in sequence except where this plan names a background or $0 paral
 | **A2** | Book A — economics and ETF benchmark | **Not run** (A1 closed the book) | After-tax sleeve fails to beat PUTW-equivalent by 75 bps/yr, or sleeve Sharpe < 0.4, or sleeve max DD > 25% of sleeve notional, or 20% blend dilutes Book C |
 | **A3** | Book A — tradability | **Not run** (A1 closed the book) | Paper fills worse than modelled by > 0.3% of premium, or fill rate at target limits < 80% |
 | **B0** | Book B — $0 listed PEAD | **Complete** (80.9 bps mid-cap net, n=17,143; survivorship-biased) | Screen only. A miss would have skipped the panel; a hit is not B1 |
-| **B0.5** | Book B — $0 bound and Item 2.02 | **Complete** (Item 2.02 mid 82.3 bps, n=13,907; w=44.2%; bound 45.9 bps) | Item 2.02 listed mid-cap net drift < 40 bps → Book B closes, no vendor |
+| **B0.5** | Book B — $0 bound and Item 2.02 | **Complete** (Item 2.02 mid 82.3 bps, n=13,907; w=12.9% after free stitch; bound 71.7 bps) | Item 2.02 listed mid-cap net drift < 40 bps → Book B closes, no vendor |
 | **B1** | Book B — PEAD existence | Not started; **Norgate trial, then Platinum 6-mo if trial is complete** | Pooled net-of-cost drift < 40 bps/event on ≥ 6,000 clustered events, or effect lives only below $20M ADV |
 | **B2** | Book B — economics and AI increment | Not started | IRA capacity insufficient to house the sleeve, or LLM text features add < 10 bps over numeric surprise → AI removed |
 | **B3** | Book B — tradability | Not started | Realized mid-cap round-trip cost exceeds 25 bps, or closing-auction fills degrade the drift by > 15 bps |
@@ -73,7 +73,7 @@ Discovery purchases exist to *kill or certify*. They are not infrastructure. Wor
 
 | Step | Book | Spend | What it answers | Authorizes next |
 |---|---|---|---|---|
-| Done | C1, H0, A0, A0.5, A1 STOP, B0, B0.5 | $0 | C1 35.5 bps; A0 VIX–RV 2.91 vol pts; A0.5 spread retains 62.2% of credit; A1 spliced IV−RV 4.91 vs cost 4.14 (1.19×); B0 listed PEAD 80.9 bps; B0.5 Item 2.02 82.3 bps, w=44.2% | Book A closed; B1 after this month |
+| Done | C1, H0, A0, A0.5, A1 STOP, B0, B0.5 | $0 | C1 35.5 bps; A0 VIX–RV 2.91 vol pts; A0.5 spread retains 62.2% of credit; A1 spliced IV−RV 4.91 vs cost 4.14 (1.19×); B0 listed PEAD 80.9 bps; B0.5 Item 2.02 82.3 bps, w=12.9% (bound 71.7) after Tiingo+successor stitch | Book A closed; B1 after this month |
 | First dollar | A1 | **Not spent.** Cboe cart $580 tripped the $100 stop. OptionsDX 2012–2023 + ThetaData FREE 2024–present at $0. A1 closed the book (1.19×). | 20–25Δ, 30–45 DTE implied-minus-realized net of *spread* cost | A2 not authorized |
 | Later dollar | B1 | Norgate US Platinum **3-week trial**, then **$346.50 / 6 months** dump-and-cancel if the trial panel is complete | Delisted PIT + historical constituents, 2010–2026 | B2 only if B1 passes |
 | Closed at discovery | — | Full-market OPRA ($300–420/mo), CGI license (≥$1k/mo), Polygon Developer ($79/mo, 10y — too short for B1), Polygon Advanced ($199/mo, delisted spotty), Sharadar before B1, Databento, CRSP, 2005–2011 Optsum | — | Do not buy |
@@ -283,7 +283,7 @@ B0 filtered on *current index membership*, not mere survival, so the missing mas
 
 ### B0.5 result (2026-08-21)
 
-MDE printed first: n=13,907, n_eff=2,781.4, MDE=42.5 bps, ratio=0.42. Listed names with $ADV > $20M (S&P 1500 candidates, 1,349 after the ADV cut), Item 2.02 only, long-only, mid-cap 20-day net **82.3 bps** (kill 40). Current S&P 400 N_listed=399; Yahoo-missing former members N_missing=316; **w=44.2%** (< 50.6%). Membership missing mass (promoted/demoted/delisted) 62.1%. Zero-drift bound (1−w)×82.3 = **45.9 bps**, still above 40. Form 25/15 unique CIKs 11,912 (all operating-company delistings, not the index cohort). Gate: B0 still informs B1; do not buy Norgate until A0.5 resolves (do not buy A-tape and B-panel in the same month). Detail: [b05-item-202-bound.md](../b05-item-202-bound.md).
+MDE printed first: n=13,907, n_eff=2,781.4, MDE=42.5 bps, ratio=0.42. Listed names with $ADV > $20M (S&P 1500 candidates, 1,349 after the ADV cut), Item 2.02 only, long-only, mid-cap 20-day net **82.3 bps** (kill 40). Current S&P 400 N_listed=399. Free stitch (Tiingo usable EOD + Yahoo/Tiingo successors) cut unrecovered leavers from 316 to **N_missing=59**; **w=12.9%** (< 50.6%). Membership missing mass (promoted/demoted/delisted) 62.1%. Zero-drift bound (1−w)×82.3 = **71.7 bps**. Dirty identity (AHL, SIVB, CHK) stays in N_missing. Form 25/15 unique CIKs 11,912. Gate: B0 still informs B1. Still not Lock 5. Detail: [b05-item-202-bound.md](../b05-item-202-bound.md), [b075-tiingo-coverage.md](../b075-tiingo-coverage.md).
 
 ### B0.5 Build
 
@@ -380,7 +380,7 @@ Standing quarterly gate once live. Any book missing its H5 minimum over four rol
 
 P0 is still the interpretability gate — cost model, tax model, after-tax VTI — but it is **not** a procurement gate. P0 buys $0 of paid data; its remaining work is 200 tiny broker fills. U0 listed runs next at $0 (leakage, corp-action fixtures, EDGAR index). H0 and C1 are already green. C2 is calendar time and runs in the background: a funded IBKR year plus 1099-B, not a vendor.
 
-The remaining research path is a kill-ladder, cheapest first. A0.5 (ThetaData FREE) did not kill Book A: spread round-trip leaves **62.2%** of credit. A1 on OptionsDX 2012–2023 plus ThetaData FREE 2024–present ($0) after the Cboe cart tripped $100: mean IV−RV **4.91** vol pts vs spread cost **4.14** (1.19× < 2×). **Book A is closed.** A2/A3 are not run. B0.5 published Item 2.02 mid-cap net **82.3 bps** and **w=44.2%** (bound 45.9 bps); Book B is not closed. B1 is a Norgate Platinum *trial* after this month, then a 6-month dump-and-cancel at $346.50 — not Polygon Advanced at $199/mo. Sharadar stays closed until B1 passes.
+The remaining research path is a kill-ladder, cheapest first. A0.5 (ThetaData FREE) did not kill Book A: spread round-trip leaves **62.2%** of credit. A1 on OptionsDX 2012–2023 plus ThetaData FREE 2024–present ($0) after the Cboe cart tripped $100: mean IV−RV **4.91** vol pts vs spread cost **4.14** (1.19× < 2×). **Book A is closed.** A2/A3 are not run. B0.5 published Item 2.02 mid-cap net **82.3 bps** and **w=12.9%** after the free stitch (bound 71.7 bps); Book B is not closed. B1 is a Norgate Platinum *trial* after this month, then a 6-month dump-and-cancel at $346.50 — not Polygon Advanced at $199/mo. Sharadar stays closed until B1 passes.
 
 Book A is no longer sequenced on the 1256 tax wedge alone: A0 measured that wedge at 98 bps at full sleeve ≈ 20 bps at 20% weight, below C1’s 35.5 bps. A1 then showed the defined-risk 20–25Δ spread’s implied-minus-realized does not cover twice the spread round-trip. Book B remains because it is the expensive branch and the most likely to be already in the price.
 

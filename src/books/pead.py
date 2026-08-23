@@ -446,10 +446,14 @@ def zero_drift_bound(*, listed_mean_bps: float, w: float) -> float:
 
 
 def yahoo_missing(symbols: set[str]) -> set[str]:
+    """Names with no free price tape (Yahoo, Tiingo EOD, or successor)."""
+    from src.tiingo import price_on_disk
     from src.yahoo import cache_path
 
     missing: set[str] = set()
     for symbol in sorted(symbols):
+        if price_on_disk(symbol):
+            continue
         if cache_path(symbol).exists():
             continue
         try:
@@ -536,5 +540,5 @@ def load_delist_identifiers() -> tuple[set[str], int, set[str]]:
     master = load_master_range(SCREEN_START, datetime.now(tz=UTC).date())
     form25 = delisting_filings(master)
     n_form25 = len({filing.cik for filing in form25})
-    print(f"Form 25/15 unique CIKs: {n_form25}; Yahoo-gone leavers: {len(yahoo_gone)}", flush=True)
+    print(f"Form 25/15 unique CIKs: {n_form25}; price-missing leavers: {len(yahoo_gone)}", flush=True)
     return listed, n_form25, yahoo_gone
