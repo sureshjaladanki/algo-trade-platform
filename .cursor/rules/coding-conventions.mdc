@@ -1,0 +1,33 @@
+---
+description: Repo coding conventions — simple, modular, idempotent, match existing style
+alwaysApply: true
+---
+
+# Coding Conventions
+
+Follow `docs/coding-conventions.md`. Tooling (Poetry, how to run Python): `docs/repo-conventions.md`. When writing or reviewing code in this repo:
+
+## Principles
+
+- **Clean and readable**: one job per function; prefer straight-line logic; comment *why*, not *what*.
+- **Idempotent**: prefer pure transforms (`df in → df out`); pipeline/file steps safe to re-run without duplicate side effects; no hidden mutable globals.
+- **Minimal branching**: no defensive null/None checks “just in case”; trust typed contracts and fail fast at boundaries.
+- **Modular**: one module ≈ one concern; private helpers use leading `_`; share utilities instead of copy-paste.
+- **Do not over-engineer**: no speculative abstractions or config layers; simplest correct solution that matches nearby code.
+
+## Naming
+
+- Modules/files, functions, variables, columns: `snake_case`
+- Constants: `SCREAMING_SNAKE_CASE`
+- Classes: `PascalCase`
+- Functions: verb + object (`round_trip_bps`, `load_daily_panel`)
+- Prefer existing domain terms (cost / tax / hurdle / sleeve / MDE)
+
+## Match the repo
+
+- Respect layout under `src/` (add a module when a milestone needs it)
+- Prefer established patterns (typed signatures; Polars when a panel milestone adds it)
+- Mirror the file you edit; do not reformat unrelated code
+- Docs: kebab-case under `docs/`
+
+When in doubt: read a nearby module and do the same thing, only simpler.
