@@ -1,0 +1,3 @@
+ex_date,symbol,isin,kind,ratio_num,ratio_den,factor,child_symbol,child_isin,new_symbol,new_isin
+2023-07-20,RELIANCE,INE002A01018,demerger,1,1,0.9063483547925608,JIOFIN,INE758E01017,,
+2013-08-27,STER,INE268A01049,delisting,1,1,1.0,,,,

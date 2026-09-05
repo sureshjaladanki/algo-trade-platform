@@ -8,7 +8,7 @@ This is an **orphan** of the US-equity tree. That programme's source and archive
 
 Python 3.12 and Poetry. Conventions: [docs/repo-conventions.md](docs/repo-conventions.md), [docs/coding-conventions.md](docs/coding-conventions.md).
 
-Copy `.env.example` to `.env` and set `KAGGLE_API_TOKEN`. `.env` is gitignored.
+Copy `.env.example` to `.env`. `.env` is gitignored.
 
 ```powershell
 poetry install --with dev
@@ -20,9 +20,9 @@ poetry run pytest
 
 | Path | Role |
 |---|---|
-| `src/` | Python package. Modules are added when a milestone needs them. |
+| `src/` | Python package. Modules are added when a milestone needs them. `harness` is H0; `books/ledger` is L1; `portfolio` is L2; `execute` / `ops` are L0 (paper). |
 | `tests/` | Pytest |
-| `docs/next/` | Active blueprint and plan |
+| `docs/next/` | Active charter: [architecture blueprint](docs/next/india-equity-architecture-blueprint.md), [execution plan](docs/next/india-equity-execution-plan.md) |
 | `docs/archive/` | STOP memos, once a book closes |
 | `data/` | Panels (gitignored except `.gitkeep`) |
 | `logs/` | Run output (gitignored except `.gitkeep`) |

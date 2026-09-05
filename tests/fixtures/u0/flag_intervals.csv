@@ -1,0 +1,5 @@
+symbol,start,end,esm_stage,gsm_stage,price_band_pct,in_fno_ban,fno_eligible
+SETCO,2026-05-06,2026-12-31,2,0,2,false,false
+RELIANCE,2005-01-01,2099-12-31,0,0,10,false,true
+STER,2005-01-01,2013-08-26,0,0,10,false,true
+JIOFIN,2023-07-20,2099-12-31,0,0,10,false,true
