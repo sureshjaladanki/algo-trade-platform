@@ -62,4 +62,4 @@ New docs go under `docs/` with kebab-case names. STOP memos and closed-programme
 
 ## Cursor / agents
 
-Agents must follow this file and [coding-conventions.md](coding-conventions.md). In particular: install and run through Poetry; never `pip install` a project dependency.
+Agents must follow this file, [coding-conventions.md](coding-conventions.md), and [agent-guidelines.md](agent-guidelines.md). In particular: install and run through Poetry; never `pip install` a project dependency.

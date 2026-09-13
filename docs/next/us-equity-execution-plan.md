@@ -1,9 +1,9 @@
 # Retail US desk — Execution Plan
 
-**Authority:** Implements [us-equity-architecture-blueprint.md](us-equity-architecture-blueprint.md) **Rev 1.1**  
-**Status:** **ACTIVE** — measured through 2026-08-22. H0, C1, A0, A0.5, B0, B0.5 complete at $0. **A1 STOP:** spliced 2012–present (OptionsDX + ThetaData FREE) IV−RV 4.91 vol pts vs spread cost 4.14 (**1.19×** < 2×). Book A closed. A2/A3 not run. B1 is not certified.  
-**Date:** 2026-08-22  
-**Revision:** Spend-deferral. Claude Opus review 2026-08-21. Vendor purchases moved off P0; discovery ceiling **$700**.  
+**Authority:** Implements [us-equity-architecture-blueprint.md](us-equity-architecture-blueprint.md) **Rev 1.2**  
+**Status:** **ACTIVE** — measured through 2026-08-22. H0, C1, A0, A0.5, B0, B0.5 complete at $0. **A1 STOP:** spliced 2012–present (OptionsDX + ThetaData FREE) IV−RV 4.91 vol pts vs spread cost 4.14 (**1.19×** < 2×). Book A closed and its tape SKU closed with it. A2/A3 not run. **B1 (Norgate trial) is the next certified step** and is not certified.  
+**Date:** 2026-09-12  
+**Revision:** Rev 1.2, post-A1 measurement. Claude Opus review 2026-08-21 (Rev 1.1, spend-deferral) and 2026-09-12 (Rev 1.2). Vendor purchases stay off P0; discovery ceiling cut from $700 to **$346.50** (Norgate only) now that the Cboe dump is closed unbought.  
 **Goal:** Establish whether any economically viable algo trading book exists for a $25k–$500k US retail desk after cost and after tax versus an after-tax VTI hold, and if so, operate it.  
 **Constraint:** After-cost, after-tax excess vs an after-tax VTI hold. Cost and tax constants are **working** until P0 calibrates them.
 
@@ -34,7 +34,7 @@ Milestones run in sequence except where this plan names a background or $0 paral
 | 6 | Trial budget 5 pre-registered specs per book, α = 0.01, logged including abandonments. |
 | 7 | **No live capital before L0**, except P0's tiny calibration fills and C2's passive-core shadow year. Paper 60 sessions, then 10% size for 60 sessions. |
 | 8 | No short stock, no naked short options, no leverage above 1.0× in v1. |
-| 9 | No vendor data purchase unless a **later** milestone explicitly authorizes the SKU. P0 authorizes **$0** paid data. Public, broker, and free-tier data first. Discovery vendor spend is capped at **$700** before L0. Do not buy Book A tape and Book B panel in the same month. |
+| 9 | No vendor data purchase unless a **later** milestone explicitly authorizes the SKU. P0 authorizes **$0** paid data. Public, broker, and free-tier data first. **Rev 1.2:** discovery vendor spend is capped at **$346.50** before L0 (was $700); the Cboe half of that ceiling died with Book A and is **not** reallocated. The only authorized purchase is Norgate Platinum, trial first. Any fallback vendor must fit inside the same $346.50. The "no Book A tape and Book B panel in the same month" rule stands and is moot — there is no Book A tape to buy. |
 | 10 | No HMM, LightGBM, MLflow, or Kaggle client enters `pyproject.toml`. If a milestone appears to need one, the milestone design is wrong. |
 | 11 | AI produces features from text and runs ops checks. AI does not forecast returns. |
 | 12 | Own capital only. No third-party money, no advertised performance. |
@@ -51,32 +51,32 @@ Milestones run in sequence except where this plan names a background or $0 paral
 | **C1** | Book C — tax and location accounting proof | **Complete** (35.5 bps/yr, 0 washes, representative lots) | After-tax excess vs static VTI < 25 bps/yr → harvest module dropped, location/bands kept |
 | **C2** | Book C — shadow year | Not started (audit, not a data purchase) | Realized after-tax excess < 15 bps or any wash-sale violation reaches a filing |
 | **A0** | Book A — $0 VIX–RV / PUT screen | **Complete** (2.91 vol pts net, sign 5/5; 1256 wedge 98 bps at full sleeve) | Screen only. A miss would have skipped CBOE; a hit is not A1 |
-| **A0.5** | Book A — $0 spread construction | **Complete** — 62.2% credit retained (n=37/54); A1 dump authorized. H3 still closes certification. | Spread round-trip eats the 25% credit-retention hypothesis, or H3 closes even the short window as a *certification* (it does) — this milestone may only *kill* |
-| **A1** | Book A — VRP existence | **STOP** (1.39× < 2×; n=139; sign 5/5 net) | Mean implied-minus-realized in the 20–25 delta bucket ≤ modelled *spread* round-trip cost |
+| **A0.5** | Book A — $0 spread construction | **Complete** — 62.2% credit retained (n=37/54); H3 still closed certification. The A1 dump authorization it granted is **spent and void**: A1 ran at $0 and closed the book | Spread round-trip eats the 25% credit-retention hypothesis, or H3 closes even the short window as a *certification* (it does) — this milestone may only *kill* |
+| **A1** | Book A — VRP existence | **STOP** — spliced 2012–present: IV−RV **4.91** vs spread cost **4.14** = **1.19×** < 2×; n=173, MDE 31.9, ratio 0.28; sign positive in **4/5** sub-periods net of cost (OptionsDX-only, to 2023, was 1.39×) | Mean implied-minus-realized in the 20–25 delta bucket ≤ modelled *spread* round-trip cost |
 | **A2** | Book A — economics and ETF benchmark | **Not run** (A1 closed the book) | After-tax sleeve fails to beat PUTW-equivalent by 75 bps/yr, or sleeve Sharpe < 0.4, or sleeve max DD > 25% of sleeve notional, or 20% blend dilutes Book C |
 | **A3** | Book A — tradability | **Not run** (A1 closed the book) | Paper fills worse than modelled by > 0.3% of premium, or fill rate at target limits < 80% |
 | **B0** | Book B — $0 listed PEAD | **Complete** (80.9 bps mid-cap net, n=17,143; survivorship-biased) | Screen only. A miss would have skipped the panel; a hit is not B1 |
 | **B0.5** | Book B — $0 bound and Item 2.02 | **Complete** (Item 2.02 mid 82.3 bps, n=13,907; w=12.9% after free stitch; bound 71.7 bps) | Item 2.02 listed mid-cap net drift < 40 bps → Book B closes, no vendor |
-| **B1** | Book B — PEAD existence | Not started; **Norgate trial, then Platinum 6-mo if trial is complete** | Pooled net-of-cost drift < 40 bps/event on ≥ 6,000 clustered events, or effect lives only below $20M ADV |
+| **B1** | Book B — PEAD existence | **Next certified step — authorized, not started.** Norgate trial, then Platinum 6-mo if the trial panel is complete | Pooled net-of-cost drift < 40 bps/event on ≥ 6,000 clustered events, or effect lives only below $20M ADV |
 | **B2** | Book B — economics and AI increment | Not started | IRA capacity insufficient to house the sleeve, or LLM text features add < 10 bps over numeric surprise → AI removed |
 | **B3** | Book B — tradability | Not started | Realized mid-cap round-trip cost exceeds 25 bps, or closing-auction fills degrade the drift by > 15 bps |
 | **L0** | Operating loop | Not started | No book has passed its H5 minimum → global STOP, 100% passive posture |
 | **X0** | Kill review | Not started | Standing quarterly gate; any live book that misses its H5 minimum over four rolling quarters is retired |
 
-**Critical path:** P0 (software + fills, $0 data) → U0 listed → (H0 and C1 already green) → C2 in the background ∥ A0.5 → A1 **STOP (Book A closed)** ∥ B0.5 → B1 → B2 → B3 → L0. Do not buy A-tape. B1 remains after the A1 month. L0 is built only after a book passes. X0 is standing once live.
+**Critical path:** P0 (software + fills, $0 data) → U0 listed → (H0 and C1 already green) → C2 in the background ∥ A0.5 → A1 **STOP (Book A closed)** ∥ B0.5 → **B1 (now)** → B2 → B3 → L0. Do not buy A-tape — there is none left to buy. The A1 month is over and Book A closed inside it, so **B1 is the next action**, trial first. L0 is built only after a book passes. X0 is standing once live.
 
 ---
 
-## Research spend ladder (Rev 1.1)
+## Research spend ladder (Rev 1.2)
 
-Discovery purchases exist to *kill or certify*. They are not infrastructure. Working ceiling **$700** before L0 (one CBOE SPX dump + one Norgate Platinum 6-month). Expected spend through the first kill gate: **$0** if A0.5 or B0.5 stops a book, else **$25–35** for the A1 dump.
+Discovery purchases exist to *kill or certify*. They are not infrastructure. **Ceiling $346.50 before L0** (Norgate Platinum 6-month, trial first) — cut from $700 because the CBOE SPX dump was never bought and is now closed with Book A. The Cboe allowance is **not** reallocated to anything else. Spend to date: **$0**. Expected spend through the next kill gate: **$0** if the Norgate trial panel itself kills B1.
 
 | Step | Book | Spend | What it answers | Authorizes next |
 |---|---|---|---|---|
-| Done | C1, H0, A0, A0.5, A1 STOP, B0, B0.5 | $0 | C1 35.5 bps; A0 VIX–RV 2.91 vol pts; A0.5 spread retains 62.2% of credit; A1 spliced IV−RV 4.91 vs cost 4.14 (1.19×); B0 listed PEAD 80.9 bps; B0.5 Item 2.02 82.3 bps, w=12.9% (bound 71.7) after Tiingo+successor stitch | Book A closed; B1 after this month |
-| First dollar | A1 | **Not spent.** Cboe cart $580 tripped the $100 stop. OptionsDX 2012–2023 + ThetaData FREE 2024–present at $0. A1 closed the book (1.19×). | 20–25Δ, 30–45 DTE implied-minus-realized net of *spread* cost | A2 not authorized |
-| Later dollar | B1 | Norgate US Platinum **3-week trial**, then **$346.50 / 6 months** dump-and-cancel if the trial panel is complete | Delisted PIT + historical constituents, 2010–2026 | B2 only if B1 passes |
-| Closed at discovery | — | Full-market OPRA ($300–420/mo), CGI license (≥$1k/mo), Polygon Developer ($79/mo, 10y — too short for B1), Polygon Advanced ($199/mo, delisted spotty), Sharadar before B1, Databento, CRSP, 2005–2011 Optsum | — | Do not buy |
+| Done | C1, H0, A0, A0.5, A1 STOP, B0, B0.5 | $0 | C1 35.5 bps; A0 VIX–RV 2.91 vol pts; A0.5 spread retains 62.2% of credit; A1 spliced IV−RV 4.91 vs cost 4.14 (1.19×); B0 listed PEAD 80.9 bps; B0.5 Item 2.02 82.3 bps, w=12.9% (bound 71.7) after Tiingo+successor stitch | Book A closed; **B1 now** |
+| First dollar | A1 | **Never spent, now closed.** Cboe cart $580 tripped the $100 stop. OptionsDX 2012–2023 + ThetaData FREE 2024–present at $0. A1 closed the book (1.19×). | 20–25Δ, 30–45 DTE implied-minus-realized net of *spread* cost | **Nothing. A2 not authorized; the SKU is closed** |
+| Next dollar | B1 | Norgate US Platinum **3-week trial**, then **$346.50 / 6 months** dump-and-cancel if the trial panel is complete. This is the entire remaining ceiling | Delisted PIT + historical constituents, 2010–2026 | B2 only if B1 passes |
+| Closed at discovery | — | **The Cboe DataShop SPX dump (closed with Book A, 2026-08-22)**, full-market OPRA ($300–420/mo), CGI license (≥$1k/mo), Polygon Developer ($79/mo, 10y — too short for B1), Polygon Advanced ($199/mo, delisted spotty), Sharadar before B1, Databento, CRSP, 2005–2011 Optsum | — | Do not buy |
 
 A0 cannot certify A1: VIX minus subsequent RV is not a 20–25 delta put-spread. ThetaData FREE cannot certify A1 either: ~38 cycles, MDE 68.1 bps, ratio 0.59, **H3 closes certification**. B0 cannot certify B1: Lock 5, listed-only, current S&P 400 membership. Say “cannot certify” rather than dressing Yahoo VIX or a listed panel as the milestone.
 
@@ -223,7 +223,7 @@ Establish that the premium exists in the specific delta bucket and tenor the des
 
 ### A1 Build
 
-**SKU (only if A0.5 green):** CBOE DataShop Option EOD Summary, underlying **SPX only**, historical **2012-01-01 → present**, **calcs excluded**, CGI **unlicensed**. Dump-and-cancel. Working ceiling **$25–35**; if the cart exceeds **$100**, stop and re-quote. Reconstruct IV and delta from bid/ask + SPX close (Yahoo `^GSPC`). Do **not** buy full-market OPRA, a CGI license, or 2005–2011 Optsum: 2012–present is ~175 monthly cycles, MDE 2.8 × 150 / √175 = **31.7 bps**, ratio 0.27, inside H3, and contains 2018 / 2020 / 2024. Implied volatility minus subsequent realized volatility by delta bucket (10/15/20/25/30) and tenor (7/14/30/45 DTE). Sub-period breakdown including those stress windows. All figures net of the A0.5 spread round-trip, falling back to the ATM bucket only if A0.5 could not measure a leg. Explicitly include a 0DTE and 7DTE row to document the Blueprint’s closure of 0DTE with this desk’s own numbers. This dump **is** the A2 tape; do not purchase twice.
+**SKU CLOSED — never purchased, and not purchasable now.** The cart quoted $580 against a $100 stop, A1 instead ran at $0 on OptionsDX + ThetaData FREE, and the 1.19× result closed Book A, so there is no A2 to buy a tape for. The paragraph below is the pre-STOP build spec, retained as the record of what was pre-registered; it is not an authorization. ~~**SKU (only if A0.5 green):**~~ CBOE DataShop Option EOD Summary, underlying **SPX only**, historical **2012-01-01 → present**, **calcs excluded**, CGI **unlicensed**. Dump-and-cancel. Working ceiling **$25–35**; if the cart exceeds **$100**, stop and re-quote. Reconstruct IV and delta from bid/ask + SPX close (Yahoo `^GSPC`). Do **not** buy full-market OPRA, a CGI license, or 2005–2011 Optsum: 2012–present is ~175 monthly cycles, MDE 2.8 × 150 / √175 = **31.7 bps**, ratio 0.27, inside H3, and contains 2018 / 2020 / 2024. Implied volatility minus subsequent realized volatility by delta bucket (10/15/20/25/30) and tenor (7/14/30/45 DTE). Sub-period breakdown including those stress windows. All figures net of the A0.5 spread round-trip, falling back to the ATM bucket only if A0.5 could not measure a leg. Explicitly include a 0DTE and 7DTE row to document the Blueprint’s closure of 0DTE with this desk’s own numbers. This dump **is** the A2 tape; do not purchase twice.
 
 ### A1 Exit
 
@@ -306,7 +306,9 @@ The only book with an inference budget that supports genuine discovery. Also the
 
 ### B1 Build
 
-**SKU (only if B0.5 green):** Norgate US Stocks **Platinum**, 3-week free trial first. If the trial panel is complete (delisted EOD + historical index constituents, Python-usable, 2010–2026), subscribe **6 months at $346.50**, dump, cancel. Do **not** default to Polygon: Developer is 10 years against B1’s 16-year window; Advanced is $199/mo and delisted coverage is spotty. Polygon or EODHD only if the Norgate trial cannot deliver. Event panel from EDGAR filing timestamps (8-K Item 2.02) joined to that PIT price panel, 2010–2026, $ADV > $20M. Surprise proxy from the announcement-window return only (no vendor consensus). Pooled forward returns at 5/10/20/40 days, net of modelled cost, with date and sector clustering, purged walk-forward, and controls for momentum and size. MDE printed first.
+**Sequencing (Rev 1.2):** B0.5 is green, the A1 month is over with Book A closed, and P0 software / U0 listed / H0 are green, so **B1 starts now**. P0's 200 outstanding broker fills do **not** gate B1: B1 is a historical panel test whose cost input is the working 25 bps mid-cap round trip, and the listed bound (71.7 bps) clears the 40 bps kill by a margin that a 3 bps H4 calibration cannot flip. Those fills remain a hard gate on **B3 and L0** under H4, and B1's net-of-cost number stays labelled *working* until they land.
+
+**SKU (only if B0.5 green — it is):** Norgate US Stocks **Platinum**, 3-week free trial first. If the trial panel is complete (delisted EOD + historical index constituents, Python-usable, 2010–2026), subscribe **6 months at $346.50**, dump, cancel. Do **not** default to Polygon: Developer is 10 years against B1’s 16-year window; Advanced is $199/mo and delisted coverage is spotty. Polygon or EODHD only if the Norgate trial cannot deliver. Event panel from EDGAR filing timestamps (8-K Item 2.02) joined to that PIT price panel, 2010–2026, $ADV > $20M. Surprise proxy from the announcement-window return only (no vendor consensus). Pooled forward returns at 5/10/20/40 days, net of modelled cost, with date and sector clustering, purged walk-forward, and controls for momentum and size. MDE printed first.
 
 ### B1 Exit
 
@@ -380,8 +382,8 @@ Standing quarterly gate once live. Any book missing its H5 minimum over four rol
 
 P0 is still the interpretability gate — cost model, tax model, after-tax VTI — but it is **not** a procurement gate. P0 buys $0 of paid data; its remaining work is 200 tiny broker fills. U0 listed runs next at $0 (leakage, corp-action fixtures, EDGAR index). H0 and C1 are already green. C2 is calendar time and runs in the background: a funded IBKR year plus 1099-B, not a vendor.
 
-The remaining research path is a kill-ladder, cheapest first. A0.5 (ThetaData FREE) did not kill Book A: spread round-trip leaves **62.2%** of credit. A1 on OptionsDX 2012–2023 plus ThetaData FREE 2024–present ($0) after the Cboe cart tripped $100: mean IV−RV **4.91** vol pts vs spread cost **4.14** (1.19× < 2×). **Book A is closed.** A2/A3 are not run. B0.5 published Item 2.02 mid-cap net **82.3 bps** and **w=12.9%** after the free stitch (bound 71.7 bps); Book B is not closed. B1 is a Norgate Platinum *trial* after this month, then a 6-month dump-and-cancel at $346.50 — not Polygon Advanced at $199/mo. Sharadar stays closed until B1 passes.
+The remaining research path is a kill-ladder, cheapest first. A0.5 (ThetaData FREE) did not kill Book A: spread round-trip leaves **62.2%** of credit. A1 on OptionsDX 2012–2023 plus ThetaData FREE 2024–present ($0) after the Cboe cart tripped $100: mean IV−RV **4.91** vol pts vs spread cost **4.14** (1.19× < 2×). **Book A is closed.** A2/A3 are not run. B0.5 published Item 2.02 mid-cap net **82.3 bps** and **w=12.9%** after the free stitch (bound 71.7 bps); Book B is not closed. B1 is a Norgate Platinum *trial* **now** — the A1 month is over — then a 6-month dump-and-cancel at $346.50 if the trial panel is complete, not Polygon Advanced at $199/mo. Sharadar stays closed until B1 passes.
 
 Book A is no longer sequenced on the 1256 tax wedge alone: A0 measured that wedge at 98 bps at full sleeve ≈ 20 bps at 20% weight, below C1’s 35.5 bps. A1 then showed the defined-risk 20–25Δ spread’s implied-minus-realized does not cover twice the spread round-trip. Book B remains because it is the expensive branch and the most likely to be already in the price.
 
-L0 is built only after a book passes, never before. The single largest scheduling risk is the temptation to build L0 early because it feels like progress; the plan forbids it. The single largest *spend* risk is buying Polygon or full-market OPRA because a milestone name used to say so; Rev 1.1 forbids that too.
+L0 is built only after a book passes, never before. The single largest scheduling risk is the temptation to build L0 early because it feels like progress; the plan forbids it. The single largest *spend* risk is buying Polygon, full-market OPRA, or the Cboe SPX dump because a milestone name used to say so; Rev 1.1 forbade the first two and Rev 1.2 closes the third.

@@ -1,10 +1,10 @@
 # Retail US desk — Architecture Blueprint
 
 **Market:** US listed equities and related retail-accessible products (ETFs, listed index options, micro index futures).  
-**Status:** **BLUEPRINT Rev 1.1** — spend-deferral revision. Measured through 2026-08-22. H0, C1, A0, A0.5, B0, B0.5 complete at $0. **A1 STOP** (spliced 2012–present 1.19× < 2× spread cost). Book A closed. B1 is not certified.  
-**Date:** 2026-08-21  
+**Status:** **BLUEPRINT Rev 1.2** — post-A1 measurement. Measured through 2026-08-22. H0, C1, A0, A0.5, B0, B0.5 complete at $0. **A1 STOP** (spliced 2012–present 1.19× < 2× spread cost). **Book A closed; the Cboe SKU is closed with it.** B1 (Norgate trial first) is the next certified test and is not certified.  
+**Date:** 2026-09-12 (Rev 1.2; Rev 1.1 was 2026-08-21)  
 **Capital envelope:** $25,000 – $500,000 across taxable margin + IRA/Roth  
-**Review:** Claude Opus, 2026-08-21. Rev 1 (2026-08-20) derived the constraint ladder from first principles. Rev 1.1 does not reopen closed products and does not weaken H1–H6, MDE-before-peek, or the trial budget. It changes *when* and *which SKU* is bought, after $0 screens showed that P0 was authorizing the wrong data too early.
+**Review:** Claude Opus, 2026-08-21 (Rev 1.1) and 2026-09-12 (Rev 1.2). Rev 1 (2026-08-20) derived the constraint ladder from first principles. Rev 1.1 does not reopen closed products and does not weaken H1–H6, MDE-before-peek, or the trial budget. It changes *when* and *which SKU* is bought, after $0 screens showed that P0 was authorizing the wrong data too early. Rev 1.2 records the A1 STOP in the ranking and the SKU table so no later agent can buy a closed product; it moves no hurdle and reopens nothing.
 
 **Implementation map:** [us-equity-execution-plan.md](us-equity-execution-plan.md)
 
@@ -156,7 +156,7 @@ The v1 system runs once per session on one machine, writes a CSV of orders, and 
 
 ## 2. Candidate books, ranked
 
-Ranked by expected after-cost after-tax contribution **per unit of research risk** — not by expected return.
+Ranked by expected after-cost after-tax contribution **per unit of research risk** — not by expected return. **Rev 1.2 ranking:** Book C rank 1, **Book B rank 2**, **Book A closed at A1** (its section is retained below as the record of why, not as a candidate). Sections are left in their original order; the rank is the one stated here.
 
 ### Book C (rank 1) — Tax, location, and friction engine
 
@@ -168,7 +168,9 @@ Ranked by expected after-cost after-tax contribution **per unit of research risk
 - **Kill criteria.** If measured after-tax excess over one full tax year is below 25 bps, retire the harvesting module and keep only asset location, band rebalancing, and 1256 wrapper selection (which cost nothing to run).
 - **AI role.** Ops only: anomaly detection on broker reconciliation and on wash-sale window violations. No modelling.
 
-### Book A (rank 2) — Index volatility risk premium, defined-risk, Section 1256
+### Book A (CLOSED at A1, 2026-08-22) — Index volatility risk premium, defined-risk, Section 1256
+
+**CLOSED.** A1 measured mean IV−RV **4.91** vol pts against a modelled spread round-trip of **4.14** = **1.19×**, below the pre-registered **2×** hurdle, on the spliced 2012–present window at **$0** (OptionsDX + ThetaData FREE; the Cboe cart quoted $580 and tripped the $100 stop, so nothing was bought). Kill criterion (c) below fired. A2 and A3 are **not run** and are not authorized. The 2× hurdle does not move, no other delta bucket is searched, and the sample is not extended to 2005–2011. Reopening requires *new data*, not new specifications. The material below is the pre-STOP record.
 
 - **Economic hypothesis.** Demand for index downside insurance structurally exceeds supply because the buyers are hedging balance sheets, not seeking expected value. The seller is paid for bearing gap and variance risk. Because it is a *risk transfer* rather than an information advantage, publication does not eliminate it — but the premium is compensation for a real, occasionally brutal, exposure (Feb 2018, Mar 2020, Aug 2024).
 - **Instrument and horizon.** Short SPX put spreads, 30–45 DTE, short leg ~20–25 delta, width 50–100 index points, defined risk only, no naked short options, exit at 50% of credit captured or at 7–14 DTE. SPX chosen for: European-style (no early assignment), cash settlement (no share delivery), Section 1256 (28% vs 40%), and 1.0–2.0% round-trip cost vs 5–9% for XSP. XSP only if account size forces smaller granularity — and its cost must be charged honestly.
@@ -177,14 +179,14 @@ Ranked by expected after-cost after-tax contribution **per unit of research risk
 - **Kill criteria, before any CBOE dollar.** Kill if any of: (a) walk-forward net-of-cost, after-tax sleeve Sharpe < 0.4 over 2012–present; (b) sleeve max drawdown > 25% of sleeve notional; (c) the mean implied-minus-realized spread in the traded delta bucket is smaller than the modelled *spread* round-trip cost (A0.5, else ATM bucket); (d) the sleeve fails to beat a PUTW-equivalent after tax by ≥ 75 bps/yr; (e) at 20% weight the blend dilutes Book C’s measured 35.5 bps/yr vs VTI. A0.5 (ThetaData FREE) may kill on (c) at $0. A1/A2 share one SPX-only dump.
 - **AI role.** **None.** There is nothing here for a language model to do.
 
-### Book B (rank 3) — Post-earnings drift in liquid US mid- and large-caps, long-only, IRA-first
+### Book B (rank 2 as of Rev 1.2; was rank 3) — Post-earnings drift in liquid US mid- and large-caps, long-only, IRA-first
 
 - **Economic hypothesis.** Earnings information is incorporated with a lag where analyst coverage is thin and attention is scarce. The lag shows up as drift in the direction of the surprise over 5–40 trading days. It has been attenuated in mega-caps by decades of publication; it may persist in the $2–20B band where the flow is smaller and the coverage thinner.
 - **Instrument and horizon.** Single-name US equities, $ADV > $20M, top ~1,500 by liquidity. 5–40 day hold. **Long-only** — the short leg is closed by borrow cost and recall risk. Optional beta hedge in MES. **Run inside the IRA** so that 12× annual turnover is untaxed; that decision alone is worth ~240 bps/yr on a 6% gross sleeve.
 - **Effect size needed.** Round-trip cost 10–25 bps in the mid-cap band. Require **gross per-event alpha ≥ 100 bps over the 20-day window** (≥ 4× cost), hit rate > 52%. At a 25% sleeve weight with 12 turns/yr, that is ~150–200 bps at book level inside the IRA. If the sleeve cannot be housed in the IRA, apply the 40% haircut and it fails — so IRA capacity is a hard precondition, not a preference.
 - **Inference.** ~6,000 name-events/yr → MDE 13 bps raw, **29 bps after a 5× clustering haircut** for date and sector correlation. This is the only book in the document where discovery is statistically legitimate.
 - **Why it might already be in the price.** Because it is the second-most-published anomaly in the literature and every institution screens on it. Assume it is dead in large caps and gate hard on the mid-cap subsample.
-- **Kill criteria.** Kill if pooled net-of-cost drift in the $ADV > $20M universe over a 2010–2025 walk-forward is below **40 bps per event**, or if the effect is concentrated in the sub-$20M ADV tail (where cost eats it), or if it is entirely explained by momentum and short-interest controls. **Rev 1.1:** B0 listed-only 80.9 bps (n=17,143, current S&P 400) cannot certify this. **B0.5 (2026-08-22, $0):** Item 2.02 listed mid-cap 82.3 bps (n=13,907); free stitch cut `w` to 12.9% (< 50.6%); zero-drift bound 71.7 bps. B0 still informs B1. Default panel SKU is Norgate Platinum trial then 6-month dump ($346.50), not Polygon. Do not buy until A0.5 resolves.
+- **Kill criteria.** Kill if pooled net-of-cost drift in the $ADV > $20M universe over a 2010–2025 walk-forward is below **40 bps per event**, or if the effect is concentrated in the sub-$20M ADV tail (where cost eats it), or if it is entirely explained by momentum and short-interest controls. **Rev 1.1:** B0 listed-only 80.9 bps (n=17,143, current S&P 400) cannot certify this. **B0.5 (2026-08-22, $0):** Item 2.02 listed mid-cap 82.3 bps (n=13,907); free stitch cut `w` to 12.9% (< 50.6%); zero-drift bound 71.7 bps. B0 still informs B1. Default panel SKU is Norgate Platinum trial then 6-month dump ($346.50), not Polygon. **Rev 1.2:** A0.5 and A1 both resolved at $0 and closed Book A, so nothing sequences B1 behind Book A any longer — the Norgate **trial** is the next certified step. Trial first; subscribe only if the trial panel is complete.
 - **AI role — real and specific.** An LLM builds **point-in-time features from unstructured text**: 8-K/10-Q press-release surprise versus consensus, guidance direction change, and the language delta between successive earnings calls. Hard rules: the model sees only text published before the timestamp it is labelled with; the model outputs *features*, never a return forecast; every extraction is cached, versioned, and re-runnable; and the incremental value of text features over numeric surprise alone must be shown separately or the LLM is removed from the pipeline.
 
 ### Explicitly closed, do not revisit without new market structure
@@ -197,7 +199,7 @@ Day trading and intraday scalping · 0DTE as an alpha book · overnight close-to
 
 ### 3.1 Data: buy nothing at P0; buy the narrowest SKU at the certified test
 
-Discovery vendor ceiling **$700** before L0. Expected spend through the first kill gate **$0–35**. Do not buy Book A tape and Book B panel in the same month.
+**Rev 1.2 discovery vendor ceiling: $346.50 before L0** (was $700 = one Cboe SPX dump + one Norgate 6-month). Book A closed at $0 and its tape is closed, so the Cboe half of the old ceiling is void and is not reallocated. The **only** residual authorized purchase before L0 is Norgate US Stocks Platinum — free trial first, then **$346.50 / 6 months**, dump-and-cancel. Any fallback (EODHD, and Polygon only if the Norgate trial cannot deliver) must fit inside the same $346.50, not on top of it. Spend to date: **$0**. The "do not buy Book A tape and Book B panel in the same month" rule is retained and is now moot: there is no Book A tape to buy.
 
 | Source | Cost (working) | Role | Authorized when |
 |---|---|---|---|
@@ -205,12 +207,12 @@ Discovery vendor ceiling **$700** before L0. Expected spend through the first ki
 | SEC EDGAR (submissions API, full-text, Form 25/15) | free | PIT filings, delisting *identifiers*, Item 2.02 | Now (U0 / B0 / B0.5 / B1) |
 | FRED | free | Rates, macro calendar | As needed |
 | Yahoo / Vanguard | free | After-tax VTI, VIX, SPX, listed bars, `^PUT` | Now (P0 / A0 / B0) |
-| ThetaData FREE | $0 | SPX EOD chains from 2023-06-01 (~38 cycles) | **A0.5 only.** Cannot certify A1 (MDE 68.1 bps, H3) |
-| CBOE DataShop Option EOD Summary, **SPX only**, calcs **excluded**, historical 2012–present, dump-and-cancel | working **$25–35**; stop if cart > $100 | A1 implied-minus-realized by delta; **same files are A2** | **A1, only if A0.5 green.** Reconstruct delta from chain + SPX close. CGI unlicensed |
-| CBOE Optsum 2005–2019 | paid | Pre-2012 SPX OHLC | **Closed.** 2012–present is n≈175, MDE 31.7 bps, ratio 0.27, includes 2018/2020/2024 |
+| ThetaData FREE | $0 | SPX EOD chains from 2023-06-01 (~38 cycles) | **Spent.** Used for A0.5 and for the A1 2024+ splice. Never certified A1 alone (MDE 68.1 bps, H3) |
+| CBOE DataShop Option EOD Summary, SPX only, dump-and-cancel | quoted cart **$580** vs a $100 stop | Was to be the A1/A2 tape | **CLOSED — do not buy.** The cart tripped the stop, A1 ran at $0 on OptionsDX + ThetaData FREE, and the 1.19× result closed Book A. There is no A2 to buy it for |
+| CBOE Optsum 2005–2019 | paid | Pre-2012 SPX OHLC | **Closed.** 2012–present ran at n=173, MDE 31.9 bps, ratio 0.28, including 2018/2020/2024. Extending the sample to rescue a 1.19× fail is spec mining |
 | CBOE full-market OPRA EOD | $300–420/mo | Entire listed-options tape | **Do not buy.** A1 needs one underlying |
 | Cboe Global Indices (CGI) license | ≥ $1k/mo | SPX bid/ask on the dump | **Do not buy.** Yahoo `^GSPC` is the underlying |
-| Norgate US Stocks Platinum | $0 for 3-week trial; **$346.50 / 6 months** dump-and-cancel | Delisted EOD + historical index constituents — the B1 PIT panel | **B1, only if B0.5 green.** Trial first |
+| Norgate US Stocks Platinum | $0 for 3-week trial; **$346.50 / 6 months** dump-and-cancel | Delisted EOD + historical index constituents — the B1 PIT panel | **B1 — authorized now.** B0.5 is green and nothing else sequences it. **Trial first**; subscribe only if the trial panel is complete. This is the whole residual ceiling |
 | Polygon / Massive Stocks Developer | $79/mo, 10 years | Adjusted bars | **Not default.** Too short for 2010–2026 |
 | Polygon / Massive Stocks Advanced | $199/mo, 20y; delisted coverage spotty | Same | **Not default.** Only if Norgate trial cannot deliver Python-usable PIT |
 | EODHD delisted EOD | $ (cheaper, lower quality) | Fallback delisted prices | Only if Norgate fails |
@@ -290,7 +292,7 @@ Published before any measurement, and not adjustable after seeing a result.
 
 | ID | Hurdle |
 |---|---|
-| H1 | Total book, after-cost and after-tax, must beat an after-tax VTI hold by **≥ 200 bps/yr** over the evaluation window, with excess-return Sharpe ≥ 0.5. **This is an L0 programme gate across all passing books, not an A2 sleeve identity.** At sleeve weight `w`, book excess vs VTI is `w × (sleeve − VTI) + (1−w) × C`. A2’s former “200 bps at book level” clause is unreachable at w = 20% (it demanded +1,000 bps sleeve vs VTI) and was removed 2026-08-21 before any CBOE purchase. |
+| H1 | Total book, after-cost and after-tax, must beat an after-tax VTI hold by **≥ 200 bps/yr** over the evaluation window, with excess-return Sharpe ≥ 0.5. **This is an L0 programme gate across all passing books, not an A2 sleeve identity.** At sleeve weight `w`, book excess vs VTI is `w × (sleeve − VTI) + (1−w) × C`. A2’s former “200 bps at book level” clause is unreachable at w = 20% (it demanded +1,000 bps sleeve vs VTI) and was removed 2026-08-21 before any CBOE purchase. **Rev 1.2 (post-A1):** Book A contributes **0** and C1 contributes a measured **35.5 bps**, so H1 is now reachable through **Book B alone**. B2’s pre-registered **800 bps/yr sleeve at w = 25%** is the only remaining path to it and clears it with the C term included (0.25 × 800 + 0.75 × 35.5 ≈ **227 bps**). The 200 bps is not lowered and B2’s 800 bps is not lowered. If Book B closes, the STOP row fires and the programme ends at 100% passive plus Book C. |
 | H2 | Total book max drawdown must not exceed the passive benchmark's max drawdown over the same window. |
 | H3 | **MDE must be printed before every peek.** If MDE > 0.5 × hypothesized effect, the test is not run and the book closes. |
 | H4 | Modelled cost must match realized fills within **3 bps** (equities) or **0.3% of premium** (options) before any size increase. |
