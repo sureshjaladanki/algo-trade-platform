@@ -10,6 +10,7 @@ from src.books.step_up import (
     ILLUSTRATION_INR_PER_USD_NOW,
     ILLUSTRATION_USD_COST,
     ILLUSTRATION_USD_VALUE,
+    REAL_LOTS_PATH,
     STEP_UP_HURDLE_BPS,
     Lot,
     illustration_score,
@@ -37,7 +38,13 @@ def test_illustration_matches_plan_worked_example() -> None:
 
 def test_illustration_is_not_exit() -> None:
     assert not r0_passes(illustration_score())
-    assert not real_lots_present()
+    if real_lots_present():
+        score = score_lots(
+            load_lots(REAL_LOTS_PATH),
+            cliff_date=date(2028, 3, 31),
+            source="real",
+        )
+        assert r0_passes(score)
 
 
 def test_short_lot_uses_slab_at_cliff() -> None:
