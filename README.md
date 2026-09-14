@@ -26,7 +26,7 @@ poetry run pytest
 | `src/` | Python package. Modules (`costs`, `tax`, …) are added when a milestone needs them. |
 | `tests/` | Pytest |
 | `docs/next/` | Active blueprint and plan |
-| `docs/archive/` | STOP memos, once a book closes |
+| `docs/archive/` | STOP memos and completed measurement memos |
 | `data/` | Panels (gitignored except `.gitkeep`) |
 | `logs/` | Run output (gitignored except `.gitkeep`) |
 

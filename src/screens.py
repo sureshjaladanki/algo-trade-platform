@@ -73,6 +73,7 @@ from src.yahoo import load_or_fetch
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VTI_DAILY = REPO_ROOT / "data" / "raw" / "vti_daily.csv"
 DOCS = REPO_ROOT / "docs"
+ARCHIVE = DOCS / "archive"
 
 
 def _vti_bars():
@@ -124,7 +125,7 @@ def run_book_a() -> str:
 **Gate:** **closed without a peek** — MDE {decl.mde:.2f} vol points, ratio {decl.mde_ratio:.2f}.
 
 """
-        (DOCS / "a0-public-vrp-screen.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "a0-public-vrp-screen.md").write_text(body, encoding="utf-8")
         return f"A0 MDE closed: n={decl.n:g} ratio={decl.mde_ratio:.2f}"
     screen = run_declared(
         lambda: run_vrp_screen(
@@ -202,7 +203,7 @@ Non-overlapping {screen.n} windows. Cost haircut from `src.costs` SPX ATM 30–4
 PUTW max drawdown is cash-secured puts, not the defined-risk spread, so it is an upper bound on short-vol pain, not an A2 kill.
 
 """
-    (DOCS / "a0-public-vrp-screen.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "a0-public-vrp-screen.md").write_text(body, encoding="utf-8")
     return (
         f"A0 {verdict}: net-high {screen.mean_net_high:.2f} vol pts, "
         f"n={screen.n}, sign_stable={screen.sign_stable_high}"
@@ -221,7 +222,7 @@ def run_book_b() -> str:
 **Gate:** **inconclusive** — no mid-cap listed events after ADV and long-only filters.
 
 """
-        (DOCS / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
         return "B0 inconclusive: no mid-cap events"
     decl = pead_declaration(len(mid))
     ledger = _ledger()
@@ -244,7 +245,7 @@ def run_book_b() -> str:
 n={len(mid)} mid-cap events, n_eff={decl.n_effective:g}, MDE={decl.mde:.1f} bps, hypothesized={decl.hypothesized_effect:g}. Ratio {decl.mde_ratio:.2f} > 0.5.
 
 """
-        (DOCS / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
         return f"B0 MDE closed: n={len(mid)} ratio={decl.mde_ratio:.2f}"
     screen = run_declared(lambda: run_pead_screen(mid))
     ledger.mark_run(decl.spec_id)
@@ -278,7 +279,7 @@ MDE printed first: n={screen.n_mid}, n_eff={decl.n_effective:g}, MDE={decl.mde:.
 Long-only: positive announcement-window return only. Forward window starts at t+1. Events are all 8-Ks, not Item 2.02 only, so non-earnings filings dilute the mean toward zero. This is not a PIT panel (delisted names are missing).
 
 """
-    (DOCS / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "b0-public-pead-screen.md").write_text(body, encoding="utf-8")
     return f"B0 {verdict}: mid {mid_txt} bps on n={screen.n_mid}"
 
 
@@ -320,7 +321,7 @@ MDE printed first: {mde_line}.
 
 Do not buy CBOE until this screen authorizes A1.
 """
-        (DOCS / "a05-spread-cost-screen.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "a05-spread-cost-screen.md").write_text(body, encoding="utf-8")
         return f"A0.5 blocked: {exc}"
     screen = run_spread_screen(spreads, n_expiries=n_expiries)
     if screen.authorize_a1:
@@ -351,7 +352,7 @@ Do not buy CBOE until this screen authorizes A1.
 
 Fees from `src.costs.vertical_spread_round_trip` (two legs, open+close). Delta from bid/ask mid + SPX close, European Black–Scholes, working r=5% q=1.3%.
 """
-    (DOCS / "a05-spread-cost-screen.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "a05-spread-cost-screen.md").write_text(body, encoding="utf-8")
     if not mde_closed:
         ledger.mark_run(decl.spec_id)
     return (
@@ -373,7 +374,7 @@ def run_book_b05() -> str:
 **Spec:** `B.item-202-listed-bound`
 **Gate:** **inconclusive** — no mid-cap Item 2.02 events after ADV and long-only filters.
 """
-        (DOCS / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
         return "B0.5 inconclusive: no mid-cap Item 2.02 events"
     decl = item_202_declaration(len(mid))
     ledger = _ledger()
@@ -392,7 +393,7 @@ def run_book_b05() -> str:
 **Spec:** `{decl.spec_id}`
 **Gate:** **closed without a peek** — n={len(mid)} n_eff={decl.n_effective:g} MDE={decl.mde:.1f} bps ratio={decl.mde_ratio:.2f}.
 """
-        (DOCS / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
         return f"B0.5 MDE closed: n={len(mid)} ratio={decl.mde_ratio:.2f}"
     screen = run_declared(
         lambda: run_bound_screen(
@@ -440,7 +441,7 @@ MDE printed first: n={screen.n_mid}, n_eff={decl.n_effective:g}, MDE={decl.mde:.
 
 Long-only, t+1 start, mid-cap $20–100M ADV, working 25 bps cost. `w` is the share of the S&P 400 cohort with no free price tape (Yahoo, Tiingo EOD, or curated successor). Dirty identity (AHL, SIVB, CHK, …) stays in N_missing. Form 25/15 is the identifier count, including names that were never in the index.
 """
-    (DOCS / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "b05-item-202-bound.md").write_text(body, encoding="utf-8")
     return f"B0.5 {verdict}: mid {mid_txt} bps, w={100 * screen.w:.1f}%"
 
 
@@ -484,7 +485,7 @@ def run_book_a1() -> str:
 **Spec:** `A.spx-put-spread-20-25d-30-45dte`
 **Blocked:** {exc}. Place OptionsDX SPX EOD 7z files in `data/raw/optionsdx/SPX`.
 """
-        (DOCS / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
         return f"A1 blocked: {exc}"
     days = quote_dates(panel)
     dx_expiries = [day for day in monthly_expiries(panel) if day < THETA_TAIL_START]
@@ -518,7 +519,7 @@ def run_book_a1() -> str:
 **Spec:** `{decl.spec_id}`
 **Gate:** **closed without a peek** — n={decl.n:g} MDE={decl.mde:.1f} bps ratio={decl.mde_ratio:.2f}.
 """
-        (DOCS / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
+        (ARCHIVE / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
         return f"A1 MDE closed: n={decl.n:g} ratio={decl.mde_ratio:.2f}"
     n_expiries = len(dx_expiries) + len(theta_expiries)
 
@@ -610,7 +611,7 @@ OptionsDX-only (already published): n={dx_n} IV−RV {dx_raw:.2f} vs cost {dx_co
 
 0DTE and 7DTE rows document the Blueprint closure of 0DTE as an alpha book. They are not an A1 search. Do not extend to 2005–2011.
 """
-    (DOCS / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "a1-vrp-existence.md").write_text(body, encoding="utf-8")
     if not screen.passed:
         archive = DOCS / "archive"
         archive.mkdir(exist_ok=True)
@@ -622,7 +623,7 @@ OptionsDX-only (already published): n={dx_n} IV−RV {dx_raw:.2f} vs cost {dx_co
 
 Mean IV−RV {screen.mean_raw:.2f} vol pts vs spread cost {screen.mean_cost:.2f} ({screen.multiple:.2f}×). Sign stable net: {screen.sign_stable_net}. Splice: OptionsDX through 2023, ThetaData FREE 2024–present. A2/A3 are not run. Do not buy Cboe. Do not search other delta buckets.
 
-Detail: [a1-vrp-existence.md](../a1-vrp-existence.md)
+Detail: [a1-vrp-existence.md](a1-vrp-existence.md)
 """
         (archive / "book-a-stop.md").write_text(stop, encoding="utf-8")
     return (
@@ -782,7 +783,7 @@ Absent from Tiingo ticker file: {absent or "none"}.
 
 EOD/file disagreements in the sample are possible (ticker reuse, late starts). Treat usable % as an upper bound until remaining names are dumped. Tiingo Starter allows 50 requests/hour. This is not Norgate: no PERMNO, no licensed S&P 400 PIT, CHK/JAVA/PCS rejected on identity.
 """
-    (DOCS / "b075-tiingo-coverage.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "b075-tiingo-coverage.md").write_text(body, encoding="utf-8")
     return (
         f"Tiingo coverage: {usable}/{report.n_missing} usable "
         f"({100 * report.usable_coverage:.1f}%); EOD {report.n_eod_ok} ok"
@@ -826,7 +827,7 @@ Run: `poetry run python -m src.screens`
 
 Detail: [c1-tax-location-proof.md](c1-tax-location-proof.md), [a0-public-vrp-screen.md](a0-public-vrp-screen.md), [b0-public-pead-screen.md](b0-public-pead-screen.md).
 """
-    (DOCS / "zero-spend-feasibility.md").write_text(body, encoding="utf-8")
+    (ARCHIVE / "zero-spend-feasibility.md").write_text(body, encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -859,7 +860,7 @@ def main(argv: list[str] | None = None) -> None:
         lines.append(line)
     if any(book in {"C", "A", "B"} for book in wanted):
         write_summary(lines)
-        print("wrote docs/zero-spend-feasibility.md")
+        print("wrote docs/archive/zero-spend-feasibility.md")
 
 
 if __name__ == "__main__":

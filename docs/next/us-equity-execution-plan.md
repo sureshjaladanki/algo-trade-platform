@@ -95,7 +95,7 @@ Nothing downstream is interpretable until the desk knows what a trade costs and 
 3. **After-tax VTI benchmark series**, 2005–2026: total return, dividends taxed at 20% on the qualified-dividend schedule, 3 bps ER. This series is the denominator of every later claim.
 4. PDT state machine and Reg T / portfolio-margin thresholds as constants.
 5. Broker account opened; API keys; 200 real fills logged in tiny size across SPY, one large cap, one mid cap, and one SPX spread, purely to calibrate `costs`. These fills are operational, not a vendor SKU.
-6. **Data decision, $0 paid:** Yahoo / Vanguard (after-tax VTI, VIX, SPX, listed bars), SEC EDGAR, FRED, IBKR delayed/historical included with the account, ThetaData **FREE** tier for A0.5. **No Polygon. No CBOE. No Norgate. No Sharadar.** Those SKUs are authorized only at A1 or B1 as named below, and only after the $0 kill-ladder for that book is green. See [p0-data-decision.md](p0-data-decision.md).
+6. **Data decision, $0 paid:** Yahoo / Vanguard (after-tax VTI, VIX, SPX, listed bars), SEC EDGAR, FRED, IBKR delayed/historical included with the account, ThetaData **FREE** tier for A0.5. **No Polygon. No CBOE. No Norgate. No Sharadar.** Those SKUs are authorized only at A1 or B1 as named below, and only after the $0 kill-ladder for that book is green. See [p0-data-decision.md](../archive/p0-data-decision.md).
 
 ### Exit
 
@@ -191,7 +191,7 @@ Establish that a *coarse* volatility risk premium is still visible in public dat
 
 ### A0 result (2026-08-21)
 
-n=259 non-overlapping windows. Mean raw VIX–RV 3.29 vol pts; net of mid cost 3.00; net of expensive-end cost **2.91**; sign stable in **5/5** sub-periods. Stress raw: 2018 +0.25, 2020 **−0.23**, 2024 +2.78. Packaged path used `^PUT` (PUTW Yahoo history unusable): 2016-02-24 – 2026-08-20 after-tax PUT 5.08% vs after-tax VTI 15.19%; DIY 1256 marked 6.07%; **1256 vs ordinary wedge 98 bps/yr at full sleeve ≈ 20 bps at 20% weight**, below Book C’s measured 35.5 bps. The tax advantage alone no longer carries Book A. Detail: [a0-public-vrp-screen.md](../a0-public-vrp-screen.md).
+n=259 non-overlapping windows. Mean raw VIX–RV 3.29 vol pts; net of mid cost 3.00; net of expensive-end cost **2.91**; sign stable in **5/5** sub-periods. Stress raw: 2018 +0.25, 2020 **−0.23**, 2024 +2.78. Packaged path used `^PUT` (PUTW Yahoo history unusable): 2016-02-24 – 2026-08-20 after-tax PUT 5.08% vs after-tax VTI 15.19%; DIY 1256 marked 6.07%; **1256 vs ordinary wedge 98 bps/yr at full sleeve ≈ 20 bps at 20% weight**, below Book C’s measured 35.5 bps. The tax advantage alone no longer carries Book A. Detail: [a0-public-vrp-screen.md](../archive/a0-public-vrp-screen.md).
 
 ### A0.5 Why
 
@@ -199,7 +199,7 @@ n=259 non-overlapping windows. Mean raw VIX–RV 3.29 vol pts; net of mid cost 3
 
 ### A0.5 result (2026-08-21)
 
-MDE printed first: n=38, MDE=68.1 bps, ratio=0.59. **H3 closes A1 certification** on the FREE window, as pre-registered. Cost peek ran on the official `thetadata` Python client (no Java terminal): 37 of 54 monthlies reconstructed, mean credit 6.86, mean all-in 37.8% of credit, **62.2% retained** vs 25% hurdle. Not sparse. **A1 CBOE dump authorized.** This is not A1. Detail: [a05-spread-cost-screen.md](../a05-spread-cost-screen.md).
+MDE printed first: n=38, MDE=68.1 bps, ratio=0.59. **H3 closes A1 certification** on the FREE window, as pre-registered. Cost peek ran on the official `thetadata` Python client (no Java terminal): 37 of 54 monthlies reconstructed, mean credit 6.86, mean all-in 37.8% of credit, **62.2% retained** vs 25% hurdle. Not sparse. **A1 CBOE dump authorized.** This is not A1. Detail: [a05-spread-cost-screen.md](../archive/a05-spread-cost-screen.md).
 
 ### A0.5 Build
 
@@ -215,7 +215,7 @@ Spread round-trip eats the 25% retention hypothesis, or chains are too sparse/wi
 
 ### A1 result (2026-08-22)
 
-MDE printed first: n=173, MDE=31.9 bps, ratio=0.28. Tape: OptionsDX SPX EOD through 2023 spliced to ThetaData FREE from expiry 2024-01-01 (completes the pre-registered 2012–present window, including the named 2024 stress year; not 2005–2011). 169 of 174 monthlies in the 20–25Δ / 30–45 DTE bucket. Mean IV−RV **4.91** vol pts; mean spread round-trip **4.14** vol pts; **1.19×** vs hurdle 2×. Net of cost positive in **4/5** sub-periods (last window 2021-09–2026-12 goes to −0.55 after the tail). Stress raw: 2018 +1.54, 2020 +2.06, **2024 +1.44**. OptionsDX-only (already published, dump ended 2023) was 1.39×. **Book A STOP.** A2/A3 not run. Do not search other delta buckets; do not extend to 2005–2011. Detail: [a1-vrp-existence.md](../a1-vrp-existence.md). STOP memo: [book-a-stop.md](../archive/book-a-stop.md).
+MDE printed first: n=173, MDE=31.9 bps, ratio=0.28. Tape: OptionsDX SPX EOD through 2023 spliced to ThetaData FREE from expiry 2024-01-01 (completes the pre-registered 2012–present window, including the named 2024 stress year; not 2005–2011). 169 of 174 monthlies in the 20–25Δ / 30–45 DTE bucket. Mean IV−RV **4.91** vol pts; mean spread round-trip **4.14** vol pts; **1.19×** vs hurdle 2×. Net of cost positive in **4/5** sub-periods (last window 2021-09–2026-12 goes to −0.55 after the tail). Stress raw: 2018 +1.54, 2020 +2.06, **2024 +1.44**. OptionsDX-only (already published, dump ended 2023) was 1.39×. **Book A STOP.** A2/A3 not run. Do not search other delta buckets; do not extend to 2005–2011. Detail: [a1-vrp-existence.md](../archive/a1-vrp-existence.md). STOP memo: [book-a-stop.md](../archive/book-a-stop.md).
 
 ### A1 Why
 
@@ -275,7 +275,7 @@ Test whether listed-only mid-cap PEAD is already dead, which would skip every la
 
 ### B0 result (2026-08-21)
 
-MDE printed first: n=17,143, n_eff=3,428.6, MDE=38.3 bps, ratio 0.38. Current S&P 400 listed names, 2010–2026, long-only, all 8-Ks (not Item 2.02 only). Mid-cap ($20–100M ADV) mean net-of-cost 20-day drift **80.9 bps** (kill 40), working cost 25 bps. Gate was “buy Polygon PIT panel”; Rev 1.1 replaces that SKU. Detail: [b0-public-pead-screen.md](../b0-public-pead-screen.md).
+MDE printed first: n=17,143, n_eff=3,428.6, MDE=38.3 bps, ratio 0.38. Current S&P 400 listed names, 2010–2026, long-only, all 8-Ks (not Item 2.02 only). Mid-cap ($20–100M ADV) mean net-of-cost 20-day drift **80.9 bps** (kill 40), working cost 25 bps. Gate was “buy Polygon PIT panel”; Rev 1.1 replaces that SKU. Detail: [b0-public-pead-screen.md](../archive/b0-public-pead-screen.md).
 
 ### B0.5 Why
 
@@ -283,7 +283,7 @@ B0 filtered on *current index membership*, not mere survival, so the missing mas
 
 ### B0.5 result (2026-08-21)
 
-MDE printed first: n=13,907, n_eff=2,781.4, MDE=42.5 bps, ratio=0.42. Listed names with $ADV > $20M (S&P 1500 candidates, 1,349 after the ADV cut), Item 2.02 only, long-only, mid-cap 20-day net **82.3 bps** (kill 40). Current S&P 400 N_listed=399. Free stitch (Tiingo usable EOD + Yahoo/Tiingo successors) cut unrecovered leavers from 316 to **N_missing=59**; **w=12.9%** (< 50.6%). Membership missing mass (promoted/demoted/delisted) 62.1%. Zero-drift bound (1−w)×82.3 = **71.7 bps**. Dirty identity (AHL, SIVB, CHK) stays in N_missing. Form 25/15 unique CIKs 11,912. Gate: B0 still informs B1. Still not Lock 5. Detail: [b05-item-202-bound.md](../b05-item-202-bound.md), [b075-tiingo-coverage.md](../b075-tiingo-coverage.md).
+MDE printed first: n=13,907, n_eff=2,781.4, MDE=42.5 bps, ratio=0.42. Listed names with $ADV > $20M (S&P 1500 candidates, 1,349 after the ADV cut), Item 2.02 only, long-only, mid-cap 20-day net **82.3 bps** (kill 40). Current S&P 400 N_listed=399. Free stitch (Tiingo usable EOD + Yahoo/Tiingo successors) cut unrecovered leavers from 316 to **N_missing=59**; **w=12.9%** (< 50.6%). Membership missing mass (promoted/demoted/delisted) 62.1%. Zero-drift bound (1−w)×82.3 = **71.7 bps**. Dirty identity (AHL, SIVB, CHK) stays in N_missing. Form 25/15 unique CIKs 11,912. Gate: B0 still informs B1. Still not Lock 5. Detail: [b05-item-202-bound.md](../archive/b05-item-202-bound.md), [b075-tiingo-coverage.md](../archive/b075-tiingo-coverage.md).
 
 ### B0.5 Build
 

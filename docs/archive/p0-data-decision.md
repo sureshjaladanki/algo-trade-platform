@@ -3,7 +3,7 @@
 **Milestone:** P0 — Posture and cost lock  
 **Date:** 2026-08-21  
 **Revision:** Rev 1.1 spend-deferral (Claude Opus). P0 authorizes **$0** paid data.  
-**Authority:** [us-equity-execution-plan.md](us-equity-execution-plan.md) Build item 6; Blueprint §3.1
+**Authority:** [us-equity-execution-plan.md](../next/us-equity-execution-plan.md) Build item 6; Blueprint §3.1
 
 P0 is an interpretability gate (cost, tax, after-tax VTI), not a procurement gate. Polygon Developer and CBOE history are **revoked** from P0. They were the wrong SKUs at the wrong time: Developer is 10 years against B1’s 16-year window, and CBOE was authorized before A0.5 could kill Book A at $0.
 

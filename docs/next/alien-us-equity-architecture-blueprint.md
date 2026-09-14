@@ -6,7 +6,7 @@
 **Status:** **BLUEPRINT Rev 1.0** — new sibling programme. Nothing measured on this desk. All statutory rates are **working**, not a filed opinion.
 **Date:** 2026-09-13
 **Capital envelope:** $25,000 – $500,000, single taxable offshore book. No IRA analogue exists. The envelope is unchanged from the US-person desk, but it now has an internal break at **$60,000** (the NRA US estate-tax exemption), which is an architecture boundary, not a preference — see §0.2.
-**Risk posture:** moderately aggressive — a large cheap core plus at most one pre-registered active sleeve.
+**Risk posture:** moderately aggressive (4/5) — cheap core ~75–80%; leftover ~20–25% may be multiple active sleeves. 4/5 does not cap sleeve count. Core-heavy, no leverage. US-situs still ≤ $60,000 unless W3 (N5); that is a situs lock, not 4/5.
 **Relationship to the US-person desk:** this is **not** a revision of [us-equity-architecture-blueprint.md](us-equity-architecture-blueprint.md). That desk's market-structure, friction, and inference facts are reused as measured. Its **tax wrappers are not.** Its hurdles H1–H6, its IRA asset-location engine, its §1256 ranking, its wash-sale engine, and Book C's measured 35.5 bps/yr **do not transfer** and are not imported.
 
 **Implementation map:** [alien-us-equity-execution-plan.md](alien-us-equity-execution-plan.md)

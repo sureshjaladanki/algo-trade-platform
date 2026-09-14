@@ -58,7 +58,7 @@ Prefer `python -m package.module` over calling a `.py` file by path.
 | `data/` | Downloaded / generated data (gitignored except `.gitkeep`) |
 | `logs/` | Experiment output (gitignored except `.gitkeep`) |
 
-New docs go under `docs/` with kebab-case names. STOP memos and closed-programme summaries belong in `docs/archive/`; active next work in `docs/next/`.
+New docs go under `docs/` with kebab-case names. STOP memos, completed measurement memos, and closed-programme summaries belong in `docs/archive/`; active next work in `docs/next/`.
 
 ## Cursor / agents
 
