@@ -1,0 +1,24 @@
+---
+description: Agent reply style — plain English, short answers; billed models only as packed sub-agents
+alwaysApply: true
+---
+
+# Agent guidelines
+
+Follow `docs/agent-guidelines.md`.
+
+## All models: readable replies
+
+- Plain English over jargon. Define a required domain term once, then use it.
+- Short replies. Outcome first, then only the detail needed to act.
+- Keep the decision, files touched, and next step. Drop the diary of how you got there.
+- Do not recap the task, narrate tool calls, or write journal-style sections the user did not ask for.
+
+## Non-Cursor, non-Grok models: sub-agents only
+
+Parent work stays on Cursor-included models (including Grok). Billed models (Claude, Gemini, others) run **only as sub-agents**.
+
+- Do not use a billed model as the parent. If this session already is one, do not launch more billed sub-agents; ask the user to switch the parent to a Cursor model.
+- Before launching a billed sub-agent, the Cursor parent searches, reads, and packs the prompt: one job, a complete fact picture, and what to return.
+- Pack means compact, not thin. Include every constraint, decision, path, and quote the sub-agent needs. Do not omit facts to save tokens.
+- Do not forward chat history, these guidelines, whole files, or long logs. Point to paths; quote only the lines that matter.
