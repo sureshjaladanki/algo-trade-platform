@@ -4,9 +4,11 @@ import pytest
 
 from src.books.wrapper import (
     CSPX,
+    CSUS,
     VTI,
     VTI_SEC_YIELD,
     VWRA,
+    VXUA,
     VXUS,
     WRAPPER_SAVING_HURDLE_BPS,
     XUSE,
@@ -134,3 +136,16 @@ def test_lse_dealing_amortised_under_one_bp_per_year() -> None:
     assert book == pytest.approx(large)
     assert small < 1.0
     assert large < 1.0
+
+
+def test_csus_vxua_are_irish_usd_line_facts_not_w0() -> None:
+    assert CSUS.isin == "IE00B52SFT06"
+    assert VXUA.isin == "IE0009A5ADV9"
+    assert not CSUS.situs_us and not VXUA.situs_us
+    assert CSUS.accumulation and VXUA.accumulation
+    assert CSUS.domicile == VXUA.domicile == "IE"
+    assert CSUS.ter == pytest.approx(0.0003)
+    assert VXUA.ter == pytest.approx(0.0012)
+    irish = irish_pair_costs(us_yield=0.0102)
+    assert irish.label == "Irish physical acc CSPX+XUSE"
+    assert irish.blended_ter_bps == pytest.approx(9.4)

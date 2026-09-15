@@ -4,7 +4,11 @@ import pytest
 
 from src.costs import (
     EQUITY_CALIBRATION_TOLERANCE_BPS,
+    GL_H4_PASSED_VENUE_BUCKETS,
     OPTION_CALIBRATION_TOLERANCE_PCT,
+    US_PERSON_PRODUCT_BUCKETS,
+    USD_LINE_FX_BPS,
+    USD_LINE_IRISH_ACC_ISINS,
     WORKING_TABLE,
     BorrowProhibited,
     Fill,
@@ -22,6 +26,7 @@ from src.costs import (
     round_trip_bps,
     round_trip_pct_of_premium,
     section_31_fee,
+    unauthorized_venue_buckets,
     working_all_in,
 )
 
@@ -126,6 +131,20 @@ def test_calibration_passes_when_fills_match_model() -> None:
     assert report.passed
     assert abs(report.equity_error_bps or 0.0) <= EQUITY_CALIBRATION_TOLERANCE_BPS
     assert abs(report.option_error_pct_of_premium or 0.0) <= OPTION_CALIBRATION_TOLERANCE_PCT
+
+
+def test_usd_line_fx_is_zero() -> None:
+    assert USD_LINE_FX_BPS == 0.0
+    assert "IE00B52SFT06" in USD_LINE_IRISH_ACC_ISINS  # CSUS
+    assert "IE0009A5ADV9" in USD_LINE_IRISH_ACC_ISINS  # VXUA
+    assert "IE00B5BMR087" in USD_LINE_IRISH_ACC_ISINS  # CSPX W0
+    assert "IE000R4ZNTN3" in USD_LINE_IRISH_ACC_ISINS  # XUSE W0
+
+
+def test_no_venue_bucket_without_gl_h4_pass() -> None:
+    assert GL_H4_PASSED_VENUE_BUCKETS == frozenset()
+    assert {bucket.value for bucket in ProductBucket} == US_PERSON_PRODUCT_BUCKETS
+    assert unauthorized_venue_buckets() == ()
 
 
 def test_calibration_fails_when_equity_slippage_exceeds_3bps() -> None:

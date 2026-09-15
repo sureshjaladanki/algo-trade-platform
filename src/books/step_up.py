@@ -135,3 +135,10 @@ def real_lots_present() -> bool:
 
 def r0_passes(score: StepUpScore) -> bool:
     return score.source == "real" and score.step_up_bps_of_capital >= STEP_UP_HURDLE_BPS
+
+
+def realisation_order() -> tuple[str, ...]:
+    """Book J folded: realise the INR book first. Not a hedge or a reallocation."""
+    from src.tax import prefer_realising_inr_book
+
+    return prefer_realising_inr_book()

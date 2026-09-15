@@ -1,9 +1,9 @@
 # Alien US desk — Execution Plan
 
-**Authority:** Implements [alien-us-equity-architecture-blueprint.md](alien-us-equity-architecture-blueprint.md) **Rev 1.0**
+**Authority:** Implements [alien-us-equity-architecture-blueprint.md](alien-us-equity-architecture-blueprint.md) **Rev 1.1**
 **Investor:** Indian **RNOR** (2–3 year working window, then **ROR**), US **NRA**, W-8BEN on file, DTAA claimed, investing already-held USD from US accounts. Not LRS-funded.
-**Status:** **ACTIVE — nothing measured.** Rev 1.0, new sibling programme. All statutory rates are **working**.
-**Date:** 2026-09-13
+**Status:** **ACTIVE — W0, W2, R0 passed.** Vehicle dated **CSUS+VXUA 60/40**. **R1 still waits on W1.** Nothing else to run. All statutory rates are **working**.
+**Date:** 2026-09-14 (Rev 1.1 board; plan text Rev 1.0)
 **Goal:** Establish whether any after-cost, after-**both**-tax algo book beats an after-tax accumulating Irish UCITS core hold for a $25k–$500k NRA/RNOR desk — and, before that question is even asked, execute the two wrapper actions that are worth more than any book on the menu and that **expire with the RNOR window**.
 **Constraint order (fixed):** **tax wrapper (US NRA + India RNOR/ROR cliff) → estate/situs → friction → inference → capacity/eligibility → alpha.**
 **Milestone IDs in this plan belong to this programme.** They are not the US-person desk's P0 / U0 / H0 / A / B / C series, and its H1–H6 do not apply here.
@@ -21,7 +21,7 @@ A **milestone map, not a peek charter.** No milestone authorizes a look at a str
 
 Milestones run in sequence except where a $0 parallel track is named. A STOP memo is a completed milestone, not a failure.
 
-**The ordering principle on this desk is different from the US-person desk's, and it is deliberate.** There, everything queued behind a cost model because nothing was interpretable without one. Here, **two milestones have a deadline and the rest do not.** The RNOR window closes in 2–3 years; the basis step-up inside it is worth 300–860 bps of capital, once, permanently. So **W and R run first, ahead of all alpha work**, and the alpha branch is explicitly allowed to wait.
+**The ordering principle on this desk is different from the US-person desk's, and it is deliberate.** There, everything queued behind a cost model because nothing was interpretable without one. Here, **two milestones have a deadline and the rest do not.** The RNOR window closes in 2–3 years; the basis step-up inside it is worth **180 bps** of capital on the measured book, once, permanently. So **W and R run first, ahead of all alpha work**, and the alpha branch is explicitly allowed to wait. **W0, W2, and R0 are done. W1 is next. Nothing else to run.**
 
 ---
 
@@ -53,24 +53,24 @@ Milestones run in sequence except where a $0 parallel track is named. A STOP mem
 
 | ID | Name | Status | Hard stop if… |
 |---|---|---|---|
-| **N0** | Posture, residency calendar, dual-tax lock | Not started · **$0 paid data** | Costs cannot be pinned within tolerance, or the RNOR expiry date cannot be established |
-| **W0** | Wrapper arithmetic ($0) | Not started | Measured recurring wrapper saving < 15 bps/yr → the domicile switch is not worth the transaction |
-| **W1** | Broker + product eligibility, and the written opinion | Not started · **first authorized spend** | No accessible broker will hold Irish accumulating UCITS → degraded path: US-listed core under the $60k cap plus a priced tail |
-| **W2** | Synthetic vs physical gate ($0) | Not started | Measured advantage < 10 bps/yr, or counterparty exposure > 10% NAV → physical only |
-| **W3** | Price the estate tail ($0 to quote) | Not started | No acceptable, enforceable cover → situs cap stays $60,000 → Book E closes on N2 |
-| **R0** | Embedded-gain and cliff-date ledger ($0) | Not started | Step-up worth < 100 bps of capital → the one-time action is dropped, the 24-month discipline stays |
-| **R1** | **Step-up execution — the only date-bound milestone** | Not started · gated on W1 opinion | Opinion does not support it, or the RNOR year has already closed |
-| **R2** | Standing realisation schedule | Not started | — (permanent discipline, no exit) |
-| **U0** | Universe and PIT panel (listed) | Inherits the US-person desk's listed artefacts | Delisted *prices* unobtainable at acceptable cost → Book E closes; W and R proceed |
-| **H0** | Inference design for **this** desk's books | Not started | Every candidate book's MDE > 0.5 × its effect → programme stops at H0 with zero data-mining risk |
-| **E0** | Book E — re-gate PEAD at ROR rates ($0) | Not started | Survivorship-corrected bound < **58 bps/event after ROR tax**, or the situs cap forces w below what N1 needs |
-| **E1** | Book E — PEAD existence (PIT panel) | Not started · Norgate trial | Pooled net-of-cost drift < 58 bps/event after ROR tax on ≥ 6,000 clustered events, or the effect lives only below $20M ADV |
-| **E2** | Book E — economics, situs sizing, AI increment | Not started | Sleeve excess < 500 bps/yr at ROR at the permitted weight, or text features add < 10 bps over numeric surprise → AI removed |
-| **E3** | Book E — tradability | Not started | Realised mid-cap round-trip > 25 bps, or auction fills degrade the drift by > 15 bps |
-| **L0** | Operating loop | Not started | No book passed N2 → global STOP, 100% core posture |
-| **X0** | Kill and **residency** review | Not started | Standing quarterly gate, plus a hard annual residency and US-day-count review |
+| **N0** | Posture, residency calendar, dual-tax lock | Partial · modules exist; 200 fills and US-day counter outstanding · **$0 paid data** · **do not run** | Costs cannot be pinned within tolerance, or the RNOR expiry date cannot be established |
+| **W0** | Wrapper arithmetic ($0) | **Exit passed** · **22.04 bps/yr** · [w0-wrapper-arithmetic.md](../archive/w0-wrapper-arithmetic.md) | Measured recurring wrapper saving < 15 bps/yr → the domicile switch is not worth the transaction |
+| **W1** | Broker + product eligibility, and the written opinion | **Not started · only remaining gate before R1 · first authorized spend** | No accessible broker will hold Irish accumulating UCITS → degraded path: US-listed core under the $60k cap plus a priced tail |
+| **W2** | Synthetic vs physical gate ($0) | **Exit passed** · **20.6 bps/yr**; ≤ 50% of US leg · [w2-synthetic-vs-physical.md](../archive/w2-synthetic-vs-physical.md) | Measured advantage < 10 bps/yr, or counterparty exposure > 10% NAV → physical only |
+| **W3** | Price the estate tail ($0 to quote) | **Price dated, not passed** · MassMutual **$1,000,000** since 2022 · only policy · incremental **$0** (kept without PEAD) · 706-NA enforceability open · N5 stays $60,000 · **do not run** | No acceptable, enforceable cover → situs cap stays $60,000 → Book E closes on N2 |
+| **R0** | Embedded-gain and cliff-date ledger ($0) | **Exit passed** · **180 bps** working mark · [r0-embedded-gain.md](../archive/r0-embedded-gain.md) | Step-up worth < 100 bps of capital → the one-time action is dropped, the 24-month discipline stays |
+| **R1** | **Step-up execution — the only date-bound milestone** | **Not started · waits on W1** · latest safe date **17 Mar 2028** · vehicle **CSUS+VXUA 60/40** | Opinion does not support it, or the RNOR year has already closed |
+| **R2** | Standing realisation schedule | Not started · **do not run** | — (permanent discipline, no exit) |
+| **U0** | Universe and PIT panel (listed) | Inherits the US-person desk's listed artefacts · **do not run** | Delisted *prices* unobtainable at acceptable cost → Book E closes; W and R proceed |
+| **H0** | Inference design for **this** desk's books | Not started · **do not run** | Every candidate book's MDE > 0.5 × its effect → programme stops at H0 with zero data-mining risk |
+| **E0** | Book E — re-gate PEAD at ROR rates ($0) | Not started · **do not run** | Survivorship-corrected bound < **58 bps/event after ROR tax**, or the situs cap forces w below what N1 needs |
+| **E1** | Book E — PEAD existence (PIT panel) | Not started · Norgate trial · **do not run** | Pooled net-of-cost drift < 58 bps/event after ROR tax on ≥ 6,000 clustered events, or the effect lives only below $20M ADV |
+| **E2** | Book E — economics, situs sizing, AI increment | Not started · **do not run** | Sleeve excess < 500 bps/yr at ROR at the permitted weight, or text features add < 10 bps over numeric surprise → AI removed |
+| **E3** | Book E — tradability | Not started · **do not run** | Realised mid-cap round-trip > 25 bps, or auction fills degrade the drift by > 15 bps |
+| **L0** | Operating loop | Not started · **do not run** | No book passed N2 → global STOP, 100% core posture |
+| **X0** | Kill and **residency** review | Not started · **do not run** | Standing quarterly gate, plus a hard annual residency and US-day-count review |
 
-**Critical path:** **R0 ∥ W0 → W1 (opinion + broker) → W2 → R1 (deadline) → R2** · then, and only then, N0 completion → U0 → H0 → **W3 → E0 → E1 → E2 → E3 → L0.** X0 is standing once live.
+**Critical path now:** **W1 (opinion + broker) → R1 (deadline 17 Mar 2028) → R2.** W0, W2, R0, GL0, and GL2 are done. Alpha (N0 remainder → U0 → H0 → W3 → E0…) stays queued. **Nothing else to run until W1 returns.**
 
 **Read that ordering literally.** The wrapper and step-up branch does not wait for the cost model, because its value is not a function of trading cost. The alpha branch waits for everything. If the programme runs out of patience or capital after R2, it has already captured the majority of the value available to this taxpayer.
 
@@ -82,8 +82,9 @@ Discovery purchases exist to **kill or certify**. They are not infrastructure.
 
 | Step | Book | Spend | What it answers | Authorizes next |
 |---|---|---|---|---|
-| **First spend** | W / R | **$1,500–$3,000** written cross-border tax opinion (professional services, **not** a data SKU) | Does the 25% DTAA rate apply to an individual? Is passive US income outside Indian tax during RNOR when received in a US account? Is the pre-cliff step-up supportable against GAAR? Irish CAT on UCITS units? Any surviving effect of the 1953 India–US estate convention? Situs of listed derivatives? Schedule FA during RNOR? | **R1** — and nothing else. No capital moves without it |
-| Now | W0, W2, R0, E0, H0, U0 | **$0** | Published TERs, treaty rates, audited fund withholding, broker statements, EDGAR, the US-person desk's existing screens re-taxed | W1 / R1 / E1 |
+| **First spend** | W / R | **$1,500–$3,000** written cross-border tax opinion (professional services, **not** a data SKU) | Does the 25% DTAA rate apply to an individual? Is passive US income outside Indian tax during RNOR when received in a US account? Is the pre-cliff step-up supportable against GAAR? Irish CAT / s.75 CATCA 2003? Any surviving effect of the 1953 India–US estate convention? Situs of listed derivatives? Schedule FA during RNOR? Rule 115 / TT rate (G4)? s.198 set-off (G5)? FEMA s.6(4) + Circular 90 + Reg 7? Will the custodian hold Irish UCITS and deal LSE? | **R1** — and nothing else. No capital moves without it |
+| Done | W0, W2, R0 | **$0** | Published TERs, treaty rates, audited fund withholding, broker statements. W0 **22.04 bps/yr**; W2 **20.6 bps/yr**; R0 **180 bps** | W1 / R1 |
+| Queued · **do not run** | E0, H0, U0, N0 remainder | **$0** | EDGAR, the US-person desk's existing screens re-taxed, 200 calibration fills, US-day counter | E1 only if E0 later clears |
 | Next dollar | E1 | Norgate US Stocks Platinum **3-week trial**, then **$346.50 / 6 months** dump-and-cancel if the trial panel is complete. **This is the entire data ceiling.** **If the US-person desk has already bought this panel for B1, this programme spends $0 and reuses the dump** | Delisted PIT prices + historical constituents, 2010–2026 | E2 only if E1 passes |
 | Closed at discovery | — | **Any options tape** (Cboe DataShop, OPRA, CGI, Optsum) — Book V is closed on a pre-tax measurement · Polygon as a default · Sharadar before E1 · Databento · CRSP | — | **Do not buy** |
 
@@ -154,8 +155,8 @@ The entire rung-2 verdict is unexecutable if no accessible broker will hold Iris
 ### Build
 
 1. **In writing from the broker:** under which entity the account is held; whether LSE/Euronext-listed Irish-domiciled UCITS ETFs are tradeable and holdable in that account for an India-resident client; whether any PRIIPs/KID restriction applies; whether the USD line can be bought with already-held USD with no FX leg; whether US Treasury bills can be held directly; and confirmation that W-8BEN is on file with the Indian PAN and the withholding rate actually applied to the last dividend (verify against the 1042-S — **if the applied rate is 30%, the form is broken**).
-2. **Written cross-border tax opinion**, ceiling $1,500–$3,000, covering exactly and only: (a) the DTAA Art. 10 rate for an individual beneficial owner — 25%, not 15%; (b) that passive US portfolio income received in a US account is outside Indian tax during RNOR; (c) whether a pre-ROR sale-and-repurchase basis step-up is supportable, including GAAR; (d) Irish CAT treatment of UCITS units held by a non-Irish-resident, non-domiciled holder; (e) whether the 1953 India–US estate convention has any surviving effect on the $60,000 exemption; (f) situs of listed derivatives; (g) Schedule FA / FSI obligations during RNOR and at the transition; (h) Indian characterisation at ROR of futures P&L and of high-turnover equity P&L.
-3. FEMA note in writing: that reinvestment **within** existing foreign assets held from an NRI period is permitted and is not an LRS remittance.
+2. **Written cross-border tax opinion**, ceiling $1,500–$3,000, covering exactly and only: (a) the DTAA Art. 10 rate for an individual beneficial owner — 25%, not 15%; (b) that passive US portfolio income received in a US account is outside Indian tax during RNOR; (c) whether a pre-ROR sale-and-repurchase basis step-up is supportable, including GAAR; (d) Irish CAT treatment of UCITS units held by a non-Irish-resident, non-domiciled holder, including **s.75 CATCA 2003**; (e) whether the 1953 India–US estate convention has any surviving effect on the $60,000 exemption; (f) situs of listed derivatives; (g) Schedule FA / FSI obligations during RNOR and at the transition; (h) Indian characterisation at ROR of futures P&L and of high-turnover equity P&L; (i) **Rule 115 / TT-rate source and date (G4)**; (j) **whether other-asset losses set off against s.198 gains carrying the ₹1.25 lakh exemption (G5)**. Items (i) and (j) were added by the global programme; they add scope, not money. **Do not draft this opinion.**
+3. FEMA note in writing: that reinvestment **within** existing foreign assets held from an NRI period is permitted and is not an LRS remittance — **s.6(4) + Circular 90 + Reg 7's 180-day reading**. If the custodian cannot deal LSE, **an account transfer precedes R1** and becomes the critical path.
 
 ### Exit
 
@@ -195,11 +196,17 @@ The $60,000 situs cap is what limits the only surviving alpha candidate to a **1
 
 ### Build
 
-Obtain real quotes for term life cover sized to the W0 estate table at the sleeve's target US-situs exposure (indicatively $150k–$250k of cover for a 25% sleeve on a $500k book). Establish in writing: that the policy is enforceable and payable in time to fund a Form 706-NA liability; the jurisdiction and insurer; the annualised premium as basis points of the total book. Compare against the alternative of simply forgoing the sleeve.
+**Existing household term life is the input, not a new purchase.** Dated 2026-09-14: Insurer **Massachusetts Mutual Life Insurance Company**. Face **$1,000,000**. Annual premium **~$1,300** (working). **In force since 2022. Only life policy held.** Investor dated: the policy **stays with or without PEAD**. Issue jurisdiction, beneficiary, and 706-NA timing are **not dated** and must not be invented.
+
+**Size (working).** $1,000,000 face covers W0 Table A at every size in the envelope ($500k tax $142,800; $1M tax $332,800). Indicative 25% sleeve cover ($150k–$250k) is inside the face.
+
+**Premium.** The 10 bps Exit is **incremental sleeve cost**, not the household gross bill. Household print: **~$1,300 / $354,097.28 = 36.7 bps/yr** (26.0 bps at $500k). **Incremental cost of using spare face for estate cover: $0 / 0 bps** — dated: kept with or without Book E. **0 ≤ 10.** If E2 ever runs, charge **$0** to the sleeve, not $1,300. Do not reopen a 36.7 bps sleeve drag on this policy.
+
+When fully scored: payout usable in time for Form 706-NA. **Price + size do not lift N5 without enforceability.** Do not score enforceability while W1 is open.
 
 ### Exit
 
-Annualised premium **≤ 10 bps/yr of the book**, and enforceability documented → the situs cap lifts from $60,000 to the insured amount, the permitted sleeve weight rises to **25%**, and the premium is charged to the sleeve as a cost in E2.
+**Incremental** annualised premium **≤ 10 bps/yr of the book** (dated **0**), **and** enforceability documented → the situs cap lifts from $60,000 to the insured amount, the permitted sleeve weight rises to **25%**, and E2 charges the **incremental** premium ($0 on this policy). Until enforceability is written, **N5 stays $60,000**.
 
 ### Stop
 
@@ -219,7 +226,7 @@ From broker statements and the investor's own records, build a complete lot ledg
 
 ### Exit
 
-The step-up is worth **≥ 100 bps of capital** (N9). Working illustration, to be replaced by the real number: a book bought at USD 200k, now USD 400k, with INR at ~62 then and ~92 now, carries ~₹2.44 crore of INR-measured gain — of which ~₹0.60 crore is pure FX accretion — worth **~₹31.7 lakh ≈ USD 34,500 ≈ 863 bps of capital** at 13.0%. A book with only 30% embedded gain is nearer **390 bps**.
+The step-up is worth **≥ 100 bps of capital** (N9). **Measured (R0, 11 Sep 2026 working mark):** **180 bps** of current INR capital on a $354,097.28 Vanguard taxable book. The 200k/400k/62/92 illustration is retired. Detail: [r0-embedded-gain.md](../archive/r0-embedded-gain.md).
 
 ### Stop
 
@@ -235,7 +242,7 @@ During RNOR a realised gain on a US listed security is taxed at 0% by the US (87
 
 ### Build
 
-Execute the sale and repurchase **as one combined transaction with the W0 domicile migration**, so the desk crosses the spread once rather than twice: sell the existing (US-listed) holdings and buy the Irish accumulating USD line. Sequence and evidence:
+Execute the sale and repurchase **as one combined transaction with the domicile migration**, so the desk crosses the spread once rather than twice: sell the existing (US-listed) holdings and buy the dated Irish accumulating USD line (**CSUS+VXUA 60/40**). Sequence and evidence:
 
 1. Confirm from `residency` that the current Indian tax year is an **RNOR** year, in writing, before the first order.
 2. Confirm the W1 opinion supports the step-up.
@@ -443,9 +450,9 @@ Standing quarterly gate once live: any book missing its N9 minimum over four rol
 
 ## Critical path, stated plainly
 
-**R0 and W0 run now, in parallel, at $0.** They produce the two numbers that rank everything else: what the step-up is worth, and what the wrapper is worth. **W1 buys the opinion** — the first and most important purchase on this desk, and not a data SKU. **W2 settles physical versus synthetic at $0. R1 then executes the combined domicile migration and basis step-up inside a documented RNOR tax year**, and it is the only milestone on this desk with a deadline. **R2 makes the 24-month discipline permanent.**
+**W0, W2, and R0 are done.** Wrapper saving **22.04 bps/yr**; synthetic US-leg **20.6 bps/yr**; step-up **180 bps**. Vehicle is dated **CSUS+VXUA 60/40**. Latest safe trade date is **17 Mar 2028**. **W1 is the only remaining gate before R1** — the first and most important purchase on this desk, and not a data SKU. **Do not draft the opinion. Do not start N0 remainder, W3, E0, R2, or R1.** R1 then executes the combined domicile migration and basis step-up inside a documented RNOR tax year. **R2 makes the 24-month discipline permanent.**
 
-Only then does the alpha branch open: N0 completes the cost and situs modules, U0 inherits the listed panel, H0 publishes this desk's MDEs and closes every window-only book without a peek, **W3 prices the estate tail** — which is what decides whether an active sleeve can be large enough to matter — and **E0 re-taxes the imported PEAD screens at ROR rates against a 58 bps threshold.** E1 is the only milestone that may spend on data, at most $346.50, and plausibly $0 if the US-person desk buys the same panel first.
+Only after R1/R2 does the alpha branch open: N0 completes the cost and situs modules, U0 inherits the listed panel, H0 publishes this desk's MDEs and closes every window-only book without a peek, **W3 prices the estate tail** — which is what decides whether an active sleeve can be large enough to matter — and **E0 re-taxes the imported PEAD screens at ROR rates against a 58 bps threshold.** E1 is the only milestone that may spend on data, at most $346.50, and plausibly $0 if the US-person desk buys the same panel first.
 
 The single largest **scheduling** risk on this desk is not building L0 early. It is **letting the RNOR window expire while the programme debates alpha.** The step-up is worth more than any book on the menu, it is deterministic, it requires no forecast, and it cannot be recovered once the window closes. The plan is ordered accordingly.
 

@@ -255,3 +255,92 @@ def test_december_1256_mark() -> None:
     assert section_1256_tax(realizations[0].gain) == pytest.approx(140)
     assert marked[0].cost_basis == pytest.approx(5_500)
     assert marked[0].acquired == date(2024, 12, 31)
+
+
+def test_join_foreign_gain_transition_year_to_one_rupee() -> None:
+    from decimal import Decimal
+
+    from src.tax import (
+        INDIA_FOREIGN_LTCG_RATE,
+        INDIA_FOREIGN_STCG_RATE,
+        STCG_RATE,
+        RealisedLine,
+        ThirdJurisdictionRefused,
+        carry_through_fy,
+        cross_book_set_off,
+        dual_india_tax_on_foreign_gain,
+        india_tax_on_foreign_gain,
+        inr_measured_foreign_gain,
+        refuse_third_jurisdiction,
+        working_residency_calendar,
+    )
+
+    gain = inr_measured_foreign_gain(
+        usd_cost=Decimal(10000),
+        usd_proceeds=Decimal(12000),
+        inr_per_usd_cost=Decimal(80),
+        inr_per_usd_proceeds=Decimal(90),
+    )
+    assert gain == Decimal(280000)
+    calendar = working_residency_calendar()
+    acquired = date(2026, 1, 1)
+    rnor_close = date(2028, 3, 15)
+    ror_close = date(2028, 4, 2)
+    rnor_tax = india_tax_on_foreign_gain(
+        gain,
+        acquired=acquired,
+        closed=rnor_close,
+        receipt_in_india=False,
+        calendar=calendar,
+    )
+    ror_tax = india_tax_on_foreign_gain(
+        gain,
+        acquired=acquired,
+        closed=ror_close,
+        receipt_in_india=False,
+        calendar=calendar,
+    )
+    assert rnor_tax == Decimal(0)
+    assert ror_tax == Decimal(36400)
+    assert ror_tax == gain * INDIA_FOREIGN_LTCG_RATE
+    assert ror_tax != gain * Decimal(str(STCG_RATE))
+    rnor_report, ror_report = dual_india_tax_on_foreign_gain(
+        gain, acquired=acquired, closed=ror_close, receipt_in_india=False
+    )
+    assert rnor_report == Decimal(0)
+    assert ror_report == Decimal(36400)
+    short_tax = india_tax_on_foreign_gain(
+        gain,
+        acquired=date(2027, 6, 1),
+        closed=ror_close,
+        receipt_in_india=False,
+        calendar=calendar,
+    )
+    assert short_tax == Decimal(87360)
+    assert short_tax == gain * INDIA_FOREIGN_STCG_RATE
+
+    lines = (
+        RealisedLine("alien", gain, True, ror_close, other_asset=True),
+        RealisedLine("india", Decimal(-100000), False, ror_close, other_asset=False),
+    )
+    with_set = cross_book_set_off(lines, calendar=calendar, cross_book=True)
+    without = cross_book_set_off(lines, calendar=calendar, cross_book=False)
+    assert without.tax == Decimal(36400)
+    assert with_set.tax == Decimal(23400)
+    assert with_set.value_inr == Decimal(13000)
+    assert not with_set.g5_applied
+    pre_cliff = (
+        RealisedLine("alien", gain, True, rnor_close, other_asset=True),
+        RealisedLine("india", Decimal(-100000), False, rnor_close, other_asset=False),
+    )
+    assert cross_book_set_off(pre_cliff, calendar=calendar).value_inr == Decimal(0)
+
+    carry_lines = (RealisedLine("alien", Decimal(-50000), True, ror_close),)
+    carried = cross_book_set_off(carry_lines, calendar=calendar)
+    assert carried.tax == Decimal(0)
+    assert carried.carried_ltcl == Decimal(50000)
+    assert carried.carry_through_fy == "2036-37"
+    assert carry_through_fy(ror_close) == "2036-37"
+    with pytest.raises(ThirdJurisdictionRefused):
+        refuse_third_jurisdiction(("IN", "US", "IE"))
+

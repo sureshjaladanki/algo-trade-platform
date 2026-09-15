@@ -1,9 +1,9 @@
 # Retail US desk — measured status pack (Opus briefing)
 
 **Branch:** `us-equity`  
-**Authority:** [us-equity-architecture-blueprint.md](us-equity-architecture-blueprint.md) **Rev 1.2** · [us-equity-execution-plan.md](us-equity-execution-plan.md)  
+**Authority:** [us-equity-architecture-blueprint.md](../next/us-equity-architecture-blueprint.md) **Rev 1.2** · [us-equity-execution-plan.md](../next/us-equity-execution-plan.md)  
 **Measured through:** 2026-08-22 · **Spend to date:** $0  
-**Opus review:** 2026-09-12 — **UPDATE** → Rev 1.2. Memo: [us-equity-opus-review.md](../archive/us-equity-opus-review.md).  
+**Opus review:** 2026-09-12 — **UPDATE** → Rev 1.2. Memo: [us-equity-opus-review.md](us-equity-opus-review.md).  
 **This file:** compact results. Review questions below are answered in the memo; they are retained as the briefing that was sent.
 
 ---
@@ -49,7 +49,7 @@ Critical path as written: B0.5 → **B1** → B2 → B3 → L0. Do not buy A-tap
 | Washes | 0 · 46 harvest events · representative $100k + $500/mo DCA |
 | Gate | Pass — keep harvest, location, bands |
 | C2 | Not started (calendar, not a vendor) |
-| Detail | [c1-tax-location-proof.md](../archive/c1-tax-location-proof.md) |
+| Detail | [c1-tax-location-proof.md](c1-tax-location-proof.md) |
 
 ### Book A — index VRP (closed)
 
@@ -64,7 +64,7 @@ Critical path as written: B0.5 → **B1** → B2 → B3 → L0. Do not buy A-tap
 | A1 sign net of cost | 4/5 sub-periods; last window 2021-09–2026-12 **−0.55** (n=58) | Exit asked ≥4/5; last fold is the problem |
 | Stress raw IV−RV | 2018 +1.54, 2020 +2.06, 2024 +1.44 | Named years present |
 | Spend | $0. Cboe cart **$580** tripped $100 stop. OptionsDX + ThetaData FREE splice | Do not buy Cboe. Do not search other deltas. Do not extend to 2005–2011 |
-| Detail | [a1-vrp-existence.md](../archive/a1-vrp-existence.md) · STOP [book-a-stop.md](../archive/book-a-stop.md) |
+| Detail | [a1-vrp-existence.md](a1-vrp-existence.md) · STOP [book-a-stop.md](book-a-stop.md) |
 
 H1 identity (pre-registered 2026-08-21, before tape): book excess = `w × (sleeve − VTI) + (1−w) × C`. At w=20%, “200 bps book vs VTI” demands +1,000 bps sleeve vs VTI. A0 already showed that is unreachable. H1 remains an **L0 programme gate**, not an A2 sleeve identity.
 
@@ -78,7 +78,7 @@ H1 identity (pre-registered 2026-08-21, before tape): book excess = `w × (sleev
 | Zero-drift bound | (1−0.129)×82.3 = **71.7 bps** | ≥ 40 → B0 still *informs* B1 |
 | Membership missing mass | 62.1% left the index (promoted/demoted/delisted) | Lock 5 still requires delisted *prices* |
 | Gate | B1 Norgate trial authorized **only if you proceed** | Not Lock 5. Not certified |
-| Detail | [b05-item-202-bound.md](../archive/b05-item-202-bound.md) · [b075-tiingo-coverage.md](../archive/b075-tiingo-coverage.md) |
+| Detail | [b05-item-202-bound.md](b05-item-202-bound.md) · [b075-tiingo-coverage.md](b075-tiingo-coverage.md) |
 
 B1 exit (unchanged): net-of-cost drift ≥ **40 bps**/event on PIT panel, present in $20–100M ADV, sign-stable walk-forward. SKU: Norgate Platinum **3-week trial**, then **$346.50 / 6 months** dump-and-cancel. Not Polygon.
 

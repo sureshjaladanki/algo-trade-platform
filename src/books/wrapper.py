@@ -26,6 +26,9 @@ VXUS_TER = 0.0005  # Vanguard summary prospectus dated 2026-02-27
 CSPX_TER = 0.0007  # iShares Core S&P 500 UCITS ETF USD Acc
 XUSE_TER = 0.0015  # iShares MSCI World ex-USA UCITS ETF USD Acc
 VWRA_TER = 0.0014  # Vanguard FTSE All-World UCITS ETF USD Acc, OCF 31 Jul 2026
+# GL2 dated vehicle facts. Not W0. Do not feed irish_pair_costs / measured_pair.
+CSUS_TER = 0.0003  # iShares MSCI USA UCITS ETF USD Acc, KID 10 Sep 2026
+VXUA_TER = 0.0012  # Vanguard FTSE All-World ex-US UCITS ETF USD Acc, KIID estimate
 
 # Dividend yields used to convert a withholding *rate* into bps of NAV.
 VTI_SEC_YIELD = 0.0102  # Vanguard, SEC yield as of 2026-06-30
@@ -160,6 +163,34 @@ VWRA = LineFacts(
     investor_wht_rate=0.0,
     fund_us_wht_rate=IRISH_US_TREATY_WHT,
     withheld_of_gross_income=IRISH_US_TREATY_WHT * VWRA_US_WEIGHT,
+)
+# Dated GL2 vehicle (2026-09-14). USD line, alien desk, not US-situs, zero FX.
+# Does not replace W0 CSPX+XUSE 70/30 arithmetic.
+CSUS = LineFacts(
+    name="iShares MSCI USA UCITS ETF USD Acc",
+    ticker="CSUS",
+    isin="IE00B52SFT06",
+    domicile="IE",
+    accumulation=True,
+    replication="physical",
+    ter=CSUS_TER,
+    situs_us=False,
+    investor_wht_rate=0.0,
+    fund_us_wht_rate=IRISH_US_TREATY_WHT,
+    withheld_of_gross_income=IRISH_US_TREATY_WHT,
+)
+VXUA = LineFacts(
+    name="Vanguard FTSE All-World ex-U.S. UCITS ETF USD Acc",
+    ticker="VXUA",
+    isin="IE0009A5ADV9",
+    domicile="IE",
+    accumulation=True,
+    replication="physical",
+    ter=VXUA_TER,
+    situs_us=False,
+    investor_wht_rate=0.0,
+    fund_us_wht_rate=0.0,
+    withheld_of_gross_income=0.0,
 )
 
 
