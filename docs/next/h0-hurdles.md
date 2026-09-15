@@ -2,10 +2,11 @@
 
 Date: 2026-09-05
 Milestone: H0
-Charter: [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) §10
+Charter: [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) §10 (Rev 1.0, **SUPERSEDED 2026-09-14**)
+**Live hurdles:** [Rev 2.0 §8](india-equity-architecture-blueprint-rev2.md#8-hurdles-stop-numbers-and-the-beta-report)
 
-These numbers are locked **before any book is looked at**. A later disappointing result is not a
-reason to lower a hurdle.
+These numbers were locked **before any Rev 1.0 book was looked at**. They do not bind the live
+Rev 2.0 carry desk. A later disappointing result is not a reason to lower a hurdle.
 
 **Benchmark for H2, H3 and H7:** Nifty 50 TRI, net of **0.04% TER**, taxed at **13.0% on
 realisation**, on the same capital and the same cash-flow schedule as the sleeve under test. That is

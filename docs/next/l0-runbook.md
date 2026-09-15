@@ -2,7 +2,7 @@
 
 Date: 2026-09-05
 Milestone: L0
-Posture: [p0-posture.md](p0-posture.md)
+Posture: [Rev 2.0 §12](india-equity-architecture-blueprint-rev2.md#12-risk-and-operations--the-numbers-the-code-asserts)
 
 No live capital. No paid broker API until this milestone exits (L7, L8). Placement is the
 paper venue in `src.execute.PaperBroker`. The printed instruction list is the source of truth

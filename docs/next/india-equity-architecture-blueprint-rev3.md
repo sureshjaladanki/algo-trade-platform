@@ -3,22 +3,22 @@
 | | |
 |---|---|
 | **Date** | 2026-09-10 |
-| **Status** | **BLUEPRINT Rev 3.0 / DRAFT — competing charter; does NOT replace Rev 1.0** |
+| **Status** | **BLUEPRINT Rev 3.0 / DRAFT — competing charter; does NOT replace Rev 2.0** |
 | **Review** | Claude Opus |
 | **Scope** | Listed Indian equity **ETFs and index funds** — broad, sectoral, thematic, factor (NSE / BSE). Own capital only. |
 | **Brief** | Moderately aggressive (4/5). Horizon asked: **intraday versus ~7 calendar days (5 sessions)**. Stated motive: avoid a range-bound Nifty 50 (cited −6% vs S&P 500 +16% over one year). |
-| **Does not replace** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0, **ACTIVE**) |
-| **Also competing** | [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0, declined-beta carry) |
+| **Does not replace** | [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0, **ACTIVE**) |
+| **Superseded** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0 Nifty-beta) |
 | **Companion** | [india-equity-execution-plan-rev3.md](india-equity-execution-plan-rev3.md) |
-| **P0 posture** | **Unchanged until a human accepts Rev 3.0** ([p0-posture.md](p0-posture.md)) |
+| **P0 posture** | **Unchanged until a human accepts Rev 3.0.** Live limits are [Rev 2.0 §12](india-equity-architecture-blueprint-rev2.md#12-risk-and-operations--the-numbers-the-code-asserts) |
 | **Authorisation** | **Nothing here authorises a rupee, a module, a dependency, or a data purchase.** |
 
 ## This is a competing charter, not a re-scope
 
-Rev 1.0 is ACTIVE. [p0-posture.md](p0-posture.md), [h0-hurdles.md](h0-hurdles.md), every pre-registration
+Rev 2.0 is ACTIVE. [Rev 2.0 §12](india-equity-architecture-blueprint-rev2.md#12-risk-and-operations--the-numbers-the-code-asserts), [Rev 2.0 §8](india-equity-architecture-blueprint-rev2.md#8-hurdles-stop-numbers-and-the-beta-report), every pre-registration
 in `docs/next/` and every STOP memo in `docs/archive/` remain in force. P0, U0, H0, L1 and L2 are DONE;
 P1 is STOPPED with a packaged default; L0 is in paper. **This document changes none of that.** A human
-reads Rev 1.0, Rev 2.0 and this file and picks one.
+reads Rev 2.0 and this file and picks one.
 
 Three briefs, three charters:
 
@@ -842,7 +842,6 @@ re-checked on the day of any purchase), **W16** (Book A's hypothesised effect, d
 
 ---
 
-*Competing charter. Does not replace [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md)
-(Rev 1.0, ACTIVE), [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md)
-(Rev 2.0) or [p0-posture.md](p0-posture.md) until a human accepts it.*
+*Competing charter. Does not replace [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md)
+(Rev 2.0, ACTIVE) until a human accepts it.*
 *Companion: [india-equity-execution-plan-rev3.md](india-equity-execution-plan-rev3.md).*

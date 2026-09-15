@@ -2,9 +2,10 @@
 
 Date: 2026-09-05
 Milestone: P0
-Charter: [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md)
+Charter: [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0, **SUPERSEDED 2026-09-14**)
+**Live limits:** [Rev 2.0 §12](india-equity-architecture-blueprint-rev2.md#12-risk-and-operations--the-numbers-the-code-asserts)
 
-This memo is the written lock so a later agent cannot quietly re-scope the desk.
+This memo is the Rev 1.0 written lock. It does not re-scope the desk. Rev 2.0 is the live charter.
 
 ## Capital
 

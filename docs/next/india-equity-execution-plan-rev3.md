@@ -6,7 +6,7 @@
 | **Status** | BLUEPRINT Rev 3.0 / DRAFT — competing charter |
 | **Charter** | [india-equity-architecture-blueprint-rev3.md](india-equity-architecture-blueprint-rev3.md) (**Claude Opus**) |
 | **This plan** | Written to complete the Opus Rev 3.0 pair. Opus landed the blueprint, then `resource_exhausted` before writing the plan. Book names, gates, kills, H2-ABS, L13 and the `src/` delta are taken from that blueprint, not re-litigated. |
-| **Does not replace** | [india-equity-execution-plan.md](india-equity-execution-plan.md) (Rev 1.0, ACTIVE) |
+| **Does not replace** | [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0, ACTIVE) · [india-equity-execution-plan.md](india-equity-execution-plan.md) (Rev 1.0, superseded) |
 | **Branch** | `in-equity` |
 
 ---
@@ -24,7 +24,7 @@ Every milestone has four parts: **Why / Build / Exit / Stop**. Rules:
 5. Poetry only. No HMM, LightGBM, MLflow, Kaggle, or Polars unless a named milestone imports them.
 6. **A charter whose conclusion is “do not trade this” should not require a platform** (blueprint §10). Expected new code: one module, one extended function, one universe flag, three pre-registration files, zero new runtime dependencies.
 
-Until a human **accepts Rev 3.0**, none of V0 / K0 / F1 is more than paper. L0 continues under Rev 1.0. Nothing here authorises a rupee, a module, a dependency, or a data purchase.
+Until a human **accepts Rev 3.0**, none of V0 / K0 / F1 is more than paper. The live desk is Rev 2.0. Nothing here authorises a rupee, a module, a dependency, or a data purchase.
 
 ---
 
@@ -301,4 +301,4 @@ Use the Rev 1.0 template in [india-equity-execution-plan.md](india-equity-execut
 
 ---
 
-*Charter (Opus): [india-equity-architecture-blueprint-rev3.md](india-equity-architecture-blueprint-rev3.md). Does not replace: [india-equity-execution-plan.md](india-equity-execution-plan.md).*
+*Charter (Opus): [india-equity-architecture-blueprint-rev3.md](india-equity-architecture-blueprint-rev3.md). Does not replace: [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0, ACTIVE).*

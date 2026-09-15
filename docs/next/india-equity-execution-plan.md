@@ -3,10 +3,14 @@
 | | |
 |---|---|
 | **Date** | 2026-09-05 |
-| **Status** | BLUEPRINT Rev 1.0 / ACTIVE |
+| **Status** | **BLUEPRINT Rev 1.0 / SUPERSEDED 2026-09-14** |
 | **Review** | Claude Opus, 2026-09-05 |
-| **Charter** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) |
+| **Charter** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0, superseded) |
+| **Live charter** | [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) · milestone map [§13](india-equity-architecture-blueprint-rev2.md#13-twelve-month-staged-build) |
 | **Branch** | `in-equity` |
+
+This plan implements **superseded** Rev 1.0. Do not start a milestone from it. The live India
+milestone map is [Rev 2.0 §13](india-equity-architecture-blueprint-rev2.md#13-twelve-month-staged-build).
 
 ---
 
@@ -754,4 +758,4 @@ Author: <agent / human>
 
 ---
 
-*Charter: [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md)*
+*Superseded with Rev 1.0. Live charter: [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md).*

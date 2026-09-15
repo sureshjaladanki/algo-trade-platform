@@ -3,20 +3,23 @@
 | | |
 |---|---|
 | **Date** | 2026-09-08 |
-| **Status** | BLUEPRINT Rev 2.0 / DRAFT — competing charter for a different investor brief |
+| **Accepted** | 2026-09-14 |
+| **Status** | **BLUEPRINT Rev 2.0 / ACTIVE** |
 | **Review** | Claude Opus |
-| **Scope** | Listed Indian equity and equity derivatives (NSE / BSE). Own capital only. |
-| **Does not replace** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0) |
-| **P0 posture** | Unchanged until a human accepts Rev 2.0 |
+| **Scope** | Listed Indian equity and equity derivatives (NSE / BSE). Own capital only. Declined-beta carry desk. |
+| **Replaces** | [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0) — **SUPERSEDED 2026-09-14** |
+| **Milestone map** | [§13](#13-twelve-month-staged-build) (no separate execution-plan file; the Rev 1.0 plan is superseded with that charter) |
+| **Limits** | [§12](#12-risk-and-operations--the-numbers-the-code-asserts) · hurdles [§8](#8-hurdles-stop-numbers-and-the-beta-report) |
 
-## This is a competing design, not a re-scope
+## This is the charter
 
-Rev 1.0 (2026-09-05) is ACTIVE. [p0-posture.md](p0-posture.md), [h0-hurdles.md](h0-hurdles.md) and
-every pre-registration and STOP memo under `docs/next/` and `docs/archive/` remain in force. **This
-document changes nothing until a human reads both and picks one.** Nothing here authorises a rupee,
-a module, a dependency or a data purchase.
+A human accepted Rev 2.0 on **2026-09-14**. This document authorises the India programme: modules,
+milestones, and — after M6 — the first rupee. [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md)
+(Rev 1.0) and [india-equity-execution-plan.md](india-equity-execution-plan.md) are retained as the
+record of the **Nifty-beta charter that was not chosen**. Pre-registrations and STOP memos
+written under Rev 1.0 stay in `docs/archive/` as history; they do not reopen a Nifty-beta core.
 
-The two blueprints answer different investor briefs. Rev 1.0 was written for an investor who accepts
+The two blueprints answered different investor briefs. Rev 1.0 was written for an investor who accepts
 Indian equity beta as the default holding and wants the after-tax realisation schedule on top of it
 optimised. Rev 2.0 is written for an investor who has **declined that beta** — Nifty 50 ~−4% over
 one year against S&P 500 ~+19% — and wants net-positive rupee PnL without it. That single change
@@ -780,4 +783,4 @@ hypothesised effect, still dated 2027-08-31).
 
 ---
 
-*Competing charter. Does not replace [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0) or [p0-posture.md](p0-posture.md) until a human accepts it.*
+*Active charter. Milestone map: [§13](#13-twelve-month-staged-build). Supersedes [india-equity-architecture-blueprint.md](india-equity-architecture-blueprint.md) (Rev 1.0).*

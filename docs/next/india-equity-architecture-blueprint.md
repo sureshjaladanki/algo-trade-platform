@@ -3,16 +3,18 @@
 | | |
 |---|---|
 | **Date** | 2026-09-05 |
-| **Status** | BLUEPRINT Rev 1.0 / ACTIVE |
+| **Status** | **BLUEPRINT Rev 1.0 / SUPERSEDED 2026-09-14** |
 | **Review** | Claude Opus, 2026-09-05 |
 | **Scope** | Listed Indian equity and equity derivatives (NSE / BSE). Own capital only. |
-| **Companion** | [india-equity-execution-plan.md](india-equity-execution-plan.md) |
-| **P0 posture** | [p0-posture.md](p0-posture.md) |
+| **Replaced by** | [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0 / ACTIVE) |
+| **Companion** | [india-equity-execution-plan.md](india-equity-execution-plan.md) (superseded with this charter) |
 
-This is the charter. The execution plan turns it into milestones. Nothing in this document is a
-translation of a US desk; where a number is not sourced to an Indian statute, exchange circular or
-regulator document as of September 2026, it is tagged **(working)** and listed in
-[Appendix A](#appendix-a--working-numbers-register) with a verification owner.
+This is the **Rev 1.0 record**, not the live charter. A human accepted Rev 2.0 (declined-beta carry)
+on 2026-09-14. Do not authorise a rupee, a module, or a Nifty-beta core from this file.
+
+Nothing in this document is a translation of a US desk; where a number is not sourced to an Indian
+statute, exchange circular or regulator document as of September 2026, it is tagged **(working)**
+and listed in [Appendix A](#appendix-a--working-numbers-register) with a verification owner.
 
 ---
 
@@ -1054,4 +1056,4 @@ milestone. Verification notes: [p0-cost-verification.md](p0-cost-verification.md
 
 ---
 
-*Companion: [india-equity-execution-plan.md](india-equity-execution-plan.md)*
+*Rev 1.0 record. Replaced by [india-equity-architecture-blueprint-rev2.md](india-equity-architecture-blueprint-rev2.md) (Rev 2.0 / ACTIVE).*

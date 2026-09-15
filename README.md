@@ -22,7 +22,7 @@ poetry run pytest
 |---|---|
 | `src/` | Python package. Modules are added when a milestone needs them. `harness` is H0; `books/ledger` is L1; `portfolio` is L2; `execute` / `ops` are L0 (paper). |
 | `tests/` | Pytest |
-| `docs/next/` | Active charter: [architecture blueprint](docs/next/india-equity-architecture-blueprint.md), [execution plan](docs/next/india-equity-execution-plan.md) |
+| `docs/next/` | Active charter: [Rev 2.0 architecture blueprint](docs/next/india-equity-architecture-blueprint-rev2.md) (declined-beta carry). Milestone map [§13](docs/next/india-equity-architecture-blueprint-rev2.md#13-twelve-month-staged-build). |
 | `docs/archive/` | STOP memos, once a book closes |
 | `data/` | Panels (gitignored except `.gitkeep`) |
 | `logs/` | Run output (gitignored except `.gitkeep`) |
